@@ -8,8 +8,8 @@ pub use gfa_core::{ActionChoice, ChoiceInfo, Clock, Opponent, PlayerTurn, Search
 
 use gfa_core::serde_json::Value;
 use gfa_core::{
-    DynGame, ErrorCode, GameError, Information, LegalAction, PlayerId, SeededRng,
-    TurnStructure, Viewer,
+    DynGame, ErrorCode, GameError, Information, LegalAction, PlayerId, SeededRng, TurnStructure,
+    Viewer,
 };
 use std::{sync::Arc, time::Instant};
 

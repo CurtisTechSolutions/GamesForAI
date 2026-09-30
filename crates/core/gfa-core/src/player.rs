@@ -104,7 +104,6 @@ pub trait Opponent: Send + Sync {
     ) -> Result<ActionChoice, GameError>;
 }
 
-
 fn invalid(message: &str) -> GameError {
     GameError::new(
         ErrorCode::InvalidConfig,
