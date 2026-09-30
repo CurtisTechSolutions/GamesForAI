@@ -2,7 +2,7 @@
 use gfa_server::{Config, Database, ServerError};
 use std::path::PathBuf;
 
-const USAGE: &str = "Usage: gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT]\n\nStarts a local API on 127.0.0.1 (default port 8080).\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.";
+const USAGE: &str = "Usage: gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT] [--stockfish PATH]\n\nStarts a local API on 127.0.0.1 (default port 8080).\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.\nStockfish requires an absolute binary path, Linux, bubblewrap and working user namespaces.";
 
 fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Config>, String> {
     parse_with_env(args, |name| std::env::var(name).ok())
@@ -23,6 +23,7 @@ fn parse_with_env(
     let mut config = Config::default();
     let mut database_seen = false;
     let mut port_seen = false;
+    let mut stockfish_seen = false;
     while let Some(option) = args.next() {
         match option.as_str() {
             "--help" | "-h" => return Ok(None),
@@ -56,6 +57,14 @@ fn parse_with_env(
             #[cfg(not(feature = "postgres"))]
             "--postgres-env" => {
                 return Err("PostgreSQL requires a build with --features postgres".into())
+            }
+            "--stockfish" if !stockfish_seen => {
+                let path = PathBuf::from(args.next().ok_or("--stockfish requires an absolute binary path")?);
+                if !path.is_absolute() {
+                    return Err("--stockfish requires an absolute binary path".into());
+                }
+                config.stockfish = Some(gfa_server::StockfishConfig::linux(path));
+                stockfish_seen = true;
             }
             "--port" if !port_seen => {
                 config.port = args
@@ -123,9 +132,12 @@ mod tests {
             options(&["serve", "--sqlite", "matches.sqlite", "--port", "0"])?,
             Some(Config {
                 database: Database::Sqlite("matches.sqlite".into()),
-                port: 0
+                port: 0,
+                stockfish: None,
             })
         );
+        let configured = options(&["serve", "--stockfish", "/usr/games/stockfish"])?.ok_or("missing config")?;
+        assert_eq!(configured.stockfish, Some(gfa_server::StockfishConfig::linux("/usr/games/stockfish")));
         assert!(options(&[])?.is_none());
         assert!(options(&["--help"])?.is_none());
         Ok(())
@@ -198,6 +210,9 @@ mod tests {
             vec!["serve", "--bind", "0.0.0.0"],
             vec!["serve", "--port", "65536"],
             vec!["serve", "--port", "-1"],
+            vec!["serve", "--stockfish"],
+            vec!["serve", "--stockfish", "relative"],
+            vec!["serve", "--stockfish", "/usr/games/stockfish", "--stockfish", "/usr/games/stockfish"],
             vec!["serve", "--sqlite"],
             vec!["serve", "--sqlite", "--port"],
             vec!["serve", "--port", "80", "--port", "81"],

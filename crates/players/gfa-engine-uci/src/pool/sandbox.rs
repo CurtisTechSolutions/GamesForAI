@@ -5,7 +5,7 @@ use std::{
 };
 
 /// Trusted host policy; none of these paths or limits are accepted from a game action.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SandboxConfig {
     /// Absolute path to an installed engine with embedded evaluation data.
     pub engine: PathBuf,

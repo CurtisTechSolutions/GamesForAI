@@ -50,6 +50,7 @@ async fn streams_preserve_turn_order_and_reconnect_from_current_state() -> TestR
         &Config {
             database: Database::Sqlite(dir.path().join("live.sqlite")),
             port: 0,
+            stockfish: None,
         },
         address,
     )
@@ -130,6 +131,7 @@ async fn invalid_view_missing_match_and_foreign_origin_fail_before_upgrade() -> 
         &Config {
             database: Database::Sqlite(dir.path().join("live.sqlite")),
             port: 0,
+            stockfish: None,
         },
         address,
     )
@@ -175,6 +177,7 @@ async fn periodic_replay_recovers_commits_without_an_in_process_notification() -
         &Config {
             database: Database::Sqlite(path.clone()),
             port: 0,
+            stockfish: None,
         },
         address,
     )
@@ -221,6 +224,7 @@ async fn terminal_state_is_delivered_before_the_stream_closes() -> TestResult {
         &Config {
             database: Database::Sqlite(dir.path().join("live.sqlite")),
             port: 0,
+            stockfish: None,
         },
         address,
     )
@@ -283,6 +287,7 @@ async fn control_updates_are_delivered_even_when_turn_does_not_change() -> TestR
         &Config {
             database: Database::Sqlite(directory.path().join("controls.sqlite")),
             port: 0,
+            stockfish: None,
         },
         address,
     )

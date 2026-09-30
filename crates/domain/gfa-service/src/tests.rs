@@ -1256,6 +1256,7 @@ fn opponent_seat() -> gfa_api_types::Seat {
     gfa_api_types::Seat::Opponent {
         opponent: gfa_api_types::OpponentConfig {
             id: "random".into(),
+            uci: None,
             level: None,
             limits: Default::default(),
         },
