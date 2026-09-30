@@ -92,6 +92,7 @@ GamesForAI/
 │   ├── gfa-games/             # one sub-crate per game (independent, feature-gated)
 │   │   ├── tictactoe/
 │   │   ├── connect4/
+│   │   ├── sudoku/
 │   │   ├── chess/             # wraps `shakmaty` for move generation
 │   │   └── ...
 │   ├── gfa-opponents/         # Opponent trait + adapters (uci, gtp, mcts, minimax, random)
@@ -169,6 +170,7 @@ A type-erased `DynGame` wrapper (JSON in, JSON out) lets the server, MCP layer a
 | MVP | Tic-Tac-Toe | 2 | Perfect | Smoke test, trivially solvable | Perfect minimax |
 | MVP | Connect Four | 2 | Perfect | Solved game, graded difficulty | Bitboard negamax solver (Pons-style), depth-limited for levels |
 | MVP | Chess | 2 | Perfect | Flagship, strong engine available | **Stockfish** (UCI), Skill Level 0–20 / UCI_Elo |
+| MVP | Sudoku | 1 | Perfect | Pure constraint reasoning, cheap to build, exercises the single-player path from the start | Constraint-propagation + dancing-links solver (§6.3) |
 | P2 | Checkers (English draughts) | 2 | Perfect | Classic, solved | Alpha-beta engine |
 | P2 | Othello | 2 | Perfect | Medium complexity | Edax (GPL) or built-in alpha-beta |
 | P2 | Go (9×9, 13×13, 19×19) | 2 | Perfect | Deep planning | **KataGo** (GTP), GNU Go fallback |
@@ -177,6 +179,29 @@ A type-erased `DynGame` wrapper (JSON in, JSON out) lets the server, MCP layer a
 | P3 | Battleship | 2 | Imperfect | Inference under uncertainty | Probability-density heuristic |
 | P3 | Liar's Dice / Kuhn Poker | 2+ | Imperfect | Small game-theory testbeds | Exact Nash / CFR |
 | P3 | Hanabi | 2–5 | Imperfect, cooperative | Cooperation, theory of mind | Rule-based bots |
+
+### 6.3 Sudoku (first single-player game)
+
+Sudoku is the first single-player game and the first puzzle, so it proves early that the `Game` trait, API, info route and frontend handle one-seat games, where there is no opponent and the "result" is solving the puzzle. It is also a clean LLM reasoning benchmark: each puzzle has exactly one solution, every move can be checked, and difficulty can be graded precisely.
+
+- **Puzzle generation:** puzzles are generated from the match seed, so the same seed always gives the same puzzle. Every generated puzzle has **exactly one solution** (checked by the solver). Puzzles can also be loaded from a given grid (`puzzle: "53..7...."`, 81 characters, `.` or `0` for empty), for benchmarks and imported datasets.
+- **Config:** `size` (4×4, 6×6 or 9×9; default 9), `difficulty` (`easy`, `medium`, `hard`, `expert`), `puzzle?` (a given grid), `mistake_policy` (see below), `allow_notes` (default true), `max_moves?`.
+- **Difficulty grading:** difficulty is set by the hardest solving technique the solver needs, not by the number of clues: `easy` = singles only, `medium` = pairs and pointing, `hard` = triples, X-wing and similar, `expert` = chains or guessing. The grade and technique list are stored with the match.
+- **Actions:**
+  - `place` a digit: string `r3c5=7` (row, column, digit, 1-based), JSON `{"type": "place", "row": 3, "col": 5, "digit": 7}`.
+  - `erase` a cell: `r3c5=0`.
+  - `note` a candidate (if `allow_notes`): `r3c5+7` to add, `r3c5-7` to remove. Notes are free: they don't count as moves or affect scoring.
+  - Discrete index space for 9×9: 729 place + 81 erase + 1,458 note actions. Legal actions exclude changing a given (starting) cell. Placements that break a row, column or box rule are still legal by default, so an agent can make mistakes that can be measured; see `mistake_policy`.
+- **Mistake policy** (`mistake_policy`):
+  - `silent` (default): any digit can be placed. Mistakes are only discovered when the grid is full.
+  - `rule_check`: placing a digit that already appears in the same row, column or box is rejected as `ILLEGAL_ACTION`, with a hint naming the conflicting cell.
+  - `solution_check:n`: placing a digit that differs from the solution counts as a mistake. The game ends as failed after `n` mistakes, as in common Sudoku apps.
+- **Termination and rewards:** the game ends when the grid matches the solution (`outcome.reason: "solved"`, return +1) or on failure (`mistake_limit` or `max_moves`, return 0). Optional shaped reward: +1/81 for each correct placement and −1/81 for each wrong one. Metrics stored per match: moves, mistakes, erasures, time to solve, and the puzzle's difficulty grade.
+- **Observation:** the text form is a grid with row and column numbers and box separators, empty cells shown as `.`, plus a status line ("41 cells left, 1 mistake"). The JSON form holds `grid` (81 digits, 0 = empty), `givens` (which cells are fixed), `notes` and `conflicts` (cells currently breaking a rule). The tensor form is 9 one-hot planes plus a givens plane.
+- **Reference solver (instead of an opponent):** a constraint-propagation and dancing-links solver in Rust (solves any 9×9 in under 1 ms). It is used for generation, uniqueness checks, difficulty grading, a `hint` action via analysis (`POST /v1/analysis` returns the next logical step and the technique that finds it, if `allow_analysis`), and the "solved correctly" check. The `random` built-in player works as a baseline; there is no difficulty ladder because there is no opponent.
+- **Info route:** the `opponents` section says the game is single-player, and `example_turns` shows a `place`, a `note` and a rejected change to a given cell.
+- **Frontend:** a Phaser grid scene with givens in bold, notes drawn as small digits, conflicts highlighted, and keyboard input (arrow keys, 1–9, Backspace, `N` to toggle note mode). The replay viewer shows the grid filling in step by step, with mistakes marked.
+- **Benchmarks:** a fixed `sudoku-graded-v1` suite of seeded puzzles per difficulty, scoring solve rate, mistakes per puzzle and moves per puzzle.
 
 ## 7. Functional requirements — Opponents (built-in players)
 
@@ -453,9 +478,9 @@ Games without a custom scene fall back to a **generic text renderer** that shows
 | Milestone | Scope | Exit criteria |
 |---|---|---|
 | **M0 – Foundations** | Cargo workspace, `gfa-core` trait + `DynGame`, conformance kit, CI (fmt, clippy, test), Tic-Tac-Toe | Tic-Tac-Toe passes conformance; benchmarks in CI |
-| **M1 – Playable API** | `gfa-server` REST + WS, game info route, SQLite/Postgres store, event log, Connect Four, built-in minimax/MCTS/random opponents, OpenAPI | Full match lifecycle via curl; replays rebuild exactly |
+| **M1 – Playable API** | `gfa-server` REST + WS, game info route, SQLite/Postgres store, event log, Connect Four, Sudoku, built-in minimax/MCTS/random opponents, OpenAPI | Full match lifecycle via curl for two-player and single-player games; replays rebuild exactly |
 | **M2 – MCP + Chess** | `gfa-mcp` (stdio + HTTP), chess engine (shakmaty), UCI adapter + Stockfish, difficulty ladder | Claude completes chess games vs Stockfish levels 1–10 via MCP; illegal moves are recoverable |
-| **M3 – Frontend** | React+Phaser shell, library, play, live spectate, replay viewer, generic text renderer, chess/C4/TTT scenes | Human can play and replay all MVP games; live AI-vs-AI viewable |
+| **M3 – Frontend** | React+Phaser shell, library, play, live spectate, replay viewer, generic text renderer, chess/C4/TTT/Sudoku scenes | Human can play and replay all MVP games; live AI-vs-AI viewable |
 | **M4 – Training** | PyO3 SDK, Gymnasium/PettingZoo wrappers, VectorEnv, batch REST, exports, ratings, tournaments CLI | Throughput targets met; PPO example trains Connect Four agent that beats level 3 |
 | **M5 – Catalog expansion** | Checkers, Othello, Go + KataGo (GTP), 2048 | Each passes conformance and has a calibrated opponent ladder |
 | **M6 – Imperfect information** | Hold'em, Battleship, Kuhn/Liar's Dice, Hanabi; omniscient replay view | Hidden-info leakage tests pass; CFR baselines available |
