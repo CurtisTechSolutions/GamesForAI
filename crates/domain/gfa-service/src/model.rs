@@ -86,5 +86,5 @@ pub enum AppendResult {
     /// Events and optional command were committed atomically.
     Appended,
     /// The same command was already committed, including during a race.
-    AlreadyCommitted(MoveResult),
+    AlreadyCommitted(Box<MoveResult>),
 }

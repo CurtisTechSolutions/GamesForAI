@@ -12,7 +12,7 @@ use std::{
         atomic::{AtomicU64, AtomicU8, Ordering},
         Arc, Mutex,
     },
-    task::{Context, Poll, Wake, Waker},
+    task::{Context, Poll, Waker},
 };
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
@@ -220,7 +220,7 @@ impl MatchStore for MemoryStore {
                     .find(|previous| previous.key == command.key)
                 {
                     return if previous.request == command.request {
-                        Ok(AppendResult::AlreadyCommitted(previous.response.clone()))
+                        Ok(AppendResult::AlreadyCommitted(Box::new(previous.response.clone())))
                     } else {
                         Err(StoreError::IdempotencyConflict)
                     };
@@ -252,15 +252,11 @@ impl MatchIds for Host {
     }
 }
 
-struct Noop;
-impl Wake for Noop {
-    fn wake(self: Arc<Self>) {}
-}
 fn run<T>(future: impl Future<Output = T>) -> T {
-    let waker = Waker::from(Arc::new(Noop));
+    let waker = Waker::noop();
     match std::pin::pin!(future)
         .as_mut()
-        .poll(&mut Context::from_waker(&waker))
+        .poll(&mut Context::from_waker(waker))
     {
         Poll::Ready(result) => result,
         Poll::Pending => panic!("The in-memory fake must complete immediately"),

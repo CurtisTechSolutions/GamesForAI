@@ -186,7 +186,7 @@ impl GameService {
             .await
         {
             Ok(AppendResult::Appended) => Ok(response),
-            Ok(AppendResult::AlreadyCommitted(original)) => Ok(original),
+            Ok(AppendResult::AlreadyCommitted(original)) => Ok(*original),
             Err(StoreError::Conflict) => {
                 let mut error = error::store(StoreError::Conflict);
                 if let Ok(latest) = self.get_state(id, Viewer::Player(request.seat)).await {
