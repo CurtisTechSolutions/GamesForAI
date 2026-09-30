@@ -50,6 +50,8 @@ fn command(key: &str) -> StoredCommand {
                 returns: vec![0.0, 0.0],
                 terminated: false,
                 truncated: false,
+                outcome: None,
+                draw_offer: None,
             },
         },
     }

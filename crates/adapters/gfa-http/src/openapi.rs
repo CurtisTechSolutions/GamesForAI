@@ -6,7 +6,7 @@ use utoipa::OpenApi;
     info(title = "GamesForAI local API", description = "Single-user local play. Requests require a loopback peer and matching Host and optional Origin. Any local caller can control either seat. Bodies are limited to 64 KiB. Only implemented endpoints are listed."),
     servers((url = "/", description = "This local host")),
     paths(
-        super::history, super::metadata, super::health, super::games, super::game, super::create, super::state,
+        super::resign, super::offer_draw, super::history, super::metadata, super::health, super::games, super::game, super::create, super::state,
         super::legal_actions, super::make_move, super::replay, super::validate_position,
         super::info::game_info, super::info::match_info, super::stream::upgrade, document
     ),

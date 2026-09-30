@@ -92,6 +92,12 @@ pub struct MatchState {
     pub terminated: bool,
     /// A length or other external cap ended play.
     pub truncated: bool,
+    /// Explicit control ending, absent for ordinary engine results.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<MatchOutcome>,
+    /// Seat with a pending draw offer; a move expires the offer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draw_offer: Option<u8>,
 }
 
 /// One accepted action and the resulting view.
@@ -255,3 +261,6 @@ pub enum StreamMessage {
 
 mod history;
 pub use history::{MatchHistory, MatchHistoryQuery, MatchMetadata, MatchStatus};
+
+mod controls;
+pub use controls::{ControlRequest, MatchOutcome};

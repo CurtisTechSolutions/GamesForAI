@@ -89,6 +89,8 @@ fn build_router(
         )
         .route("/v1/matches", post(create).get(history))
         .route("/v1/matches/{id}", get(metadata))
+        .route("/v1/matches/{id}/resign", post(resign))
+        .route("/v1/matches/{id}/offer-draw", post(offer_draw))
         .route("/v1/matches/{id}/info", get(info::match_info))
         .route("/v1/matches/{id}/state", get(state))
         .route("/v1/matches/{id}/legal-actions", get(legal_actions))
@@ -354,4 +356,36 @@ async fn metadata(
     path: Id,
 ) -> Result<Json<gfa_api_types::MatchMetadata>, HttpError> {
     Ok(Json(service.get_match(&id(path)?).await?))
+}
+
+#[utoipa::path(
+    post, path = "/v1/matches/{id}/resign", tag = "Matches",
+    params(("id" = String, Path, description = "Match identifier")),
+    request_body = gfa_api_types::ControlRequest,
+    responses((status = 200, description = "Resign a one- or two-seat match.", body = MatchState),
+        (status = "default", description = "Control or turn error", body = gfa_api_types::ErrorResponse))
+)]
+async fn resign(
+    State(service): State<Arc<GameService>>,
+    path: Id,
+    body: Result<Json<gfa_api_types::ControlRequest>, JsonRejection>,
+) -> Result<Json<MatchState>, HttpError> {
+    let Json(request) = body?;
+    Ok(Json(service.resign(&id(path)?, request).await?))
+}
+
+#[utoipa::path(
+    post, path = "/v1/matches/{id}/offer-draw", tag = "Matches",
+    params(("id" = String, Path, description = "Match identifier")),
+    request_body = gfa_api_types::ControlRequest,
+    responses((status = 200, description = "Offer a draw or accept the other seat’s pending offer. A move expires the offer.", body = MatchState),
+        (status = "default", description = "Control or turn error", body = gfa_api_types::ErrorResponse))
+)]
+async fn offer_draw(
+    State(service): State<Arc<GameService>>,
+    path: Id,
+    body: Result<Json<gfa_api_types::ControlRequest>, JsonRejection>,
+) -> Result<Json<MatchState>, HttpError> {
+    let Json(request) = body?;
+    Ok(Json(service.offer_draw(&id(path)?, request).await?))
 }

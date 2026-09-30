@@ -87,6 +87,8 @@ impl GameService {
             turn: 0,
             terminated,
             truncated: false,
+            outcome: None,
+            draw_offer: None,
         };
         let view = frame.project("", game.as_ref(), viewer)?;
         let spec = game.spec();
@@ -228,6 +230,8 @@ impl GameService {
             terminated: state.terminated,
             truncated: state.truncated,
             created_at_ms: origin.created_at_ms,
+            outcome: state.outcome,
+            draw_offer: state.draw_offer,
         })
     }
 
@@ -404,6 +408,65 @@ impl GameService {
             }
             Err(error) => Err(error::store(error)),
         }
+    }
+
+    /// Resign a one- or two-seat match, preserving its engine position.
+    pub async fn resign(
+        &self,
+        id: &str,
+        request: gfa_api_types::ControlRequest,
+    ) -> Result<MatchState, ApiError> {
+        self.control(id, request, true).await
+    }
+
+    /// Offer a draw; the other seat's offer at the same turn accepts it.
+    /// Repeating one's own offer is harmless. Any subsequent move expires it.
+    pub async fn offer_draw(
+        &self,
+        id: &str,
+        request: gfa_api_types::ControlRequest,
+    ) -> Result<MatchState, ApiError> {
+        self.control(id, request, false).await
+    }
+
+    async fn control(
+        &self,
+        id: &str,
+        request: gfa_api_types::ControlRequest,
+        resign: bool,
+    ) -> Result<MatchState, ApiError> {
+        let mut record = self.record(id).await?;
+        let reconstructed = replay::reconstruct(&self.registry, &record)?;
+        let current = reconstructed.current()?;
+        let state = current.project(id, reconstructed.game.as_ref(), Viewer::Player(request.seat))?;
+        if request.turn != current.turn {
+            let mut failure = error::store(StoreError::Conflict);
+            failure.details = json!({"turn":current.turn});
+            return Err(failure);
+        }
+        if current.ended() {
+            return Err(ApiError::new("MATCH_FINISHED", "This match has ended", "Create or fork a match."));
+        }
+        let count = state.returns.len();
+        if count > 2 || (!resign && count != 2) {
+            return Err(ApiError::new("INVALID_CONFIG", "Control is unsupported for this player count",
+                "Draws require two seats; resignation supports one or two seats."));
+        }
+        if !resign && state.draw_offer == Some(request.seat) {
+            return Ok(state);
+        }
+        let event = if resign {
+            MatchEvent::Resigned { turn: request.turn, seat: request.seat, at_ms: self.clock.now_ms() }
+        } else {
+            MatchEvent::DrawOffered { turn: request.turn, seat: request.seat, at_ms: self.clock.now_ms() }
+        };
+        let revision = record.events.len() as u64;
+        record.events.push(event.clone());
+        let after = replay::reconstruct(&self.registry, &record)?;
+        let response = after.current()?.project(id, after.game.as_ref(), Viewer::Player(request.seat))?;
+        self.store.append(id, revision, vec![event], None).await.map_err(error::store)?;
+        self.observer.committed(id);
+        Ok(response)
     }
 
     async fn record(&self, id: &str) -> Result<MatchRecord, ApiError> {

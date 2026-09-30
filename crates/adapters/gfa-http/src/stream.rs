@@ -145,7 +145,7 @@ impl Subscription {
         if *self.shutdown.borrow() {
             return;
         }
-        let mut turn = initial.turn;
+        let mut last = initial.clone();
         if !send_state(&mut socket, &initial).await {
             return;
         }
@@ -186,16 +186,14 @@ impl Subscription {
             };
             match replay {
                 Ok(replay) => {
-                    let previous_turn = turn;
-                    for state in replay
-                        .states
-                        .iter()
-                        .filter(|state| state.turn > previous_turn)
-                    {
+                    for state in &replay.states {
+                        if state.turn < last.turn || (state.turn == last.turn && state == &last) {
+                            continue;
+                        }
                         if *self.shutdown.borrow() || !send_state(&mut socket, state).await {
                             return;
                         }
-                        turn = state.turn;
+                        last = state.clone();
                         if state.terminated || state.truncated {
                             let _ = send(&mut socket, Message::Close(None)).await;
                             return;

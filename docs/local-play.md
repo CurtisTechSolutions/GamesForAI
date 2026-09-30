@@ -149,3 +149,9 @@ omit the WebSocket path. Export instructions are in `schemas/README.md`.
 `GET /v1/matches/{id}` returns current public metadata reconstructed from the event log. `GET /v1/matches?game_id=tictactoe&status=finished&limit=50` scans local history in ascending match-id order. Pass the response's `next` as `after` to continue. The limit bounds records scanned before filtering, so an empty filtered page can still have a continuation. A new scan includes concurrent creations that sort before your current cursor.
 
 Metadata omits seeds, starting state, observations and reasoning. This index is for the loopback-restricted single-user mode; public multi-user hosting needs owner/visibility authorization.
+
+## Match controls
+
+Submit `{"seat":0,"turn":3}` to `POST /v1/matches/{id}/resign` to concede, or to `POST /v1/matches/{id}/offer-draw` to offer a draw. If the other seat already has a pending offer at that turn, the second offer accepts it. Repeating your own offer has no effect; a move expires it. Resignation supports one- or two-seat games, and agreed draws require two seats.
+
+Controls use the same expected-turn and atomic event-append checks as moves. They preserve the engine position and add an explicit `outcome` to the match state. A control ending is terminal, remains terminal after restart, and reaches live subscribers even when the turn number has not changed.
