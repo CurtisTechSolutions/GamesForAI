@@ -445,8 +445,16 @@ async fn fork_match(
     let Json(request) = body?;
     // This router is restricted to the single local owner by its access layer.
     // Public transports must derive ownership and full-state access from auth.
-    let result = service.fork_match(&id(path)?, request, gfa_service::ForkAccess {
-        viewer, owns_parent: true, full_state: false,
-    }).await?;
+    let result = service
+        .fork_match(
+            &id(path)?,
+            request,
+            gfa_service::ForkAccess {
+                viewer,
+                owns_parent: true,
+                full_state: false,
+            },
+        )
+        .await?;
     Ok((StatusCode::CREATED, Json(result)).into_response())
 }

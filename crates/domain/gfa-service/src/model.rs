@@ -128,8 +128,8 @@ pub enum AppendResult {
 impl MatchRecord {
     pub(crate) fn origin(&self) -> Option<&MatchOrigin> {
         match self.events.as_slice() {
-            [MatchEvent::MatchCreated(origin), ..] |
-            [MatchEvent::ForkedFrom { .. }, MatchEvent::MatchCreated(origin), ..] => Some(origin),
+            [MatchEvent::MatchCreated(origin), ..]
+            | [MatchEvent::ForkedFrom { .. }, MatchEvent::MatchCreated(origin), ..] => Some(origin),
             _ => None,
         }
     }

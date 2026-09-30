@@ -177,13 +177,19 @@ pub(crate) fn reconstruct(
         game,
     };
     let mut finished = false;
-    for event in record.events.iter().skip(if record.fork_source().is_some() { 2 } else { 1 }) {
+    for event in record
+        .events
+        .iter()
+        .skip(if record.fork_source().is_some() { 2 } else { 1 })
+    {
         let current = result.current()?;
         if finished {
             return Err(error::corrupt());
         }
         match event {
-            MatchEvent::ForkedFrom { .. } | MatchEvent::MatchCreated(_) => return Err(error::corrupt()),
+            MatchEvent::ForkedFrom { .. } | MatchEvent::MatchCreated(_) => {
+                return Err(error::corrupt())
+            }
             MatchEvent::Action(action) => {
                 if current.ended() || action.turn != current.turn {
                     return Err(error::corrupt());

@@ -944,19 +944,46 @@ fn perfect_information_does_not_opt_in_to_raw_position_disclosure() -> TestResul
 }
 
 fn fork_request(turn: u64, keep_rng: bool) -> gfa_api_types::ForkMatch {
-    gfa_api_types::ForkMatch { turn, keep_rng, seed: None, include_info: false }
+    gfa_api_types::ForkMatch {
+        turn,
+        keep_rng,
+        seed: None,
+        include_info: false,
+    }
 }
 
 #[test]
 fn forks_enforce_ownership_benchmark_and_hidden_rng_permissions() -> TestResult {
     let (service, store) = fixture()?;
     let root = run(service.create_match(create("counter"), Viewer::Player(0)))?;
-    let access = ForkAccess { viewer: Viewer::Player(0), owns_parent: false, full_state: false };
-    code(run(service.fork_match(&root.match_id, fork_request(0, false), access)), "FORBIDDEN");
-    let owner = ForkAccess { owns_parent: true, ..access };
-    code(run(service.fork_match(&root.match_id, fork_request(0, true), owner)), "FORBIDDEN");
-    code(run(service.fork_match(&root.match_id, fork_request(0, false),
-        ForkAccess { viewer: Viewer::Omniscient, ..owner })), "FORBIDDEN");
+    let access = ForkAccess {
+        viewer: Viewer::Player(0),
+        owns_parent: false,
+        full_state: false,
+    };
+    code(
+        run(service.fork_match(&root.match_id, fork_request(0, false), access)),
+        "FORBIDDEN",
+    );
+    let owner = ForkAccess {
+        owns_parent: true,
+        ..access
+    };
+    code(
+        run(service.fork_match(&root.match_id, fork_request(0, true), owner)),
+        "FORBIDDEN",
+    );
+    code(
+        run(service.fork_match(
+            &root.match_id,
+            fork_request(0, false),
+            ForkAccess {
+                viewer: Viewer::Omniscient,
+                ..owner
+            },
+        )),
+        "FORBIDDEN",
+    );
     {
         let mut records = store.records.lock().map_err(|_| "poisoned")?;
         let record = records.get_mut(&root.match_id).ok_or("record")?;
@@ -964,11 +991,21 @@ fn forks_enforce_ownership_benchmark_and_hidden_rng_permissions() -> TestResult 
             origin.benchmark_run = Some("run-1".into());
         }
     }
-    code(run(service.fork_match(&root.match_id, fork_request(0, false), owner)), "FORBIDDEN");
-    run(service.resign(&root.match_id, gfa_api_types::ControlRequest { seat: 0, turn: 0 }))?;
+    code(
+        run(service.fork_match(&root.match_id, fork_request(0, false), owner)),
+        "FORBIDDEN",
+    );
+    run(service.resign(
+        &root.match_id,
+        gfa_api_types::ControlRequest { seat: 0, turn: 0 },
+    ))?;
     let variation = run(service.fork_match(&root.match_id, fork_request(0, false), access))?;
     assert!(!variation.state.terminated);
-    assert!(record(&store, &variation.state.match_id)?.origin().ok_or("origin")?.benchmark_run.is_none());
+    assert!(record(&store, &variation.state.match_id)?
+        .origin()
+        .ok_or("origin")?
+        .benchmark_run
+        .is_none());
     Ok(())
 }
 
@@ -978,26 +1015,66 @@ fn forks_resample_observations_or_preserve_serialized_chance_exactly() -> TestRe
     let root = run(service.create_match(create("counter"), Viewer::Player(0)))?;
     run(service.make_move(&root.match_id, action(0, json!("1")), None))?;
     let before = record(&store, &root.match_id)?;
-    let owner = ForkAccess { viewer: Viewer::Player(0), owns_parent: true, full_state: false };
-    let fresh = run(service.fork_match(&root.match_id,
-        gfa_api_types::ForkMatch { seed: Some(991), ..fork_request(1, false) }, owner))?;
-    let keep = run(service.fork_match(&root.match_id, fork_request(1, true),
-        ForkAccess { full_state: true, ..owner }))?;
+    let owner = ForkAccess {
+        viewer: Viewer::Player(0),
+        owns_parent: true,
+        full_state: false,
+    };
+    let fresh = run(service.fork_match(
+        &root.match_id,
+        gfa_api_types::ForkMatch {
+            seed: Some(991),
+            ..fork_request(1, false)
+        },
+        owner,
+    ))?;
+    let keep = run(service.fork_match(
+        &root.match_id,
+        fork_request(1, true),
+        ForkAccess {
+            full_state: true,
+            ..owner
+        },
+    ))?;
     assert_eq!(record(&store, &root.match_id)?, before);
-    let source = replay::reconstruct(&service.registry, &before)?.current()?.state.clone();
+    let source = replay::reconstruct(&service.registry, &before)?
+        .current()?
+        .state
+        .clone();
     let fresh_record = record(&store, &fresh.state.match_id)?;
     let fresh_origin = fresh_record.origin().ok_or("origin")?;
     assert_eq!(fresh_origin.seed, 991);
     assert!(!fresh_origin.preserve_start_rng);
-    assert_eq!(replay::reconstruct(&service.registry, &fresh_record)?.current()?.state[1], 991);
-    assert_eq!(replay::reconstruct(&service.registry, &record(&store, &keep.state.match_id)?)?.current()?.state, source);
+    assert_eq!(
+        replay::reconstruct(&service.registry, &fresh_record)?
+            .current()?
+            .state[1],
+        991
+    );
+    assert_eq!(
+        replay::reconstruct(&service.registry, &record(&store, &keep.state.match_id)?)?
+            .current()?
+            .state,
+        source
+    );
     let root_next = run(service.make_move(&root.match_id, action(1, json!("2")), None))?;
-    let keep_next = run(service.make_move(&keep.state.match_id,
-        MoveRequest { seat: 1, turn: 0, action: json!("2"), reasoning: None }, None))?;
+    let keep_next = run(service.make_move(
+        &keep.state.match_id,
+        MoveRequest {
+            seat: 1,
+            turn: 0,
+            action: json!("2"),
+            reasoning: None,
+        },
+        None,
+    ))?;
     assert_eq!(root_next.state.observation, keep_next.state.observation);
     let lineage = run(service.get_replay(&keep.state.match_id, Viewer::Player(0)))?;
     assert_eq!(lineage.ancestors.len(), 1);
-    assert!(lineage.ancestors[0].states.iter().all(|state| state.observation.json["private"].is_null()));
+    assert!(lineage.ancestors[0]
+        .states
+        .iter()
+        .all(|state| state.observation.json["private"].is_null()));
     // Corrupt cyclic references are rejected rather than recursing indefinitely.
     {
         let mut records = store.records.lock().map_err(|_| "poisoned")?;
@@ -1014,13 +1091,22 @@ fn forks_resample_observations_or_preserve_serialized_chance_exactly() -> TestRe
 fn fork_depth_is_bounded_without_changing_existing_matches() -> TestResult {
     let (service, store) = fixture()?;
     let root = run(service.create_match(create("counter"), Viewer::Player(0)))?;
-    let access = ForkAccess { viewer: Viewer::Player(0), owns_parent: true, full_state: false };
+    let access = ForkAccess {
+        viewer: Viewer::Player(0),
+        owns_parent: true,
+        full_state: false,
+    };
     let mut id = root.match_id;
     for _ in 0..32 {
-        id = run(service.fork_match(&id, fork_request(0, false), access))?.state.match_id;
+        id = run(service.fork_match(&id, fork_request(0, false), access))?
+            .state
+            .match_id;
     }
     let before = store.records.lock().map_err(|_| "poisoned")?.len();
-    code(run(service.fork_match(&id, fork_request(0, false), access)), "INVALID_CONFIG");
+    code(
+        run(service.fork_match(&id, fork_request(0, false), access)),
+        "INVALID_CONFIG",
+    );
     assert_eq!(store.records.lock().map_err(|_| "poisoned")?.len(), before);
     Ok(())
 }
