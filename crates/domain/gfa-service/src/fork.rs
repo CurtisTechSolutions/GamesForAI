@@ -111,20 +111,20 @@ impl GameService {
             ));
         }
         let mut staged = MatchRecord {
-                id: child_id.clone(),
-                events: vec![
-                    MatchEvent::ForkedFrom {
-                        source: ForkSource {
-                            match_id: id.into(),
-                            turn: request.turn,
-                        },
-                        viewer: access.viewer,
-                        parent_revision: parent.events.len() as u64,
+            id: child_id.clone(),
+            events: vec![
+                MatchEvent::ForkedFrom {
+                    source: ForkSource {
+                        match_id: id.into(),
+                        turn: request.turn,
                     },
-                    MatchEvent::MatchCreated(child_origin.clone()),
-                ],
-                commands: vec![],
-            };
+                    viewer: access.viewer,
+                    parent_revision: parent.events.len() as u64,
+                },
+                MatchEvent::MatchCreated(child_origin.clone()),
+            ],
+            commands: vec![],
+        };
         let progress = self.automatic_replies(&mut staged).await?;
         let state = progress.frame.project(&child_id, game, access.viewer)?;
         let info = if request.include_info {
@@ -142,9 +142,7 @@ impl GameService {
         } else {
             None
         };
-        self.store.create(staged)
-            .await
-            .map_err(error::store)?;
+        self.store.create(staged).await.map_err(error::store)?;
         self.observer.committed(&state.match_id);
         Ok(CreatedMatch { state, info })
     }

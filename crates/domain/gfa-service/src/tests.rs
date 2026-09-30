@@ -1253,7 +1253,11 @@ fn analysis_assists_reject_match_and_standalone_bypasses_and_unsupported_search(
 
 fn opponent_seat() -> gfa_api_types::Seat {
     gfa_api_types::Seat::Opponent {
-        opponent: gfa_api_types::OpponentConfig { id:"random".into(), level:None, limits:Default::default() },
+        opponent: gfa_api_types::OpponentConfig {
+            id: "random".into(),
+            level: None,
+            limits: Default::default(),
+        },
         seed: Some(12345),
     }
 }
@@ -1261,14 +1265,23 @@ fn opponent_seat() -> gfa_api_types::Seat {
 struct FailingOpponentExecutor;
 impl OpponentExecutor for FailingOpponentExecutor {
     fn execute(&self, _: OpponentJob) -> OpponentFuture<'_> {
-        Box::pin(async { Err(ApiError::new("ENGINE_UNAVAILABLE", "Injected worker failure", "Retry.")) })
+        Box::pin(async {
+            Err(ApiError::new(
+                "ENGINE_UNAVAILABLE",
+                "Injected worker failure",
+                "Retry.",
+            ))
+        })
     }
 }
 
 #[test]
 fn automatic_replies_are_atomic_idempotent_and_do_not_leak_the_other_seat() -> TestResult {
     let (service, store) = fixture()?;
-    let service = service.with_opponents(Arc::new(BuiltinOpponentFactory), Arc::new(ImmediateOpponentExecutor));
+    let service = service.with_opponents(
+        Arc::new(BuiltinOpponentFactory),
+        Arc::new(ImmediateOpponentExecutor),
+    );
     let mut options = create("counter");
     options.seats = vec![gfa_api_types::Seat::SelfPlayer, opponent_seat()];
     let initial = run(service.create_match(options, Viewer::Player(0)))?;
@@ -1280,15 +1293,31 @@ fn automatic_replies_are_atomic_idempotent_and_do_not_leak_the_other_seat() -> T
     assert_eq!(first.opponent_replies.len(), 1);
     assert_eq!(first.opponent_replies[0].seat, 1);
     assert!(first.opponent_replies[0].action.is_none());
-    assert_eq!(first, run(service.make_move(&initial.match_id, request.clone(), Some("turn-zero")))?);
+    assert_eq!(
+        first,
+        run(service.make_move(&initial.match_id, request.clone(), Some("turn-zero")))?
+    );
     let saved = record(&store, &initial.match_id)?;
     assert_eq!(saved.commands.len(), 1);
-    assert!(saved.events.iter().any(|event| matches!(event, MatchEvent::Action(AppliedAction { seat:1, opponent_info:Some(_), .. }))));
-    code(run(service.make_move(&initial.match_id, action(1, json!(2)), None)), "FORBIDDEN");
+    assert!(saved.events.iter().any(|event| matches!(
+        event,
+        MatchEvent::Action(AppliedAction {
+            seat: 1,
+            opponent_info: Some(_),
+            ..
+        })
+    )));
+    code(
+        run(service.make_move(&initial.match_id, action(1, json!(2)), None)),
+        "FORBIDDEN",
+    );
     let finished = run(service.make_move(&initial.match_id, action(2, json!(1)), None))?;
     assert!(finished.state.terminated);
     assert_eq!(finished.state.turn, 4);
-    assert_eq!(first, run(service.make_move(&initial.match_id, request, Some("turn-zero")))?);
+    assert_eq!(
+        first,
+        run(service.make_move(&initial.match_id, request, Some("turn-zero")))?
+    );
     let replay = run(service.get_replay(&initial.match_id, Viewer::Player(0)))?;
     assert_eq!(replay.states.len(), 5);
     assert_eq!(replay.states[4], finished.state);
@@ -1298,15 +1327,24 @@ fn automatic_replies_are_atomic_idempotent_and_do_not_leak_the_other_seat() -> T
 #[test]
 fn worker_failure_rolls_back_the_callers_move_and_opponent_openings() -> TestResult {
     let (service, store) = fixture()?;
-    let service = service.with_opponents(Arc::new(BuiltinOpponentFactory), Arc::new(FailingOpponentExecutor));
+    let service = service.with_opponents(
+        Arc::new(BuiltinOpponentFactory),
+        Arc::new(FailingOpponentExecutor),
+    );
     let mut options = create("counter");
     options.seats = vec![gfa_api_types::Seat::SelfPlayer, opponent_seat()];
     let initial = run(service.create_match(options.clone(), Viewer::Player(0)))?;
     let before = record(&store, &initial.match_id)?;
-    code(run(service.make_move(&initial.match_id, action(0, json!(1)), Some("retry"))), "ENGINE_UNAVAILABLE");
+    code(
+        run(service.make_move(&initial.match_id, action(0, json!(1)), Some("retry"))),
+        "ENGINE_UNAVAILABLE",
+    );
     assert_eq!(record(&store, &initial.match_id)?, before);
     options.seats.reverse();
-    code(run(service.create_match(options, Viewer::Player(1))), "ENGINE_UNAVAILABLE");
+    code(
+        run(service.create_match(options, Viewer::Player(1))),
+        "ENGINE_UNAVAILABLE",
+    );
     assert_eq!(run(store.list_ids("", 100))?, vec![initial.match_id]);
     Ok(())
 }
@@ -1316,12 +1354,24 @@ fn invalid_or_unconfigured_opponent_seats_fail_before_persistence() -> TestResul
     let (service, store) = fixture()?;
     let mut options = create("counter");
     options.seats = vec![gfa_api_types::Seat::SelfPlayer, opponent_seat()];
-    code(run(service.create_match(options.clone(), Viewer::Player(0))), "ENGINE_UNAVAILABLE");
-    let service = service.with_opponents(Arc::new(BuiltinOpponentFactory), Arc::new(ImmediateOpponentExecutor));
+    code(
+        run(service.create_match(options.clone(), Viewer::Player(0))),
+        "ENGINE_UNAVAILABLE",
+    );
+    let service = service.with_opponents(
+        Arc::new(BuiltinOpponentFactory),
+        Arc::new(ImmediateOpponentExecutor),
+    );
     options.seats = vec![opponent_seat()];
-    code(run(service.create_match(options.clone(), Viewer::Player(0))), "INVALID_CONFIG");
+    code(
+        run(service.create_match(options.clone(), Viewer::Player(0))),
+        "INVALID_CONFIG",
+    );
     options.seats = vec![opponent_seat(), opponent_seat()];
-    code(run(service.create_match(options, Viewer::Player(0))), "INVALID_CONFIG");
+    code(
+        run(service.create_match(options, Viewer::Player(0))),
+        "INVALID_CONFIG",
+    );
     assert!(run(store.list_ids("", 100))?.is_empty());
     Ok(())
 }

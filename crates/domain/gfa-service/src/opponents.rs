@@ -162,8 +162,13 @@ impl OpponentFactory for BuiltinOpponentFactory {
 
 impl GameService {
     pub(crate) async fn choose_opponent(
-        &self, game: Arc<dyn DynGame>, config: Value, selection: &OpponentConfig,
-        seed: u64, seat: u8, visible: gfa_api_types::MatchState,
+        &self,
+        game: Arc<dyn DynGame>,
+        config: Value,
+        selection: &OpponentConfig,
+        seed: u64,
+        seat: u8,
+        visible: gfa_api_types::MatchState,
     ) -> Result<ActionChoice, ApiError> {
         let (factory, executor) = self.opponents.as_ref().ok_or_else(|| {
             ApiError::new(
@@ -172,8 +177,7 @@ impl GameService {
                 "Configure an opponent worker pool on the host.",
             )
         })?;
-        let (opponent, limits) =
-            factory.create(game, config, selection, seed)?;
+        let (opponent, limits) = factory.create(game, config, selection, seed)?;
         let choice = executor
             .execute(OpponentJob {
                 opponent,
@@ -197,7 +201,6 @@ impl GameService {
         }
         Ok(choice)
     }
-
 
     /// Install a player registry and a bounded host executor before serving requests.
     pub fn with_opponents(
@@ -257,7 +260,16 @@ impl GameService {
                 "Select the current player or an earlier turn.",
             ));
         }
-        let choice = self.choose_opponent(planning.game, planning.config, &request.opponent, seed, seat, visible).await?;
+        let choice = self
+            .choose_opponent(
+                planning.game,
+                planning.config,
+                &request.opponent,
+                seed,
+                seat,
+                visible,
+            )
+            .await?;
         Ok(AnalysisResult {
             advice: choice.info.advice,
             game_id: request.game_id,

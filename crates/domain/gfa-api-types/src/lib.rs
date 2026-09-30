@@ -292,4 +292,4 @@ pub use opponents::{
 };
 
 mod seats;
-pub use seats::{Seat, OpponentReply};
+pub use seats::{OpponentReply, Seat};

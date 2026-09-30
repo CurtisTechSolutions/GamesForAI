@@ -164,7 +164,11 @@ impl GameService {
             ));
         }
         // Complete bot openings on a private staging record before creating anything.
-        let mut staged = MatchRecord { id: id.clone(), events: vec![MatchEvent::MatchCreated(origin.clone())], commands: vec![] };
+        let mut staged = MatchRecord {
+            id: id.clone(),
+            events: vec![MatchEvent::MatchCreated(origin.clone())],
+            commands: vec![],
+        };
         let progress = self.automatic_replies(&mut staged).await?;
         let state = progress.frame.project(&id, game.as_ref(), viewer)?;
         let info = if include_info {
@@ -182,10 +186,7 @@ impl GameService {
         } else {
             None
         };
-        self.store
-            .create(staged)
-            .await
-            .map_err(error::store)?;
+        self.store.create(staged).await.map_err(error::store)?;
         self.observer.committed(&state.match_id);
         Ok(gfa_api_types::CreatedMatch { state, info })
     }
@@ -406,7 +407,9 @@ impl GameService {
         let mut staged = record.clone();
         staged.events.extend(events);
         let progress = self.automatic_replies(&mut staged).await?;
-        response.state = progress.frame.project(id, game, Viewer::Player(request.seat))?;
+        response.state = progress
+            .frame
+            .project(id, game, Viewer::Player(request.seat))?;
         response.opponent_replies = progress.replies;
         let events = staged.events[revision..].to_vec();
         let command = idempotency_key.map(|key| StoredCommand {
