@@ -143,3 +143,9 @@ private state from an existing match.
 response types. It lists installed routes, query/header parameters, JSON and
 Markdown briefing formats, and error envelopes. Routers without live updates
 omit the WebSocket path. Export instructions are in `schemas/README.md`.
+
+## Match history
+
+`GET /v1/matches/{id}` returns current public metadata reconstructed from the event log. `GET /v1/matches?game_id=tictactoe&status=finished&limit=50` scans local history in ascending match-id order. Pass the response's `next` as `after` to continue. The limit bounds records scanned before filtering, so an empty filtered page can still have a continuation. A new scan includes concurrent creations that sort before your current cursor.
+
+Metadata omits seeds, starting state, observations and reasoning. This index is for the authenticated-by-loopback local mode; public multi-user hosting needs owner/visibility authorization.

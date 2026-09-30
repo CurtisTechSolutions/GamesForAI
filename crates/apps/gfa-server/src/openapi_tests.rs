@@ -59,6 +59,8 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
         ("/v1/games/{game_id}", "get"),
         ("/v1/games/{game_id}/info", "get"),
         ("/v1/matches", "post"),
+        ("/v1/matches", "get"),
+        ("/v1/matches/{id}", "get"),
         ("/v1/matches/{id}/info", "get"),
         ("/v1/matches/{id}/state", "get"),
         ("/v1/matches/{id}/actions", "post"),
@@ -73,7 +75,7 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
             "missing {method} {path}"
         );
     }
-    assert_eq!(doc["paths"].as_object().map(serde_json::Map::len), Some(13));
+    assert_eq!(doc["paths"].as_object().map(serde_json::Map::len), Some(14));
     let game_info = &doc["paths"]["/v1/games/{game_id}/info"]["get"];
     assert!(game_info["responses"]["200"]["content"]["text/markdown"].is_object());
     assert!(game_info["responses"]["304"].get("content").is_none());
@@ -125,6 +127,13 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
         &initial
     ));
     let id = initial["match_id"].as_str().ok_or("id")?;
+    for (path, template) in [
+        ("/v1/matches".to_owned(), "/v1/matches"),
+        (format!("/v1/matches/{id}"), "/v1/matches/{id}"),
+    ] {
+        let (_, value) = call(&app.router, "GET", &path, Value::Null, None).await?;
+        assert!(valid(&doc, response_schema(&doc, template, "get", "200"), &value));
+    }
     let (_, moved) = call(
         &app.router,
         "POST",
