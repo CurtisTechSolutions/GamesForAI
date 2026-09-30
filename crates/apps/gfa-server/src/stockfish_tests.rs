@@ -103,7 +103,7 @@ async fn stockfish_http_seats_analysis_and_idempotency() -> Result<(), ServerErr
         .contains(&analysis["best_moves"][0]));
     assert!(analysis["evaluation"].is_null());
     assert_eq!(
-        analysis["advice"]["details"]["variations"]
+        analysis["variations"]
             .as_array()
             .ok_or("variations")?
             .len(),

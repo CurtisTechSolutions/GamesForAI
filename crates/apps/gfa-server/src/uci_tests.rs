@@ -141,3 +141,28 @@ fn multipv_retains_only_legal_lines_and_selected_move_diagnostics() -> TestResul
     );
     Ok(())
 }
+
+
+#[test]
+fn analysis_ranks_all_variations_and_rejects_duplicate_roots() -> TestResult {
+    let game = game()?;
+    let state = game.initial_state(&json!({}), 7)?;
+    let observation = game.observe(&state, Viewer::Player(0))?;
+    let legal = game.legal_actions(&state, 0)?;
+    let turn = PlayerTurn { seat: 0, observation: &observation, legal_actions: &legal };
+    let limits = SearchLimits { nodes: 1000, depth: 8, time_ms: 5000, seed: 7 };
+    let mut output = result();
+    let mut second = output.variations[0].clone();
+    second.multipv = Some(2);
+    second.pv = vec!["d2d4".into(), "d7d5".into()];
+    output.variations.insert(0, second);
+    let choices = gfa_engine_uci::validate_analysis(game.as_ref(), &json!({}), &turn, limits, &output)?;
+    assert_eq!(choices.iter().map(|choice| choice.action.string.as_str()).collect::<Vec<_>>(), ["e2e4", "d2d4"]);
+    for choice in choices {
+        assert_eq!(choice.info.principal_variation.first(), Some(&choice.action.string));
+        assert_eq!(choice.info.advice.ok_or("diagnostics")?.details["variations"].as_array().ok_or("line")?.len(), 1);
+    }
+    output.variations[0].pv = output.variations[1].pv.clone();
+    assert_eq!(gfa_engine_uci::validate_analysis(game.as_ref(), &json!({}), &turn, limits, &output), Err(OpponentError::InvalidResponse));
+    Ok(())
+}

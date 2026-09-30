@@ -63,7 +63,8 @@ impl SearchLimits {
 }
 
 /// Search diagnostics accompanying a chosen move.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::schemars::JsonSchema)]
 
 pub struct ChoiceInfo {
     /// Optional engine-provided solving explanation.
@@ -84,7 +85,8 @@ pub struct ChoiceInfo {
 }
 
 /// One legal move and optional explanatory diagnostics.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::schemars::JsonSchema)]
 
 pub struct ActionChoice {
     /// Canonical action selected from the supplied legal list.
@@ -140,6 +142,17 @@ pub trait Opponent: Send + Sync {
     ) -> Result<ActionChoice, OpponentError> {
         self.choose_action(turn, limits, clock)
             .map_err(OpponentError::Game)
+    }
+
+    /// Ranked legal analysis recommendations. Existing players return their single decision.
+    /// Hosts validate the returned list and enforce a maximum of sixteen alternatives.
+    fn analyze(
+        &self,
+        turn: &PlayerTurn<'_>,
+        limits: SearchLimits,
+        clock: &dyn Clock,
+    ) -> Result<Vec<ActionChoice>, OpponentError> {
+        self.decide(turn, limits, clock).map(|choice| vec![choice])
     }
 }
 

@@ -49,28 +49,16 @@ impl Opponent for UciOpponent {
     }
 
     fn decide(
-        &self,
-        turn: &PlayerTurn<'_>,
-        mut limits: SearchLimits,
-        clock: &dyn Clock,
+        &self, turn: &PlayerTurn<'_>, limits: SearchLimits, clock: &dyn Clock,
     ) -> Result<ActionChoice, OpponentError> {
-        limits.validate()?;
-        let started = Instant::now();
-        let position = planning_position(self.game.as_ref(), &self.config, turn, limits.seed)?;
-        if clock.now_ms() == u64::MAX {
-            return Err(OpponentError::Cancelled);
-        }
-        let elapsed = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
-        limits.time_ms = limits
-            .time_ms
-            .checked_sub(elapsed)
-            .filter(|&remaining| remaining > 0)
-            .ok_or(OpponentError::Timeout)?;
-        let result = self
-            .pool
-            .search(&position, &self.settings, limits, clock)
-            .map_err(operational)?;
+        let (result, limits) = self.search(turn, limits, clock)?;
         validate_recommendation(self.game.as_ref(), &self.config, turn, limits, &result)
+    }
+    fn analyze(
+        &self, turn: &PlayerTurn<'_>, limits: SearchLimits, clock: &dyn Clock,
+    ) -> Result<Vec<ActionChoice>, OpponentError> {
+        let (result, limits) = self.search(turn, limits, clock)?;
+        validate_analysis(self.game.as_ref(), &self.config, turn, limits, &result)
     }
 }
 
@@ -200,4 +188,66 @@ pub fn validate_recommendation(
             }),
         },
     })
+}
+
+
+impl UciOpponent {
+    fn search(
+        &self, turn: &PlayerTurn<'_>, mut limits: SearchLimits, clock: &dyn Clock,
+    ) -> Result<(SearchResult, SearchLimits), OpponentError> {
+        limits.validate()?;
+        let started = Instant::now();
+        let position = planning_position(self.game.as_ref(), &self.config, turn, limits.seed)?;
+        if clock.now_ms() == u64::MAX {
+            return Err(OpponentError::Cancelled);
+        }
+        let elapsed = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+        limits.time_ms = limits
+            .time_ms
+            .checked_sub(elapsed)
+            .filter(|&remaining| remaining > 0)
+            .ok_or(OpponentError::Timeout)?;
+        let result = self
+            .pool
+            .search(&position, &self.settings, limits, clock)
+            .map_err(operational)?;
+        Ok((result, limits))
+    }
+}
+
+
+/// Validate and return each ranked PV as a separate legal recommendation.
+/// The selected playing move can differ from PV1 when engine strength limiting is active.
+pub fn validate_analysis(
+    game: &dyn DynGame, config: &Value, turn: &PlayerTurn<'_>,
+    limits: SearchLimits, result: &SearchResult,
+) -> Result<Vec<ActionChoice>, OpponentError> {
+    let selected = validate_recommendation(game, config, turn, limits, result)?;
+    if result.variations.is_empty() { return Ok(vec![selected]); }
+    let mut lines: Vec<_> = result.variations.iter().collect();
+    lines.sort_by_key(|info| info.multipv.unwrap_or(1));
+    let mut recommendations = vec![];
+    let mut ranks = std::collections::BTreeSet::new();
+    let mut actions = std::collections::BTreeSet::new();
+    for info in lines {
+        let rank = info.multipv.unwrap_or(1);
+        if !(1..=16).contains(&rank) || !ranks.insert(rank) {
+            return Err(OpponentError::InvalidResponse);
+        }
+        let root = info.pv.first().ok_or(OpponentError::InvalidResponse)?;
+        let action = turn.legal_actions.iter().find(|action| &action.string == root)
+            .cloned().ok_or(OpponentError::InvalidResponse)?;
+        if !actions.insert(action.index) { return Err(OpponentError::InvalidResponse); }
+        let mut details = selected.info.clone();
+        details.depth = u8::try_from(info.depth.unwrap_or(0)).unwrap_or(u8::MAX);
+        details.principal_variation = info.pv.iter().take(32).cloned().collect();
+        if let Some(advice) = &mut details.advice {
+            advice.summary = format!("{} analysis rank {}: {}", result.engine_name, rank, action.string);
+            if let Some(variations) = advice.details.get_mut("variations").and_then(Value::as_array_mut) {
+                variations.retain(|line| line["rank"] == rank);
+            }
+        }
+        recommendations.push(ActionChoice { action, info: details });
+    }
+    Ok(recommendations)
 }

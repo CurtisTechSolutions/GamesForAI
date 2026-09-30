@@ -45,3 +45,11 @@ a result escapes the adapter. PVs expose at most 32 validated plies and mark
 truncation. Engine scores retain their units and root-seat perspective in
 advice.details; ChoiceInfo.evaluation remains absent because a centipawn or mate
 score is not an expected game return. All MultiPV lines are retained there.
+
+
+The shared Opponent::analyze path returns a ranked ActionChoice for each validated
+MultiPV line. The HTTP response includes these in variations and mirrors their
+actions in best_moves. Each variation carries its own depth, continuation and
+typed score metadata. The default implementation keeps single-choice players
+compatible. Analysis uses the same bounded worker capacity and cancellation
+policy as automatic moves.
