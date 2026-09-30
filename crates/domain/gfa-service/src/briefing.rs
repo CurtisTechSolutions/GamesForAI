@@ -186,7 +186,6 @@ fn game_info_with_viewer(
     Ok(result)
 }
 
-
 pub(crate) struct MatchBrief<'a> {
     pub game: &'a dyn DynGame,
     pub origin: &'a crate::MatchOrigin,
@@ -199,16 +198,27 @@ pub(crate) struct MatchBrief<'a> {
 impl MatchBrief<'_> {
     pub fn build(self, detail: InfoDetail) -> Result<Briefing, ApiError> {
         let spec = self.game.spec();
-        let seat = match self.viewer { Viewer::Player(seat) => Some(seat), _ => None };
+        let seat = match self.viewer {
+            Viewer::Player(seat) => Some(seat),
+            _ => None,
+        };
         // Validate the live projection first, including the requested seat.
         let current = self.current.project(self.id, self.game, self.viewer)?;
         let initial = self.initial.project(self.id, self.game, self.viewer)?;
-        let mut info = game_info_with_viewer(self.game, &self.origin.config, seat, detail, Some(self.viewer))?;
-        let you = seat.map(|seat| json!({"seat":seat,"name":spec.seat_names.get(usize::from(seat))}));
+        let mut info = game_info_with_viewer(
+            self.game,
+            &self.origin.config,
+            seat,
+            detail,
+            Some(self.viewer),
+        )?;
+        let you =
+            seat.map(|seat| json!({"seat":seat,"name":spec.seat_names.get(usize::from(seat))}));
         let start = if self.origin.start.is_none() {
             json!({"type":"standard"})
         } else if self.viewer == Viewer::Omniscient
-            || (spec.information == gfa_core::Information::Perfect && !spec.stochastic) {
+            || (spec.information == gfa_core::Information::Perfect && !spec.stochastic)
+        {
             json!({
                 "type":"custom",
                 "position":self.game.state_to_notation(&self.initial.state).map_err(error::engine)?

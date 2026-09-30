@@ -111,10 +111,17 @@ impl GameService {
         }
         let state = frame.project(&id, game.as_ref(), viewer)?;
         let info = if include_info {
-            Some(crate::briefing::MatchBrief {
-                game: game.as_ref(), origin: &origin, initial: &frame,
-                current: &frame, id: &id, viewer,
-            }.build(gfa_api_types::InfoDetail::Compact)?)
+            Some(
+                crate::briefing::MatchBrief {
+                    game: game.as_ref(),
+                    origin: &origin,
+                    initial: &frame,
+                    current: &frame,
+                    id: &id,
+                    viewer,
+                }
+                .build(gfa_api_types::InfoDetail::Compact)?,
+            )
         } else {
             None
         };
@@ -143,10 +150,14 @@ impl GameService {
             return Err(error::corrupt());
         };
         crate::briefing::MatchBrief {
-            game: replay.game.as_ref(), origin,
+            game: replay.game.as_ref(),
+            origin,
             initial: replay.frames.first().ok_or_else(error::corrupt)?,
-            current: replay.current()?, id, viewer,
-        }.build(detail)
+            current: replay.current()?,
+            id,
+            viewer,
+        }
+        .build(detail)
     }
 
     /// Reconstruct and project the latest committed state.

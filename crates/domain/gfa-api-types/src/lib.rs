@@ -178,7 +178,6 @@ mod tests {
 mod info;
 pub use info::{Briefing, InfoDetail, InfoSection};
 
- 
 /// Match creation response with the existing state fields and optional briefing.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct CreatedMatch {
