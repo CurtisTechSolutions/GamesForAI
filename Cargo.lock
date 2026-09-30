@@ -778,6 +778,7 @@ dependencies = [
 name = "gfa-server"
 version = "0.1.0"
 dependencies = [
+ "gfa-engine-uci",
  "gfa-game-chess",
  "axum",
  "futures-util",
