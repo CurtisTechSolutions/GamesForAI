@@ -156,7 +156,7 @@ async fn every_game_briefing_contains_executable_examples_and_matching_views() -
             "{game} compact briefing estimate: {}",
             compact.approx_tokens
         );
-        assert!(compact.approx_tokens < 2000);
+        assert!(compact.approx_tokens < 1500, "{game}: {} tokens", compact.approx_tokens);
     }
     app.store.close().await;
     Ok(())

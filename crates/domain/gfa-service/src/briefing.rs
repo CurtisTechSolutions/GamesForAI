@@ -121,7 +121,7 @@ pub(crate) fn game_info(
         "common_mistakes":guide.common_mistakes
     });
     let mut observation_data = json!({
-        "tensor_shape":initial_view["observation"]["tensor"]["shape"]
+        "tensor_shape":game.observe(&initial.state, viewer).map_err(error::engine)?.tensor.map(|tensor|tensor.shape)
     });
     let mut config_data = json!({
         "active":config,
@@ -168,7 +168,7 @@ pub(crate) fn game_info(
                 "retry":"Send the same Idempotency-Key and identical request to recover its original result.",
                 "replay":"GET /v1/matches/{id}/replay?seat={seat}"
             })),
-            section("strategy_notes", if full { "Optional basic principles." } else { "Omitted in compact mode." }, if full { json!(guide.strategy_notes) } else { Value::Null }),
+            section("strategy_notes", if !full { "Omitted in compact mode." } else if guide.strategy_notes.is_empty() { "No strategy notes supplied." } else { "Optional basic principles." }, if full { json!(guide.strategy_notes) } else { Value::Null }),
             section("limits", "No per-agent rate limiter or guaranteed observation token ceiling in local mode.", json!({"max_game_length":spec.max_game_length})),
         ],
     };
