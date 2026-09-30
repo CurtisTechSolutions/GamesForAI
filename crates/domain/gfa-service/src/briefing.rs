@@ -25,10 +25,39 @@ fn preview(
     viewer: Viewer,
     full: bool,
 ) -> Result<Value, ApiError> {
-    let mut value =
-        serde_json::to_value(frame.project("example", game, viewer)?).map_err(|_| internal())?;
+    // Use the wire representation so f32 tensor values match live JSON responses.
+    let bytes =
+        serde_json::to_vec(&frame.project("example", game, viewer)?).map_err(|_| internal())?;
+    let mut value: Value = serde_json::from_slice(&bytes).map_err(|_| internal())?;
     if let Some(object) = value.as_object_mut() {
         object.remove("match_id");
+        let mut omitted = Vec::new();
+        if full
+            && object
+                .get("action_mask")
+                .and_then(Value::as_array)
+                .is_some_and(|v| v.len() > 256)
+        {
+            object.remove("action_mask");
+            omitted.push("action_mask");
+        }
+        if full {
+            if let Some(observation) = object.get_mut("observation").and_then(Value::as_object_mut)
+            {
+                if observation
+                    .get("tensor")
+                    .and_then(|t| t.get("values"))
+                    .and_then(Value::as_array)
+                    .is_some_and(|v| v.len() > 256)
+                {
+                    observation.remove("tensor");
+                    omitted.push("observation.tensor");
+                }
+            }
+        }
+        if !omitted.is_empty() {
+            object.insert("omitted_fields".into(), json!(omitted));
+        }
         if !full {
             object.remove("action_mask");
             if let Some(actions) = object
@@ -164,7 +193,7 @@ fn game_info_with_viewer(
         config_data["schema"] = spec.config_schema;
     }
     let mut result = Briefing {
-        info_version: format!("{}+briefing.1", spec.info_version),
+        info_version: format!("{}+briefing.2", spec.info_version),
         approx_tokens: 0,
         sections: vec![
             section("identity", spec.summary, json!({
@@ -182,7 +211,7 @@ fn game_info_with_viewer(
                 "max_game_length":spec.max_game_length
             })),
             section("objective", guide.objective, Value::Null),
-            section("rules", spec.rules_markdown, Value::Null),
+            section("rules", if full { spec.rules_markdown } else { game.compact_rules() }, Value::Null),
             section("action_format", spec.action_notation, action_data),
             section("observation_format", format!("{} {}", guide.observation, guide.tensor), observation_data),
             section("initial_state", "Synthetic standard start, seed 0; independent of every live match.", initial_view),
