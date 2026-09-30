@@ -41,3 +41,24 @@ fn sandboxed_stockfish_searches_and_reuses_process() -> Result<(), Box<dyn std::
     assert!(legal.contains(&first.best_move.as_str()));
     Ok(())
 }
+
+
+#[test]
+#[ignore = "requires the CI sandbox probe executable"]
+fn sandbox_is_read_only_without_host_network_environment_or_capabilities() -> Result<(), Box<dyn std::error::Error>> {
+    let engine = std::env::var("GFA_UCI_SANDBOX_PROBE")?;
+    let pool = EnginePool::new(SandboxConfig::linux(engine))?;
+    let position = UciPosition {
+        initial_fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1".into(),
+        moves: vec![], chess960: false,
+    };
+    let result = pool.search(
+        &position, &Settings::default(),
+        SearchLimits { nodes: 100, depth: 2, time_ms: 5000, seed: 7 }, &TestClock,
+    )?;
+    let host_network = std::fs::read_link("/proc/self/ns/net")?;
+    assert!(result.engine_name.starts_with("SandboxProbe net:["));
+    assert!(!result.engine_name.contains(&*host_network.to_string_lossy()));
+    assert_eq!(result.best_move, "e2e4");
+    Ok(())
+}

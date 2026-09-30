@@ -9,12 +9,24 @@ jobs:
   stockfish:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    env:
+      GFA_UCI_SANDBOX_PROBE: /tmp/gfa-uci-sandbox-probe
+      GFA_SANDBOX_CANARY: must-not-reach-engine
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Install engine isolation tools
         run: sudo apt-get update && sudo apt-get install -y stockfish bubblewrap
+      - name: Load the distribution's bubblewrap AppArmor profile
+        run: |
+          if [ -f /etc/apparmor.d/bwrap-userns-restrict ]; then
+            sudo apparmor_parser -r /etc/apparmor.d/bwrap-userns-restrict
+          else
+            sudo apparmor_parser -r /etc/apparmor.d/bwrap
+          fi
+      - name: Build isolation probe
+        run: cc -Wall -Wextra -Werror -O2 .github/scripts/uci-sandbox-probe.c -o "$GFA_UCI_SANDBOX_PROBE"
       - name: Build real engine integration test
         run: cargo test -p gfa-engine-uci --test stockfish --no-run --locked
       - name: Check sandbox startup
