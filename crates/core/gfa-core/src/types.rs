@@ -203,3 +203,26 @@ impl PlayGuide {
         Ok(())
     }
 }
+
+/// Explanation attached to a game-provided reference recommendation.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct AdviceInfo {
+    /// Human-readable next step.
+    pub summary: String,
+    /// Stable technique or solver identifier.
+    pub technique: String,
+    /// True when the recommendation uses search beyond the supported logical rules.
+    pub is_guess: bool,
+    /// Game-specific evidence, such as candidate eliminations leading to a placement.
+    pub details: Value,
+}
+
+/// One game-provided reference action and its explanation.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Advice<A> {
+    /// Legal next action.
+    pub action: A,
+    /// Explanation derived from the supplied planning state.
+    pub info: AdviceInfo,
+}

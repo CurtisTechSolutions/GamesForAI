@@ -84,6 +84,9 @@ pub struct AnalysisRequest {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct AnalysisResult {
+    /// Optional reference-solver explanation and technique evidence.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advice: Option<gfa_core::AdviceInfo>,
     /// Registered game.
     pub game_id: String,
     /// Opponent identifier.

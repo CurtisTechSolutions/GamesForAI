@@ -3,9 +3,9 @@ use crate::{error, planning::AssistKind, GameService};
 use gfa_api_types::{
     AnalysisRequest, AnalysisResult, ApiError, OpponentConfig, OpponentLevel, OpponentSpec,
 };
-use gfa_core::{DynGame, GameSpec, Information, LegalAction, Observation, TurnStructure, Viewer};
+use gfa_core::{DynGame, Information, LegalAction, Observation, TurnStructure, Viewer};
 use gfa_opponents::{
-    ActionChoice, Algorithm, Clock, Opponent, PlayerTurn, Random, SearchLimits, SearchOpponent,
+    ActionChoice, Algorithm, Clock, Opponent, PlayerTurn, Random, SearchLimits, SearchOpponent, ReferenceOpponent,
 };
 use serde_json::Value;
 use std::{future::Future, pin::Pin, sync::Arc};
@@ -17,7 +17,7 @@ pub type OpponentFuture<'a> =
 /// Select installed players without exposing live state or transport details.
 pub trait OpponentFactory: Send + Sync {
     /// Stable catalog for this game.
-    fn catalog(&self, game: &GameSpec) -> Vec<OpponentSpec>;
+    fn catalog(&self, game: &dyn DynGame) -> Vec<OpponentSpec>;
     /// Construct one player with validated options and limits.
     fn create(
         &self,
@@ -82,8 +82,12 @@ fn spec(id: &str, name: &str, levels: bool) -> OpponentSpec {
 }
 
 impl OpponentFactory for BuiltinOpponentFactory {
-    fn catalog(&self, game: &GameSpec) -> Vec<OpponentSpec> {
+    fn catalog(&self, game: &dyn DynGame) -> Vec<OpponentSpec> {
         let mut catalog = vec![spec("random", "Uniform random", false)];
+        if game.supports_reference_advice() {
+            catalog.push(spec("reference", "Reference solver", false));
+        }
+        let game = game.spec();
         if game.information == Information::Perfect
             && !game.stochastic
             && game.turn_structure == TurnStructure::Sequential
@@ -105,7 +109,7 @@ impl OpponentFactory for BuiltinOpponentFactory {
         seed: u64,
     ) -> Result<(Arc<dyn Opponent>, SearchLimits), ApiError> {
         if !self
-            .catalog(&game.spec())
+            .catalog(game.as_ref())
             .iter()
             .any(|spec| spec.id == opponent.id)
         {
@@ -115,11 +119,11 @@ impl OpponentFactory for BuiltinOpponentFactory {
                 "Select an installed opponent from the game's catalog.",
             ));
         }
-        if opponent.id == "random" && opponent.level.is_some() {
+        if matches!(opponent.id.as_str(), "random" | "reference") && opponent.level.is_some() {
             return Err(ApiError::new(
                 "INVALID_CONFIG",
-                "Random has no difficulty levels",
-                "Omit level for the random opponent.",
+                "This opponent has no difficulty levels",
+                "Omit level for random and reference opponents.",
             ));
         }
         let mut limits =
@@ -136,6 +140,7 @@ impl OpponentFactory for BuiltinOpponentFactory {
         limits.validate().map_err(error::engine)?;
         let player: Arc<dyn Opponent> = match opponent.id.as_str() {
             "random" => Arc::new(Random),
+            "reference" => Arc::new(ReferenceOpponent::new(game, config).map_err(error::engine)?),
             "minimax" => Arc::new(
                 SearchOpponent::new(game, config, Algorithm::Minimax).map_err(error::engine)?,
             ),
@@ -171,7 +176,7 @@ impl GameService {
         Ok(self
             .opponents
             .as_ref()
-            .map_or_else(Vec::new, |(factory, _)| factory.catalog(&game.spec())))
+            .map_or_else(Vec::new, |(factory, _)| factory.catalog(game.as_ref())))
     }
 
     /// Recommend legal moves without modifying events, clocks, or idempotency receipts.
@@ -244,6 +249,7 @@ impl GameService {
             ));
         }
         Ok(AnalysisResult {
+            advice: choice.info.advice,
             game_id: request.game_id,
             opponent: request.opponent.id,
             seed,

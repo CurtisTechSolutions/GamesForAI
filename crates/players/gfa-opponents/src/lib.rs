@@ -1,6 +1,8 @@
 //! Bounded, observation-only in-process opponents.
 mod mcts;
 mod minimax;
+mod reference;
+pub use reference::ReferenceOpponent;
 
 use gfa_core::serde::{Deserialize, Serialize};
 use gfa_core::serde_json::Value;
@@ -89,6 +91,9 @@ impl SearchLimits {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(crate = "gfa_core::serde")]
 pub struct ChoiceInfo {
+    /// Optional engine-provided solving explanation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub advice: Option<gfa_core::AdviceInfo>,
     /// Algorithm identifier.
     pub algorithm: String,
     /// Number of visited nodes.
@@ -234,6 +239,7 @@ fn invalid(message: &str) -> GameError {
 fn choice(action: LegalAction, algorithm: &str) -> ActionChoice {
     ActionChoice {
         info: ChoiceInfo {
+            advice: None,
             algorithm: algorithm.into(),
             nodes: 0,
             depth: 0,

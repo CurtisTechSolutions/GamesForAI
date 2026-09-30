@@ -113,3 +113,35 @@ async fn real_analysis_finds_a_win_without_mutating_history_and_reports_uncalibr
     app.store.close().await;
     Ok(())
 }
+
+#[tokio::test]
+async fn sudoku_reference_solver_plays_only_through_generic_analysis_and_moves() -> Result<(), ServerError> {
+    let directory = tempfile::tempdir()?;
+    let app = fixture(&config(&directory)).await?;
+    let (_, catalog) = call(&app.router, "GET", "/v1/games/sudoku/opponents", Value::Null, None).await?;
+    assert!(catalog.as_array().ok_or("catalog")?.iter().any(|item| item["id"] == "reference"));
+    let (_, mut state) = call(&app.router, "POST", "/v1/matches", json!({
+        "game_id":"sudoku", "config":{"size":4}, "seed":42,
+        "assists":{"allow_analysis":true}
+    }), None).await?;
+    let id = state["match_id"].as_str().ok_or("id")?.to_owned();
+    for _ in 0..16 {
+        if state["terminated"] == true { break; }
+        let (status, result) = call(&app.router, "POST", "/v1/analysis", json!({
+            "game_id":"sudoku","from":{"match_id":id,"seat":0},
+            "opponent":{"id":"reference"},"seed":7
+        }), None).await?;
+        assert_eq!(status, StatusCode::OK, "{result}");
+        assert!(result["advice"]["summary"].as_str().is_some_and(|s| !s.is_empty()));
+        assert!(state["legal_actions"].as_array().ok_or("legal")?.contains(&result["best_moves"][0]));
+        let (status, moved) = call(&app.router, "POST", &format!("/v1/matches/{id}/actions"), json!({
+            "seat":0,"turn":state["turn"],"action":result["best_moves"][0]["json"]
+        }), None).await?;
+        assert_eq!(status, StatusCode::OK);
+        state = moved["state"].clone();
+    }
+    assert_eq!(state["returns"], json!([1.0]));
+    assert_eq!(state["observation"]["json"]["outcome"], "solved");
+    app.store.close().await;
+    Ok(())
+}

@@ -1,4 +1,5 @@
 mod actions;
+mod advice;
 mod view;
 
 use crate::{
@@ -104,6 +105,15 @@ impl Game for Sudoku {
             position_notation: "size²-character puzzle grid (./0 empty); JSON State for lossless in-progress exports including notes and metrics.".into(),
             config_schema: schema::<Config>(), action_schema: schema::<Action>(), observation_schema: schema::<BoardView>(),
         }
+    }
+
+    fn supports_reference_advice() -> bool {
+        true
+    }
+
+    fn reference_advice(state: &State, player: PlayerId) -> Result<Option<gfa_core::Advice<Action>>, GameError> {
+        Self::validate_state(state)?;
+        advice::recommend(state, player)
     }
 
     fn play_guide() -> Option<gfa_core::PlayGuide> {
