@@ -285,3 +285,23 @@ async fn corrupt_event_sequences_fail_instead_of_returning_partial_history() -> 
     store.close().await;
     Ok(())
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn fresh_database_initialization_precedes_pool_expansion() -> TestResult {
+    let directory = tempfile::tempdir()?;
+    for iteration in 0..32 {
+        let path = directory.path().join(format!("fresh-{iteration}.sqlite"));
+        let store = SqliteMatchStore::open(&path).await?;
+        store.create(new_record("startup")).await?;
+        assert_eq!(store.load("startup").await?, Some(new_record("startup")));
+        store.close().await;
+        let restored = SqliteMatchStore::open(&path).await?;
+        assert_eq!(restored.load("startup").await?, Some(new_record("startup")));
+        restored.close().await;
+    }
+    let memory = SqliteMatchStore::in_memory().await?;
+    memory.create(new_record("memory")).await?;
+    assert_eq!(memory.load("memory").await?, Some(new_record("memory")));
+    memory.close().await;
+    Ok(())
+}
