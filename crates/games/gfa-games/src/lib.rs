@@ -11,6 +11,8 @@ pub fn registry() -> Result<GameRegistry, GameError> {
     registry.register::<gfa_game_connect4::Connect4>()?;
     #[cfg(feature = "sudoku")]
     registry.register::<gfa_game_sudoku::Sudoku>()?;
+    #[cfg(feature = "chess")]
+    registry.register::<gfa_game_chess::ChessGame>()?;
     Ok(registry)
 }
 

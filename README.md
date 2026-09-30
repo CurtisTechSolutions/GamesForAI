@@ -84,3 +84,16 @@ observations. Authorized in-process omniscient exports also include the initial
 engine state and RNG seed, so custom starts and forked histories can be rebuilt
 exactly. The ordinary REST views omit those private inputs. Full responses have
 a 16 MiB budget; larger histories remain available through paginated events.
+
+## Chess
+
+Chess is enabled by default and uses the same create, move, simulate, fork,
+analysis and replay routes. Submit UCI moves such as `e2e4`, `e1g1` or `a7a8n`,
+or the structured/index representation from `legal_actions`. White is seat 0.
+`GET /v1/games/chess/info` explains draw claims and every encoding.
+
+Use `start: {"position":"<six-field FEN>"}` for a custom board. A bare FEN begins
+new repetition history; complete played-state JSON keeps the original position
+and actions. Replay and forks retain that history. The engine accepts standard
+chess only. Generic random/search opponents are available; Stockfish integration
+is tracked separately.

@@ -47,7 +47,7 @@ fn data<'a>(info: &'a Briefing, id: &str) -> Result<&'a Value, ServerError> {
 async fn every_game_briefing_contains_executable_examples_and_matching_views() -> TestResult {
     let dir = tempfile::tempdir()?;
     let app = fixture(&config(&dir)).await?;
-    for game in ["tictactoe", "connect4", "sudoku"] {
+    for game in ["tictactoe", "connect4", "sudoku", "chess"] {
         let path = format!("/v1/games/{game}/info");
         let (status, _, body) = raw(&app.router, &path, None).await?;
         assert_eq!(status, StatusCode::OK);
@@ -154,6 +154,8 @@ async fn every_game_briefing_contains_executable_examples_and_matching_views() -
             data(&compact, "observation_format")?["tensor_shape"],
             if game == "tictactoe" {
                 json!([3, 3, 3])
+            } else if game == "chess" {
+                json!([20, 8, 8])
             } else if game == "sudoku" {
                 json!([10, 9, 9])
             } else {
