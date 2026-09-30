@@ -51,6 +51,9 @@ pub enum EventData {
         /// RNG seed, disclosed only to an explicitly authorized omniscient caller.
         #[serde(skip_serializing_if = "Option::is_none")]
         seed: Option<u64>,
+        /// Complete starting state, disclosed only to an authorized omniscient caller.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        initial_state: Option<Value>,
         /// Player assignments.
         seats: Vec<Seat>,
         /// Recorded assistance policy.

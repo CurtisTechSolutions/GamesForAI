@@ -77,3 +77,10 @@ event to the authorized player or spectator: private actions, reasoning, chance
 events, match seeds, and internal fork permissions are omitted when unauthorized.
 Own reasoning is available immediately; other reasoning in perfect-information
 games becomes available after completion.
+
+Full replay bundles include the game/version, normalized config, event revision,
+projected events (including reasoning and controls), and reconstructed per-turn
+observations. Authorized in-process omniscient exports also include the initial
+engine state and RNG seed, so custom starts and forked histories can be rebuilt
+exactly. The ordinary REST views omit those private inputs. Full responses have
+a 16 MiB budget; larger histories remain available through paginated events.
