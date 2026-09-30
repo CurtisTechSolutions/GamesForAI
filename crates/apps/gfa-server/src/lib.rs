@@ -1,7 +1,7 @@
 //! Local server composition: registry, lifecycle service, persistence, and HTTP.
 mod runner;
-mod workers;
 mod stockfish;
+mod workers;
 pub use stockfish::StockfishConfig;
 
 use gfa_service::{Clock, GameService, MatchIds, MatchStore};
@@ -134,10 +134,7 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
     let service = Arc::new(
         GameService::new(registry, store.port(), host.clone(), host)
             .with_observer(updates.clone())
-            .with_opponents(
-                opponents,
-                Arc::new(workers::Workers::new(4)),
-            ),
+            .with_opponents(opponents, Arc::new(workers::Workers::new(4))),
     );
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
     Ok(Application {

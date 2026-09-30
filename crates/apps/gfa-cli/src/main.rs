@@ -59,7 +59,10 @@ fn parse_with_env(
                 return Err("PostgreSQL requires a build with --features postgres".into())
             }
             "--stockfish" if !stockfish_seen => {
-                let path = PathBuf::from(args.next().ok_or("--stockfish requires an absolute binary path")?);
+                let path = PathBuf::from(
+                    args.next()
+                        .ok_or("--stockfish requires an absolute binary path")?,
+                );
                 if !path.is_absolute() {
                     return Err("--stockfish requires an absolute binary path".into());
                 }
@@ -136,8 +139,12 @@ mod tests {
                 stockfish: None,
             })
         );
-        let configured = options(&["serve", "--stockfish", "/usr/games/stockfish"])?.ok_or("missing config")?;
-        assert_eq!(configured.stockfish, Some(gfa_server::StockfishConfig::linux("/usr/games/stockfish")));
+        let configured =
+            options(&["serve", "--stockfish", "/usr/games/stockfish"])?.ok_or("missing config")?;
+        assert_eq!(
+            configured.stockfish,
+            Some(gfa_server::StockfishConfig::linux("/usr/games/stockfish"))
+        );
         assert!(options(&[])?.is_none());
         assert!(options(&["--help"])?.is_none());
         Ok(())
@@ -212,7 +219,13 @@ mod tests {
             vec!["serve", "--port", "-1"],
             vec!["serve", "--stockfish"],
             vec!["serve", "--stockfish", "relative"],
-            vec!["serve", "--stockfish", "/usr/games/stockfish", "--stockfish", "/usr/games/stockfish"],
+            vec![
+                "serve",
+                "--stockfish",
+                "/usr/games/stockfish",
+                "--stockfish",
+                "/usr/games/stockfish",
+            ],
             vec!["serve", "--sqlite"],
             vec!["serve", "--sqlite", "--port"],
             vec!["serve", "--port", "80", "--port", "81"],
