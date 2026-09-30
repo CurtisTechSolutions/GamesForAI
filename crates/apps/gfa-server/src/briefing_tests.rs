@@ -338,20 +338,29 @@ async fn match_briefings_cover_custom_starts_opt_out_and_restart() -> TestResult
     Ok(())
 }
 
-
 fn assert_preview_matches(preview: &Value, actual: &Value) -> Result<(), ServerError> {
     let mut expected = actual.clone();
     let object = expected.as_object_mut().ok_or("state")?;
     object.remove("match_id");
     object.remove("info");
     let mut preview = preview.clone();
-    if let Some(omitted) = preview.as_object_mut().ok_or("preview")?.remove("omitted_fields") {
+    if let Some(omitted) = preview
+        .as_object_mut()
+        .ok_or("preview")?
+        .remove("omitted_fields")
+    {
         for field in omitted.as_array().ok_or("omitted fields")? {
             match field.as_str().ok_or("field")? {
-                "action_mask" => { object.remove("action_mask").ok_or("missing live mask")?; }
+                "action_mask" => {
+                    object.remove("action_mask").ok_or("missing live mask")?;
+                }
                 "observation.tensor" => {
-                    object.get_mut("observation").and_then(Value::as_object_mut)
-                        .ok_or("observation")?.remove("tensor").ok_or("missing live tensor")?;
+                    object
+                        .get_mut("observation")
+                        .and_then(Value::as_object_mut)
+                        .ok_or("observation")?
+                        .remove("tensor")
+                        .ok_or("missing live tensor")?;
                 }
                 unknown => return Err(format!("Unexpected omitted field {unknown}").into()),
             }
@@ -364,15 +373,29 @@ fn assert_preview_matches(preview: &Value, actual: &Value) -> Result<(), ServerE
 #[tokio::test]
 async fn chess_briefings_fit_prompt_budgets_without_changing_live_state() -> TestResult {
     let dir = tempfile::tempdir()?;
-    let store = std::sync::Arc::new(gfa_store::SqliteMatchStore::open(dir.path().join("briefing.sqlite")).await?);
+    let store = std::sync::Arc::new(
+        gfa_store::SqliteMatchStore::open(dir.path().join("briefing.sqlite")).await?,
+    );
     let mut registry = gfa_core::GameRegistry::default();
     registry.register::<gfa_game_chess::ChessGame>()?;
     let host = std::sync::Arc::new(Host);
     let service = gfa_service::GameService::new(registry, store.clone(), host.clone(), host);
-    let compact = service.get_game_info("chess", &json!({}), None, gfa_api_types::InfoDetail::Compact)?;
+    let compact = service.get_game_info(
+        "chess",
+        &json!({}),
+        None,
+        gfa_api_types::InfoDetail::Compact,
+    )?;
     let full = service.get_game_info("chess", &json!({}), None, gfa_api_types::InfoDetail::Full)?;
-    println!("chess compact={} full={}", compact.approx_tokens, full.approx_tokens);
-    assert!(compact.approx_tokens < 1500, "compact {}", compact.approx_tokens);
+    println!(
+        "chess compact={} full={}",
+        compact.approx_tokens, full.approx_tokens
+    );
+    assert!(
+        compact.approx_tokens < 1500,
+        "compact {}",
+        compact.approx_tokens
+    );
     assert!(full.approx_tokens < 6000, "full {}", full.approx_tokens);
     let registry = {
         let mut registry = gfa_core::GameRegistry::default();
@@ -383,9 +406,18 @@ async fn chess_briefings_fit_prompt_budgets_without_changing_live_state() -> Tes
     let state = game.initial_state(&json!({}), 0)?;
     let native = game.observe(&state, gfa_core::Viewer::Player(0))?;
     let wire: Value = serde_json::from_slice(&serde_json::to_vec(&native)?)?;
-    assert_eq!(data(&full, "initial_state")?["observation"]["json"], wire["json"]);
-    assert_eq!(data(&full, "initial_state")?["observation"]["text"], wire["text"]);
-    assert_eq!(data(&full, "initial_state")?["omitted_fields"], json!(["action_mask","observation.tensor"]));
+    assert_eq!(
+        data(&full, "initial_state")?["observation"]["json"],
+        wire["json"]
+    );
+    assert_eq!(
+        data(&full, "initial_state")?["observation"]["text"],
+        wire["text"]
+    );
+    assert_eq!(
+        data(&full, "initial_state")?["omitted_fields"],
+        json!(["action_mask", "observation.tensor"])
+    );
     assert_eq!(native.tensor.as_ref().map(|t| t.values.len()), Some(1280));
     assert_eq!(game.action_mask(&state, 0)?.len(), 9345);
     assert!(data(&compact, "action_format")?.get("schema").is_none());

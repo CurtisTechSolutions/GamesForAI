@@ -26,25 +26,38 @@ fn preview(
     full: bool,
 ) -> Result<Value, ApiError> {
     // Use the wire representation so f32 tensor values match live JSON responses.
-    let bytes = serde_json::to_vec(&frame.project("example", game, viewer)?)
-        .map_err(|_| internal())?;
+    let bytes =
+        serde_json::to_vec(&frame.project("example", game, viewer)?).map_err(|_| internal())?;
     let mut value: Value = serde_json::from_slice(&bytes).map_err(|_| internal())?;
     if let Some(object) = value.as_object_mut() {
         object.remove("match_id");
         let mut omitted = Vec::new();
-        if full && object.get("action_mask").and_then(Value::as_array).is_some_and(|v| v.len() > 256) {
+        if full
+            && object
+                .get("action_mask")
+                .and_then(Value::as_array)
+                .is_some_and(|v| v.len() > 256)
+        {
             object.remove("action_mask");
             omitted.push("action_mask");
         }
         if full {
-            if let Some(observation) = object.get_mut("observation").and_then(Value::as_object_mut) {
-                if observation.get("tensor").and_then(|t| t.get("values")).and_then(Value::as_array).is_some_and(|v| v.len() > 256) {
+            if let Some(observation) = object.get_mut("observation").and_then(Value::as_object_mut)
+            {
+                if observation
+                    .get("tensor")
+                    .and_then(|t| t.get("values"))
+                    .and_then(Value::as_array)
+                    .is_some_and(|v| v.len() > 256)
+                {
                     observation.remove("tensor");
                     omitted.push("observation.tensor");
                 }
             }
         }
-        if !omitted.is_empty() { object.insert("omitted_fields".into(), json!(omitted)); }
+        if !omitted.is_empty() {
+            object.insert("omitted_fields".into(), json!(omitted));
+        }
         if !full {
             object.remove("action_mask");
             if let Some(actions) = object
