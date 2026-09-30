@@ -14,6 +14,13 @@ pub trait Game: Send + Sync + 'static {
 
     /// Rules and generated schemas.
     fn spec() -> GameSpec;
+    /// Explanations for model briefings. Registered games must supply a valid guide.
+    ///
+    /// The default preserves compatibility for existing in-process engines.
+    fn play_guide() -> Option<crate::PlayGuide> {
+        None
+    }
+
     /// Create a state, rejecting unsupported configuration.
     fn new_initial_state(config: &Self::Config, seed: u64) -> Result<Self::State, GameError>;
     /// Validate state received through a persistence or API boundary.

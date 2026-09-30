@@ -8,6 +8,17 @@ use std::{collections::BTreeMap, marker::PhantomData, sync::Arc};
 pub trait DynGame: Send + Sync {
     /// Game metadata and schemas.
     fn spec(&self) -> GameSpec;
+    /// Explanations for model briefings, if supplied by the engine.
+    fn play_guide(&self) -> Option<crate::PlayGuide> {
+        None
+    }
+    /// Normalize defaults through the engine's config type.
+    ///
+    /// Engines with custom implementations should override this when defaults
+    /// need materializing. Initial-state construction still validates the options.
+    fn normalize_config(&self, config: &Value) -> Result<Value, GameError> {
+        Ok(config.clone())
+    }
     /// Create an initial state from validated configuration.
     fn initial_state(&self, config: &Value, seed: u64) -> Result<Value, GameError>;
     /// Validate a JSON state before accepting it from a caller.
@@ -110,6 +121,14 @@ impl<G: Game> GameAdapter<G> {
 impl<G: Game> DynGame for GameAdapter<G> {
     fn spec(&self) -> GameSpec {
         G::spec()
+    }
+
+    fn play_guide(&self) -> Option<crate::PlayGuide> {
+        G::play_guide()
+    }
+
+    fn normalize_config(&self, config: &Value) -> Result<Value, GameError> {
+        Ok(serde_json::to_value(Self::config(config)?)?)
     }
 
     fn initial_state(&self, config: &Value, seed: u64) -> Result<Value, GameError> {

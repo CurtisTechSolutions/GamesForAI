@@ -84,6 +84,19 @@ impl Game for TicTacToe {
         }
     }
 
+    fn play_guide() -> Option<gfa_core::PlayGuide> {
+        Some(gfa_core::PlayGuide {
+            objective: "Place three of your marks in one row, column, or diagonal to win. A full board without a line is a draw. The game ends on the first win.".into(),
+            observation: "Text rows r1..r3 run top to bottom; columns c1..c3 run left to right. X is seat 0, O is seat 1, and . is empty. JSON board has nine row-major cells: null, 0, or 1; to_move is the next seat. Both seats and spectators see the entire board.".into(),
+            tensor: "Shape [3,3,3], row-major. Planes 0, 1, and 2 mark X, O, and empty cells respectively; values are 0 or 1.".into(),
+            rewards: "Terminal returns are +1 for the winner, -1 for the loser, and 0 each for a draw. Returns before termination are 0. Shaped rewards are not supported.".into(),
+            config: "No configurable fields. Use {} for standard 3-by-3 Tic-Tac-Toe.".into(),
+            solved: "Solved: perfect play by both seats draws.".into(),
+            common_mistakes: vec!["Rows and columns are one-based; discrete indices are zero-based.".into(), "An occupied cell is illegal. Use only the legal actions for the current seat.".into()],
+            strategy_notes: vec!["Take an immediate win; otherwise block an immediate loss.".into(), "The centre and corners can create multiple threats.".into()],
+        })
+    }
+
     fn new_initial_state(_: &Config, _: u64) -> Result<State, GameError> {
         Ok(State {
             board: [None; 9],
