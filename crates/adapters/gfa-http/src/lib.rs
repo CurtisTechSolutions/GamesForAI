@@ -5,6 +5,7 @@
 //! It does not issue seat credentials and must not be mounted behind a public proxy.
 mod access;
 mod error;
+mod info;
 mod stream;
 
 pub use stream::LiveUpdates;
@@ -67,6 +68,7 @@ fn build_router(
         .route("/healthz", get(health))
         .route("/v1/games", get(games))
         .route("/v1/games/{game_id}", get(game))
+        .route("/v1/games/{game_id}/info", get(info::game_info))
         .route("/v1/matches", post(create))
         .route("/v1/matches/{id}/state", get(state))
         .route("/v1/matches/{id}/legal-actions", get(legal_actions))

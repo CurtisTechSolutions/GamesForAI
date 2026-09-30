@@ -15,3 +15,5 @@ pub use service::GameService;
 
 #[cfg(test)]
 mod tests;
+
+mod briefing;

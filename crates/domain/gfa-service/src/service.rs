@@ -52,6 +52,18 @@ impl GameService {
         self.registry.specs()
     }
 
+    /// Generate a deterministic model briefing from this engine's standard start.
+    pub fn get_game_info(
+        &self,
+        game_id: &str,
+        config: &Value,
+        seat: Option<u8>,
+        detail: gfa_api_types::InfoDetail,
+    ) -> Result<gfa_api_types::Briefing, ApiError> {
+        let game = self.registry.get(game_id).map_err(error::engine)?;
+        crate::briefing::game_info(game.as_ref(), config, seat, detail)
+    }
+
     /// Validate inputs and persist an immutable match origin.
     pub async fn create_match(
         &self,

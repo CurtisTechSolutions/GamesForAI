@@ -39,7 +39,7 @@ impl From<ApiError> for HttpError {
             }
             "UNAUTHORIZED" => StatusCode::FORBIDDEN,
             "ENGINE_UNAVAILABLE" | "STORAGE_UNAVAILABLE" => StatusCode::SERVICE_UNAVAILABLE,
-            "INVALID_EVENT_LOG" => StatusCode::INTERNAL_SERVER_ERROR,
+            "INVALID_EVENT_LOG" | "INVALID_BRIEFING" => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::UNPROCESSABLE_ENTITY,
         };
         Self { status, error }

@@ -9,7 +9,7 @@ use tower::ServiceExt;
 
 type TestResult = Result<(), ServerError>;
 
-async fn call(
+pub(super) async fn call(
     router: &axum::Router,
     method: &str,
     path: &str,
@@ -43,13 +43,13 @@ fn match_id(body: &Value) -> Result<String, ServerError> {
         .map(str::to_owned)
         .ok_or_else(|| "missing match ID".into())
 }
-fn config(directory: &tempfile::TempDir) -> Config {
+pub(super) fn config(directory: &tempfile::TempDir) -> Config {
     Config {
         sqlite: directory.path().join("matches.sqlite"),
         port: 8080,
     }
 }
-async fn fixture(config: &Config) -> Result<Application, ServerError> {
+pub(super) async fn fixture(config: &Config) -> Result<Application, ServerError> {
     application(config, SocketAddr::from(([127, 0, 0, 1], 8080))).await
 }
 

@@ -78,10 +78,10 @@ pub(crate) async fn guard(
         )
         .into_response()
     };
-    response.headers_mut().insert(
-        header::CACHE_CONTROL,
-        header::HeaderValue::from_static("no-store"),
-    );
+    response
+        .headers_mut()
+        .entry(header::CACHE_CONTROL)
+        .or_insert(header::HeaderValue::from_static("no-store"));
     response.headers_mut().insert(
         header::X_CONTENT_TYPE_OPTIONS,
         header::HeaderValue::from_static("nosniff"),
