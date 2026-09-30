@@ -58,17 +58,40 @@ pub(crate) fn corrupt() -> ApiError {
     )
 }
 
-
 pub(crate) fn opponent(error: gfa_core::OpponentError) -> ApiError {
     use gfa_core::OpponentError;
     let (code, message, hint) = match error {
         OpponentError::Game(error) => return engine(error),
-        OpponentError::Busy => ("ENGINE_BUSY", "All opponent workers are busy", "Retry after a running request finishes."),
-        OpponentError::Timeout => ("ENGINE_TIMEOUT", "Opponent exceeded its time budget", "Increase the move budget or select another opponent."),
-        OpponentError::Cancelled => ("ENGINE_CANCELLED", "Opponent request was cancelled", "Read the current match state before retrying."),
-        OpponentError::BudgetExhausted => ("BUDGET_EXHAUSTED", "Opponent usage budget is exhausted", "Change the configured budget before requesting another decision."),
-        OpponentError::InvalidResponse => ("ENGINE_INVALID_RESPONSE", "Opponent returned an invalid recommendation", "Select another opponent and report the provider failure."),
-        _ => ("ENGINE_UNAVAILABLE", "Opponent is unavailable", "Check the configured provider or installed engine."),
+        OpponentError::Busy => (
+            "ENGINE_BUSY",
+            "All opponent workers are busy",
+            "Retry after a running request finishes.",
+        ),
+        OpponentError::Timeout => (
+            "ENGINE_TIMEOUT",
+            "Opponent exceeded its time budget",
+            "Increase the move budget or select another opponent.",
+        ),
+        OpponentError::Cancelled => (
+            "ENGINE_CANCELLED",
+            "Opponent request was cancelled",
+            "Read the current match state before retrying.",
+        ),
+        OpponentError::BudgetExhausted => (
+            "BUDGET_EXHAUSTED",
+            "Opponent usage budget is exhausted",
+            "Change the configured budget before requesting another decision.",
+        ),
+        OpponentError::InvalidResponse => (
+            "ENGINE_INVALID_RESPONSE",
+            "Opponent returned an invalid recommendation",
+            "Select another opponent and report the provider failure.",
+        ),
+        _ => (
+            "ENGINE_UNAVAILABLE",
+            "Opponent is unavailable",
+            "Check the configured provider or installed engine.",
+        ),
     };
     ApiError::new(code, message, hint)
 }
@@ -86,7 +109,10 @@ mod tests {
             (OpponentError::Cancelled, "ENGINE_CANCELLED"),
             (OpponentError::BudgetExhausted, "BUDGET_EXHAUSTED"),
             (OpponentError::InvalidResponse, "ENGINE_INVALID_RESPONSE"),
-            (OpponentError::Game(GameError::illegal("bad input")), "ILLEGAL_ACTION"),
+            (
+                OpponentError::Game(GameError::illegal("bad input")),
+                "ILLEGAL_ACTION",
+            ),
         ] {
             assert_eq!(opponent(input).code, code);
         }

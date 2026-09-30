@@ -138,7 +138,8 @@ pub trait Opponent: Send + Sync {
         limits: SearchLimits,
         clock: &dyn Clock,
     ) -> Result<ActionChoice, OpponentError> {
-        self.choose_action(turn, limits, clock).map_err(OpponentError::Game)
+        self.choose_action(turn, limits, clock)
+            .map_err(OpponentError::Game)
     }
 }
 

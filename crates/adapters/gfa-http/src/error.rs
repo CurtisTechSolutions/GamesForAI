@@ -61,7 +61,6 @@ impl IntoResponse for HttpError {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;

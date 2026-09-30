@@ -285,7 +285,6 @@ impl GameService {
     }
 }
 
-
 #[cfg(test)]
 mod failure_tests {
     use super::*;
@@ -293,25 +292,43 @@ mod failure_tests {
     fn jobs_use_the_operational_entry_point() -> Result<(), Box<dyn std::error::Error>> {
         struct Failure;
         impl Opponent for Failure {
-            fn choose_action(&self, _: &PlayerTurn<'_>, _: SearchLimits, _: &dyn Clock)
-                -> Result<ActionChoice, gfa_core::GameError> {
+            fn choose_action(
+                &self,
+                _: &PlayerTurn<'_>,
+                _: SearchLimits,
+                _: &dyn Clock,
+            ) -> Result<ActionChoice, gfa_core::GameError> {
                 Err(gfa_core::GameError::illegal("legacy input error"))
             }
-            fn decide(&self, _: &PlayerTurn<'_>, _: SearchLimits, _: &dyn Clock)
-                -> Result<ActionChoice, gfa_core::OpponentError> {
+            fn decide(
+                &self,
+                _: &PlayerTurn<'_>,
+                _: SearchLimits,
+                _: &dyn Clock,
+            ) -> Result<ActionChoice, gfa_core::OpponentError> {
                 Err(gfa_core::OpponentError::Timeout)
             }
         }
         struct Frozen;
-        impl Clock for Frozen { fn now_ms(&self) -> u64 { 0 } }
+        impl Clock for Frozen {
+            fn now_ms(&self) -> u64 {
+                0
+            }
+        }
         let observation: Observation = serde_json::from_value(serde_json::json!({
             "json": {}, "text": "", "tensor": null
         }))?;
         let job = OpponentJob {
-            opponent: Arc::new(Failure), seat: 0, observation, legal_actions: vec![],
+            opponent: Arc::new(Failure),
+            seat: 0,
+            observation,
+            legal_actions: vec![],
             limits: SearchLimits::for_level(1, 0)?,
         };
-        assert_eq!(job.run(&Frozen).err().ok_or("expected error")?.code, "ENGINE_TIMEOUT");
+        assert_eq!(
+            job.run(&Frozen).err().ok_or("expected error")?.code,
+            "ENGINE_TIMEOUT"
+        );
         Ok(())
     }
 }
