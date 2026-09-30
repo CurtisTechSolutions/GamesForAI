@@ -100,6 +100,7 @@ fn build_router(
         .route("/v1/matches", post(create).get(history))
         .route("/v1/matches/{id}", get(metadata))
         .route("/v1/matches/{id}/resign", post(resign))
+        .route("/v1/matches/{id}/fork", post(fork_match))
         .route("/v1/matches/{id}/offer-draw", post(offer_draw))
         .route("/v1/matches/{id}/info", get(info::match_info))
         .route("/v1/matches/{id}/state", get(state))
@@ -424,4 +425,28 @@ async fn simulate(
             .simulate(&id(path)?, request, Viewer::Player(seat))
             .await?,
     ))
+}
+
+#[utoipa::path(
+    post, path = "/v1/matches/{id}/fork", tag = "Matches",
+    params(("id" = String, Path, description = "Parent match identifier"),
+        ("seat" = Option<u8>, Query, description = "Authorized local seat, default 0", minimum = 0, maximum = 255)),
+    request_body = gfa_api_types::ForkMatch,
+    responses((status = 201, description = "Independent variation with optional briefing", body = gfa_api_types::CreatedMatch),
+        (status = "default", description = "Invalid turn or fork permission", body = gfa_api_types::ErrorResponse))
+)]
+async fn fork_match(
+    State(service): State<Arc<GameService>>,
+    path: Id,
+    query: View,
+    body: Result<Json<gfa_api_types::ForkMatch>, JsonRejection>,
+) -> Result<Response, HttpError> {
+    let viewer = Viewer::Player(view(query)?.seat.unwrap_or(0));
+    let Json(request) = body?;
+    // This router is restricted to the single local owner by its access layer.
+    // Public transports must derive ownership and full-state access from auth.
+    let result = service.fork_match(&id(path)?, request, gfa_service::ForkAccess {
+        viewer, owns_parent: true, full_state: false,
+    }).await?;
+    Ok((StatusCode::CREATED, Json(result)).into_response())
 }

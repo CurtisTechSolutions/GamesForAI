@@ -91,6 +91,10 @@ pub(crate) fn initial(game: &dyn DynGame, origin: &MatchOrigin) -> Result<Frame,
         .map_err(error::engine)?;
     let state = match &origin.start {
         None => default,
+        Some(gfa_api_types::Start::State { state }) if origin.preserve_start_rng => {
+            game.validate_state(state).map_err(error::engine)?;
+            state.clone()
+        }
         Some(start) => crate::position::import(game, &origin.config, start, origin.seed)?,
     };
     if game.is_terminal(&state).map_err(error::engine)?
@@ -145,9 +149,12 @@ pub(crate) fn reconstruct(
     registry: &GameRegistry,
     record: &MatchRecord,
 ) -> Result<Reconstructed, ApiError> {
-    let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+    let Some(origin) = record.origin() else {
         return Err(error::corrupt());
     };
+    if origin.preserve_start_rng && record.fork_source().is_none() {
+        return Err(error::corrupt());
+    }
     let game = registry.get(&origin.game_id).map_err(|_| {
         ApiError::new(
             "ENGINE_UNAVAILABLE",
@@ -162,7 +169,7 @@ pub(crate) fn reconstruct(
             "Replay with the original engine version.",
         ));
     }
-    if record.events.len() as u64 > u64::from(game.spec().max_game_length) * 2 + 4 {
+    if record.events.len() as u64 > u64::from(game.spec().max_game_length) * 2 + 5 {
         return Err(error::corrupt());
     }
     let mut result = Reconstructed {
@@ -170,13 +177,13 @@ pub(crate) fn reconstruct(
         game,
     };
     let mut finished = false;
-    for event in record.events.iter().skip(1) {
+    for event in record.events.iter().skip(if record.fork_source().is_some() { 2 } else { 1 }) {
         let current = result.current()?;
         if finished {
             return Err(error::corrupt());
         }
         match event {
-            MatchEvent::MatchCreated(_) => return Err(error::corrupt()),
+            MatchEvent::ForkedFrom { .. } | MatchEvent::MatchCreated(_) => return Err(error::corrupt()),
             MatchEvent::Action(action) => {
                 if current.ended() || action.turn != current.turn {
                     return Err(error::corrupt());

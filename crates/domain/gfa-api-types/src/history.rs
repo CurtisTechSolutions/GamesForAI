@@ -19,6 +19,9 @@ pub enum MatchStatus {
 pub struct MatchMetadata {
     /// Match identifier.
     pub match_id: String,
+    /// Immutable parent reference for a variation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub forked_from: Option<crate::ForkSource>,
     /// Registered game identifier.
     pub game_id: String,
     /// Engine version used for reconstruction.

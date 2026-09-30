@@ -36,7 +36,7 @@ impl From<ApiError> for HttpError {
             "STALE_TURN" | "IDEMPOTENCY_CONFLICT" | "MATCH_FINISHED" | "ID_CONFLICT" => {
                 StatusCode::CONFLICT
             }
-            "UNAUTHORIZED" | "ASSIST_NOT_ALLOWED" => StatusCode::FORBIDDEN,
+            "UNAUTHORIZED" | "ASSIST_NOT_ALLOWED" | "FORBIDDEN" => StatusCode::FORBIDDEN,
             "ENGINE_UNAVAILABLE" | "STORAGE_UNAVAILABLE" => StatusCode::SERVICE_UNAVAILABLE,
             "INVALID_EVENT_LOG" | "INVALID_BRIEFING" => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::UNPROCESSABLE_ENTITY,
