@@ -1,5 +1,5 @@
-//! Local server composition: registry, lifecycle service, SQLite, and HTTP.
-use gfa_service::{Clock, GameService, MatchIds};
+//! Local server composition: registry, lifecycle service, persistence, and HTTP.
+use gfa_service::{Clock, GameService, MatchIds, MatchStore};
 use gfa_store::SqliteMatchStore;
 use std::{
     error::Error,
@@ -18,8 +18,8 @@ pub type ServerError = Box<dyn Error + Send + Sync>;
 /// Configuration for auth-disabled, single-user local play.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Config {
-    /// Database file; its parent directory must already exist.
-    pub sqlite: PathBuf,
+    /// Persistent storage backend.
+    pub database: Database,
     /// Loopback port. Zero lets the OS select an available port.
     pub port: u16,
 }
@@ -27,8 +27,62 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
-            sqlite: "gfa.sqlite".into(),
+            database: Database::Sqlite("gfa.sqlite".into()),
             port: 8080,
+        }
+    }
+}
+
+/// Storage backend selected at startup.
+#[derive(Clone, PartialEq, Eq)]
+pub enum Database {
+    /// SQLite file; its parent directory must already exist.
+    Sqlite(PathBuf),
+    /// PostgreSQL URL. Debug output redacts credentials and connection details.
+    #[cfg(feature = "postgres")]
+    Postgres(String),
+}
+
+impl std::fmt::Debug for Database {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sqlite(path) => formatter.debug_tuple("Sqlite").field(path).finish(),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(_) => formatter.write_str("Postgres([redacted])"),
+        }
+    }
+}
+
+enum Store {
+    Sqlite(Arc<SqliteMatchStore>),
+    #[cfg(feature = "postgres")]
+    Postgres(Arc<gfa_store::PostgresMatchStore>),
+}
+
+impl Store {
+    async fn open(database: &Database) -> Result<Self, ServerError> {
+        match database {
+            Database::Sqlite(path) => Ok(Self::Sqlite(Arc::new(SqliteMatchStore::open(path).await?))),
+            #[cfg(feature = "postgres")]
+            Database::Postgres(url) => Ok(Self::Postgres(Arc::new(
+                gfa_store::PostgresMatchStore::connect(url).await?,
+            ))),
+        }
+    }
+
+    fn port(&self) -> Arc<dyn MatchStore> {
+        match self {
+            Self::Sqlite(store) => store.clone(),
+            #[cfg(feature = "postgres")]
+            Self::Postgres(store) => store.clone(),
+        }
+    }
+
+    async fn close(&self) {
+        match self {
+            Self::Sqlite(store) => store.close().await,
+            #[cfg(feature = "postgres")]
+            Self::Postgres(store) => store.close().await,
         }
     }
 }
@@ -56,7 +110,7 @@ impl MatchIds for Host {
 
 struct Application {
     router: axum::Router,
-    store: Arc<SqliteMatchStore>,
+    store: Store,
     updates: Arc<gfa_http::LiveUpdates>,
     #[cfg(test)]
     service: Arc<GameService>,
@@ -64,11 +118,11 @@ struct Application {
 
 async fn application(config: &Config, address: SocketAddr) -> Result<Application, ServerError> {
     let registry = gfa_games::registry()?;
-    let store = Arc::new(SqliteMatchStore::open(&config.sqlite).await?);
+    let store = Store::open(&config.database).await?;
     let host = Arc::new(Host);
     let updates = Arc::new(gfa_http::LiveUpdates::default());
     let service = Arc::new(
-        GameService::new(registry, store.clone(), host.clone(), host)
+        GameService::new(registry, store.port(), host.clone(), host)
             .with_observer(updates.clone()),
     );
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
@@ -84,7 +138,7 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
 /// Bind loopback, migrate the database, and serve until shutdown completes.
 ///
 /// The address is printed after startup succeeds. A graceful shutdown drains HTTP
-/// requests before closing SQLite. This local mode has no agent authentication.
+/// requests before closing the database pool. This local mode has no agent authentication.
 pub async fn serve(
     config: Config,
     shutdown: impl Future<Output = ()> + Send + 'static,

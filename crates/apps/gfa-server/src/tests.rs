@@ -45,7 +45,7 @@ fn match_id(body: &Value) -> Result<String, ServerError> {
 }
 pub(super) fn config(directory: &tempfile::TempDir) -> Config {
     Config {
-        sqlite: directory.path().join("matches.sqlite"),
+        database: Database::Sqlite(directory.path().join("matches.sqlite")),
         port: 8080,
     }
 }

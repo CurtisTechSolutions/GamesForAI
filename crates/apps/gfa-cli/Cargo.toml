@@ -8,6 +8,10 @@ license.workspace = true
 name = "gfa"
 path = "src/main.rs"
 
+[features]
+default = []
+postgres = ["gfa-server/postgres"]
+
 [dependencies]
 gfa-server.workspace = true
 tokio.workspace = true
