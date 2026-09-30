@@ -1,9 +1,11 @@
 //! Pure Sudoku puzzle validation, exact-cover solving, and seeded generation.
 mod cover;
+mod generation;
 mod grading;
 mod grid;
 
 use gfa_core::{GameError, SeededRng};
+pub use generation::{generate_graded, supported_difficulties};
 pub use grading::{grade, hint, Candidate, Difficulty, Grade, Hint, Technique};
 pub use grid::Grid;
 

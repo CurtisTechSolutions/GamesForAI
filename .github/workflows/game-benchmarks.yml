@@ -20,5 +20,3 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo bench -p gfa-game-sudoku --bench solve --locked
-      - name: Discover technique-graded puzzles
-        run: cargo run -p gfa-game-sudoku --example discover-grades --release --locked
