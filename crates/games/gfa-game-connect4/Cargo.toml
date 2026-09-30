@@ -1,0 +1,14 @@
+[package]
+name = "gfa-game-connect4"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gfa-core.workspace = true
+
+[dev-dependencies]
+gfa-testkit.workspace = true
+
+[lints]
+workspace = true
