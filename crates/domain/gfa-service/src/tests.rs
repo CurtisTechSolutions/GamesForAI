@@ -947,6 +947,7 @@ fn perfect_information_does_not_opt_in_to_raw_position_disclosure() -> TestResul
 
 fn fork_request(turn: u64, keep_rng: bool) -> gfa_api_types::ForkMatch {
     gfa_api_types::ForkMatch {
+        seats: None,
         turn,
         keep_rng,
         seed: None,
