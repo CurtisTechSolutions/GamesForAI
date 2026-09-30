@@ -69,7 +69,10 @@ fn build_router(
         .route("/v1/games", get(games))
         .route("/v1/games/{game_id}", get(game))
         .route("/v1/games/{game_id}/info", get(info::game_info))
-        .route("/v1/games/{game_id}/positions/validate", post(validate_position))
+        .route(
+            "/v1/games/{game_id}/positions/validate",
+            post(validate_position),
+        )
         .route("/v1/matches", post(create))
         .route("/v1/matches/{id}/info", get(info::match_info))
         .route("/v1/matches/{id}/state", get(state))
@@ -236,7 +239,6 @@ async fn method_not_allowed() -> HttpError {
 #[cfg(test)]
 mod tests;
 
-
 async fn validate_position(
     State(service): State<Arc<GameService>>,
     path: Id,
@@ -245,5 +247,9 @@ async fn validate_position(
 ) -> Result<Json<gfa_api_types::ValidatedPosition>, HttpError> {
     let Json(request) = body?;
     let viewer = Viewer::Player(view(query)?.seat.unwrap_or(0));
-    Ok(Json(service.validate_position(&id(path)?, request, viewer)?))
+    Ok(Json(service.validate_position(
+        &id(path)?,
+        request,
+        viewer,
+    )?))
 }

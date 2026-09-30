@@ -11,7 +11,9 @@ pub(crate) fn import(
     seed: u64,
 ) -> Result<Value, ApiError> {
     let state = match start {
-        Start::Position { position } => game.state_from_notation(config, position).map_err(error::engine)?,
+        Start::Position { position } => game
+            .state_from_notation(config, position)
+            .map_err(error::engine)?,
         Start::State { state } => {
             game.validate_state(state).map_err(error::engine)?;
             state.clone()

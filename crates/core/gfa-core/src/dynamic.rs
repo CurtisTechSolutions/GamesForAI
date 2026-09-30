@@ -24,7 +24,9 @@ pub trait DynGame: Send + Sync {
     /// Replace an imported position's future randomness while preserving its board.
     fn reseed(&self, state: &Value, _seed: u64) -> Result<Value, GameError> {
         if self.spec().stochastic {
-            return Err(GameError::position("This stochastic engine does not support reseeding"));
+            return Err(GameError::position(
+                "This stochastic engine does not support reseeding",
+            ));
         }
         self.validate_state(state)?;
         Ok(state.clone())

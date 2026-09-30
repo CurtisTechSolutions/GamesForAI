@@ -39,9 +39,15 @@ pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
         G::reseed(&mut same_seed, seed + 100)?;
         G::validate_state(&reseeded)?;
         assert_eq!(to_value(&reseeded)?, to_value(&same_seed)?);
-        assert_eq!(G::observe(&reseeded, Viewer::Spectator), G::observe(&state, Viewer::Spectator));
+        assert_eq!(
+            G::observe(&reseeded, Viewer::Spectator),
+            G::observe(&state, Viewer::Spectator)
+        );
         for seat in 0..spec.num_players[0] {
-            assert_eq!(G::observe(&reseeded, Viewer::Player(seat)), G::observe(&state, Viewer::Player(seat)));
+            assert_eq!(
+                G::observe(&reseeded, Viewer::Player(seat)),
+                G::observe(&state, Viewer::Player(seat))
+            );
         }
         let mut ended = false;
         for _ in 0..=spec.max_game_length {

@@ -74,21 +74,35 @@ impl GameService {
         viewer: Viewer,
     ) -> Result<gfa_api_types::ValidatedPosition, ApiError> {
         let game = self.registry.get(game_id).map_err(error::engine)?;
-        let config = game.normalize_config(&request.config).map_err(error::engine)?;
+        let config = game
+            .normalize_config(&request.config)
+            .map_err(error::engine)?;
         let seed = request.seed.unwrap_or_else(|| self.ids.next_seed());
         // Parsing a complete state must not bypass config validation.
         game.initial_state(&config, seed).map_err(error::engine)?;
         let state = crate::position::import(game.as_ref(), &config, &request.start, seed)?;
         let terminated = game.is_terminal(&state).map_err(error::engine)?;
-        let frame = replay::Frame { state: state.clone(), turn: 0, terminated, truncated: false };
+        let frame = replay::Frame {
+            state: state.clone(),
+            turn: 0,
+            terminated,
+            truncated: false,
+        };
         let view = frame.project("", game.as_ref(), viewer)?;
         let spec = game.spec();
         Ok(gfa_api_types::ValidatedPosition {
-            game_id: spec.id, engine_version: spec.engine_version, config, seed,
-            position: game.state_to_notation(&state).map_err(error::engine)?, state,
-            to_act: view.to_act, observation: view.observation,
-            legal_actions: view.legal_actions, action_mask: view.action_mask,
-            returns: view.returns, terminated,
+            game_id: spec.id,
+            engine_version: spec.engine_version,
+            config,
+            seed,
+            position: game.state_to_notation(&state).map_err(error::engine)?,
+            state,
+            to_act: view.to_act,
+            observation: view.observation,
+            legal_actions: view.legal_actions,
+            action_mask: view.action_mask,
+            returns: view.returns,
+            terminated,
         })
     }
 

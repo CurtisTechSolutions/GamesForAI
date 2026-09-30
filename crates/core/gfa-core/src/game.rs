@@ -28,7 +28,9 @@ pub trait Game: Send + Sync + 'static {
     /// Stochastic engines must override this. Deterministic engines need no RNG.
     fn reseed(state: &mut Self::State, _seed: u64) -> Result<(), GameError> {
         if Self::spec().stochastic {
-            return Err(GameError::position("This stochastic engine does not support reseeding"));
+            return Err(GameError::position(
+                "This stochastic engine does not support reseeding",
+            ));
         }
         Self::validate_state(state)
     }
