@@ -82,10 +82,19 @@ async fn busy_workers_back_off_instead_of_spinning_on_the_same_match() -> Result
     let store = Arc::new(SqliteMatchStore::in_memory().await?);
     let host = Arc::new(Host);
     let attempts = Arc::new(AtomicUsize::new(0));
-    let service = Arc::new(GameService::new(gfa_games::registry()?, store.clone(), host.clone(), host)
-        .with_opponents(Arc::new(gfa_service::BuiltinOpponentFactory), Arc::new(Busy(attempts.clone()))));
+    let service = Arc::new(
+        GameService::new(gfa_games::registry()?, store.clone(), host.clone(), host).with_opponents(
+            Arc::new(gfa_service::BuiltinOpponentFactory),
+            Arc::new(Busy(attempts.clone())),
+        ),
+    );
     let bot = json!({"type":"opponent","opponent":{"id":"random"},"seed":71});
-    service.create_match(serde_json::from_value(json!({"game_id":"tictactoe","seats":[bot.clone(),bot]}))?, Viewer::Player(0)).await?;
+    service
+        .create_match(
+            serde_json::from_value(json!({"game_id":"tictactoe","seats":[bot.clone(),bot]}))?,
+            Viewer::Player(0),
+        )
+        .await?;
     let (stop, stopped) = tokio::sync::watch::channel(false);
     let task = tokio::spawn(super::runner::run(service, stopped));
     tokio::time::sleep(Duration::from_millis(450)).await;

@@ -29,14 +29,19 @@ pub(super) async fn run(service: Arc<GameService>, mut stopped: watch::Receiver<
                     cursor = page.next;
                     queue.extend(page.matches);
                     for failure in page.unavailable {
-                        report(&mut last_error, format!("Match {:?}: {}", failure.match_id, failure.error.code));
+                        report(
+                            &mut last_error,
+                            format!("Match {:?}: {}", failure.match_id, failure.error.code),
+                        );
                     }
                 }
                 Err(error) => report(&mut last_error, error.code),
             }
         }
         while jobs.len() < 4 && Instant::now() >= admit_at {
-            let Some(id) = queue.pop_front() else { break; };
+            let Some(id) = queue.pop_front() else {
+                break;
+            };
             if active.values().any(|running| running == &id) || cooldowns.contains_key(&id) {
                 continue;
             }
@@ -71,8 +76,13 @@ pub(super) async fn run(service: Arc<GameService>, mut stopped: watch::Receiver<
 
 fn cool_down(cooldowns: &mut HashMap<String, Instant>, id: String) {
     if cooldowns.len() >= 128 {
-        let oldest = cooldowns.iter().min_by_key(|(_, until)| **until).map(|(key, _)| key.clone());
-        if let Some(oldest) = oldest { cooldowns.remove(&oldest); }
+        let oldest = cooldowns
+            .iter()
+            .min_by_key(|(_, until)| **until)
+            .map(|(key, _)| key.clone());
+        if let Some(oldest) = oldest {
+            cooldowns.remove(&oldest);
+        }
     }
     cooldowns.insert(id, Instant::now() + Duration::from_secs(1));
 }
