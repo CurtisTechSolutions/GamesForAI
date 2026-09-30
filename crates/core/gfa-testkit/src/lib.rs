@@ -17,7 +17,10 @@ pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
     assert!(spec.action_space_size > 0);
     assert!(spec.num_players[0] > 0 && spec.num_players[0] <= spec.num_players[1]);
     let config = G::Config::default();
-    assert!(jsonschema::is_valid(&spec.config_schema, &to_value(&config)?));
+    assert!(jsonschema::is_valid(
+        &spec.config_schema,
+        &to_value(&config)?
+    ));
     for seed in 0..64 {
         let mut rng = SeededRng::new(seed);
         let mut state = G::new_initial_state(&config, seed)?;
@@ -40,7 +43,10 @@ pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
             assert!(jsonschema::is_valid(&spec.observation_schema, &public.json));
             for seat in 0..spec.num_players[0] {
                 let observation = G::observe(&state, Viewer::Player(seat));
-                assert!(jsonschema::is_valid(&spec.observation_schema, &observation.json));
+                assert!(jsonschema::is_valid(
+                    &spec.observation_schema,
+                    &observation.json
+                ));
                 if spec.information == Information::Perfect {
                     assert_eq!(observation, public);
                 }

@@ -19,7 +19,7 @@ fn rejects_unreachable_positions() {
 #[test]
 fn errors_are_atomic_and_win_stops_play() -> Result<(), GameError> {
     let mut state = TicTacToe::new_initial_state(&Config {}, 0)?;
-    for (seat, row, col) in [(0,1,1), (1,2,1), (0,1,2), (1,2,2)] {
+    for (seat, row, col) in [(0, 1, 1), (1, 2, 1), (0, 1, 2), (1, 2, 2)] {
         TicTacToe::apply(&mut state, seat, &Action { row, col })?;
     }
     let before = state.clone();
@@ -43,7 +43,10 @@ fn all_reachable_boards_round_trip() -> Result<(), Box<dyn std::error::Error>> {
         if !seen.insert(notation.clone()) {
             return Ok(());
         }
-        assert_eq!(TicTacToe::state_from_notation(&Config {}, &notation)?, state);
+        assert_eq!(
+            TicTacToe::state_from_notation(&Config {}, &notation)?,
+            state
+        );
         for action in TicTacToe::legal_actions(&state, state.to_move) {
             let mut next = state.clone();
             TicTacToe::apply(&mut next, state.to_move, &action)?;

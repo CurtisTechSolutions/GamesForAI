@@ -1,16 +1,21 @@
 //! Deterministic, validated 3×3 Tic-Tac-Toe.
+use gfa_core::schemars::JsonSchema;
+use gfa_core::serde::{Deserialize, Serialize};
+use gfa_core::serde_json;
 use gfa_core::{
     schema, ErrorCode, Game, GameError, GameSpec, Information, Observation, PlayerId, StepEvents,
     Tensor, TurnStructure, Viewer,
 };
-use gfa_core::schemars::JsonSchema;
-use gfa_core::serde::{Deserialize, Serialize};
-use gfa_core::serde_json;
 
 const LINES: [[usize; 3]; 8] = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8],
-    [0, 3, 6], [1, 4, 7], [2, 5, 8],
-    [0, 4, 8], [2, 4, 6],
+    [0, 1, 2],
+    [3, 4, 5],
+    [6, 7, 8],
+    [0, 3, 6],
+    [1, 4, 7],
+    [2, 5, 8],
+    [0, 4, 8],
+    [2, 4, 6],
 ];
 
 /// Standard Tic-Tac-Toe has no configurable variants.
@@ -45,7 +50,9 @@ pub struct Action {
 pub struct TicTacToe;
 
 fn wins(board: &[Option<PlayerId>; 9], player: PlayerId) -> bool {
-    LINES.iter().any(|line| line.iter().all(|&i| board[i] == Some(player)))
+    LINES
+        .iter()
+        .any(|line| line.iter().all(|&i| board[i] == Some(player)))
 }
 
 impl Game for TicTacToe {
@@ -78,22 +85,31 @@ impl Game for TicTacToe {
     }
 
     fn new_initial_state(_: &Config, _: u64) -> Result<State, GameError> {
-        Ok(State { board: [None; 9], to_move: 0 })
+        Ok(State {
+            board: [None; 9],
+            to_move: 0,
+        })
     }
 
     fn validate_state(state: &State) -> Result<(), GameError> {
         if state.board.iter().flatten().any(|&p| p > 1) {
-            return Err(GameError::position("Cells may contain only null, 0 (X), or 1 (O)"));
+            return Err(GameError::position(
+                "Cells may contain only null, 0 (X), or 1 (O)",
+            ));
         }
         let x = state.board.iter().filter(|&&p| p == Some(0)).count();
         let o = state.board.iter().filter(|&&p| p == Some(1)).count();
         if !(x == o || x == o + 1) || state.to_move != u8::from(x > o) {
-            return Err(GameError::position("Mark counts and to_move must match alternating play"));
+            return Err(GameError::position(
+                "Mark counts and to_move must match alternating play",
+            ));
         }
         let x_wins = wins(&state.board, 0);
         let o_wins = wins(&state.board, 1);
         if (x_wins && o_wins) || (x_wins && x != o + 1) || (o_wins && x != o) {
-            return Err(GameError::position("The winner and mark counts are inconsistent"));
+            return Err(GameError::position(
+                "The winner and mark counts are inconsistent",
+            ));
         }
         if x_wins || o_wins {
             let winner = u8::from(o_wins);
@@ -106,31 +122,57 @@ impl Game for TicTacToe {
                 !wins(&before, 0) && !wins(&before, 1)
             });
             if !possible_last_move {
-                return Err(GameError::position("Marks were played after the game ended"));
+                return Err(GameError::position(
+                    "Marks were played after the game ended",
+                ));
             }
         }
         Ok(())
     }
 
     fn current_players(state: &State) -> Vec<PlayerId> {
-        if Self::is_terminal(state) { vec![] } else { vec![state.to_move] }
+        if Self::is_terminal(state) {
+            vec![]
+        } else {
+            vec![state.to_move]
+        }
     }
 
     fn legal_actions(state: &State, player: PlayerId) -> Vec<Action> {
         if player != state.to_move || Self::is_terminal(state) {
             return vec![];
         }
-        state.board.iter().enumerate().filter_map(|(i, cell)| {
-            cell.is_none().then_some(Action { row: (i / 3 + 1) as u8, col: (i % 3 + 1) as u8 })
-        }).collect()
+        state
+            .board
+            .iter()
+            .enumerate()
+            .filter_map(|(i, cell)| {
+                cell.is_none().then_some(Action {
+                    row: (i / 3 + 1) as u8,
+                    col: (i % 3 + 1) as u8,
+                })
+            })
+            .collect()
     }
 
-    fn apply(state: &mut State, player: PlayerId, action: &Action) -> Result<StepEvents, GameError> {
+    fn apply(
+        state: &mut State,
+        player: PlayerId,
+        action: &Action,
+    ) -> Result<StepEvents, GameError> {
         if Self::is_terminal(state) {
-            return Err(GameError::new(ErrorCode::MatchFinished, "The game has ended", "Create or fork a match."));
+            return Err(GameError::new(
+                ErrorCode::MatchFinished,
+                "The game has ended",
+                "Create or fork a match.",
+            ));
         }
         if player != state.to_move {
-            return Err(GameError::new(ErrorCode::NotYourTurn, "The other seat must act", "Wait for your turn."));
+            return Err(GameError::new(
+                ErrorCode::NotYourTurn,
+                "The other seat must act",
+                "Wait for your turn.",
+            ));
         }
         if !(1..=3).contains(&action.row) || !(1..=3).contains(&action.col) {
             return Err(GameError::illegal("Rows and columns must be in 1..3"));
@@ -173,19 +215,42 @@ impl Game for TicTacToe {
             text.push('\n');
         }
         if Self::is_terminal(state) {
-            text.push_str(if wins(&state.board, 0) { "X wins." } else if wins(&state.board, 1) { "O wins." } else { "Draw." });
+            text.push_str(if wins(&state.board, 0) {
+                "X wins."
+            } else if wins(&state.board, 1) {
+                "O wins."
+            } else {
+                "Draw."
+            });
         } else {
-            text.push_str(if state.to_move == 0 { "X to move (seat 0)." } else { "O to move (seat 1)." });
+            text.push_str(if state.to_move == 0 {
+                "X to move (seat 0)."
+            } else {
+                "O to move (seat 1)."
+            });
         }
-        let values = (0..3).flat_map(|plane| {
-            state.board.iter().map(move |&cell| {
-                if if plane == 2 { cell.is_none() } else { cell == Some(plane) } { 1.0 } else { 0.0 }
+        let values = (0..3)
+            .flat_map(|plane| {
+                state.board.iter().map(move |&cell| {
+                    if if plane == 2 {
+                        cell.is_none()
+                    } else {
+                        cell == Some(plane)
+                    } {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                })
             })
-        }).collect();
+            .collect();
         Observation {
             text,
             json: serde_json::json!(state),
-            tensor: Some(Tensor { shape: vec![3, 3, 3], values }),
+            tensor: Some(Tensor {
+                shape: vec![3, 3, 3],
+                values,
+            }),
         }
     }
 
@@ -195,10 +260,22 @@ impl Game for TicTacToe {
 
     fn action_from_string(_: &State, text: &str) -> Result<Action, GameError> {
         let b = text.as_bytes();
-        if b.len() == 4 && b[0] == b'r' && b[2] == b'c' && (b'1'..=b'3').contains(&b[1]) && (b'1'..=b'3').contains(&b[3]) {
-            Ok(Action { row: b[1] - b'0', col: b[3] - b'0' })
+        if b.len() == 4
+            && b[0] == b'r'
+            && b[2] == b'c'
+            && (b'1'..=b'3').contains(&b[1])
+            && (b'1'..=b'3').contains(&b[3])
+        {
+            Ok(Action {
+                row: b[1] - b'0',
+                col: b[3] - b'0',
+            })
         } else {
-            Err(GameError::new(ErrorCode::UnparseableAction, "Expected r1c1 through r3c3", "Use one of the listed legal actions."))
+            Err(GameError::new(
+                ErrorCode::UnparseableAction,
+                "Expected r1c1 through r3c3",
+                "Use one of the listed legal actions.",
+            ))
         }
     }
 
@@ -208,9 +285,16 @@ impl Game for TicTacToe {
 
     fn action_from_index(_: &State, index: u32) -> Result<Action, GameError> {
         if index < 9 {
-            Ok(Action { row: (index / 3 + 1) as u8, col: (index % 3 + 1) as u8 })
+            Ok(Action {
+                row: (index / 3 + 1) as u8,
+                col: (index % 3 + 1) as u8,
+            })
         } else {
-            Err(GameError::new(ErrorCode::UnparseableAction, "Index must be 0..8", "Choose an index from legal_actions."))
+            Err(GameError::new(
+                ErrorCode::UnparseableAction,
+                "Index must be 0..8",
+                "Choose an index from legal_actions.",
+            ))
         }
     }
 
@@ -220,7 +304,8 @@ impl Game for TicTacToe {
     }
 
     fn state_from_notation(_: &Config, notation: &str) -> Result<State, GameError> {
-        let state = serde_json::from_str(notation).map_err(|e| GameError::position(format!("{e}")))?;
+        let state =
+            serde_json::from_str(notation).map_err(|e| GameError::position(format!("{e}")))?;
         Self::validate_state(&state)?;
         Ok(state)
     }

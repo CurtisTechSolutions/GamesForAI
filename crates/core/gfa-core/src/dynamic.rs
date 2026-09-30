@@ -1,4 +1,6 @@
-use crate::{ErrorCode, Game, GameError, GameSpec, LegalAction, Observation, PlayerId, StepEvents, Viewer};
+use crate::{
+    ErrorCode, Game, GameError, GameSpec, LegalAction, Observation, PlayerId, StepEvents, Viewer,
+};
 use serde_json::Value;
 use std::{collections::BTreeMap, marker::PhantomData, sync::Arc};
 
@@ -13,7 +15,8 @@ pub trait DynGame: Send + Sync {
     /// Seats currently allowed to act.
     fn current_players(&self, state: &Value) -> Result<Vec<PlayerId>, GameError>;
     /// Legal actions in all encodings, sorted by canonical notation.
-    fn legal_actions(&self, state: &Value, player: PlayerId) -> Result<Vec<LegalAction>, GameError>;
+    fn legal_actions(&self, state: &Value, player: PlayerId)
+        -> Result<Vec<LegalAction>, GameError>;
     /// Apply a string, structured action, or index action; return a new state atomically.
     fn apply(
         &self,
@@ -123,7 +126,11 @@ impl<G: Game> DynGame for GameAdapter<G> {
         Ok(G::current_players(&Self::state(state)?))
     }
 
-    fn legal_actions(&self, state: &Value, player: PlayerId) -> Result<Vec<LegalAction>, GameError> {
+    fn legal_actions(
+        &self,
+        state: &Value,
+        player: PlayerId,
+    ) -> Result<Vec<LegalAction>, GameError> {
         let state = Self::state(state)?;
         let mut actions = G::legal_actions(&state, player)
             .into_iter()

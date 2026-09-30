@@ -21,14 +21,23 @@ mod tests {
         let game = registry.get("tictactoe")?;
         let state = game.initial_state(&json!({}), 42)?;
         let expected = game.apply(&state, 0, &json!("r2c2"))?.0;
-        assert_eq!(expected, game.apply(&state, 0, &json!({"row":2,"col":2}))?.0);
+        assert_eq!(
+            expected,
+            game.apply(&state, 0, &json!({"row":2,"col":2}))?.0
+        );
         assert_eq!(expected, game.apply(&state, 0, &json!({"index":4}))?.0);
         assert_eq!(game.action_mask(&state, 0)?, vec![true; 9]);
         assert_eq!(game.action_mask(&state, 1)?, vec![false; 9]);
         assert!(game.observe(&state, Viewer::Player(2)).is_err());
         assert!(game.initial_state(&json!({"unsupported":true}), 0).is_err());
         let error = game.apply(&state, 0, &json!({"index":-1}));
-        assert!(matches!(error, Err(GameError { code: ErrorCode::UnparseableAction, .. })));
+        assert!(matches!(
+            error,
+            Err(GameError {
+                code: ErrorCode::UnparseableAction,
+                ..
+            })
+        ));
         Ok(())
     }
 }

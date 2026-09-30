@@ -21,7 +21,12 @@ fn allowed(from: &str, to: &str, dev: bool) -> bool {
     if from == "gfa-games" {
         return to == "gfa-core" || to.starts_with("gfa-game-");
     }
-    let players = ["gfa-opponents", "gfa-engine-uci", "gfa-engine-gtp", "gfa-llm"];
+    let players = [
+        "gfa-opponents",
+        "gfa-engine-uci",
+        "gfa-engine-gtp",
+        "gfa-llm",
+    ];
     if players.contains(&from) {
         return to == "gfa-core";
     }
@@ -32,17 +37,34 @@ fn allowed(from: &str, to: &str, dev: bool) -> bool {
         return to == "gfa-core" || to == "gfa-api-types" || players.contains(&to);
     }
     if from == "gfa-bench" {
-        return to == "gfa-core" || to == "gfa-api-types" || to == "gfa-service" || players.contains(&to);
+        return to == "gfa-core"
+            || to == "gfa-api-types"
+            || to == "gfa-service"
+            || players.contains(&to);
     }
     if ["gfa-store", "gfa-http", "gfa-mcp"].contains(&from) {
-        return to == "gfa-core" || to == "gfa-api-types" || to == "gfa-service" || to == "gfa-bench";
+        return to == "gfa-core"
+            || to == "gfa-api-types"
+            || to == "gfa-service"
+            || to == "gfa-bench";
     }
     ["gfa-server", "gfa-cli", "gfa-py"].contains(&from)
 }
 
 fn forbidden_external(layer: &str, name: &str) -> bool {
     if layer == "gfa-core" || layer.starts_with("gfa-game-") {
-        return ["tokio", "async-std", "reqwest", "sqlx", "axum", "rmcp", "pyo3", "tracing", "log"].contains(&name);
+        return [
+            "tokio",
+            "async-std",
+            "reqwest",
+            "sqlx",
+            "axum",
+            "rmcp",
+            "pyo3",
+            "tracing",
+            "log",
+        ]
+        .contains(&name);
     }
     if ["gfa-service", "gfa-bench", "gfa-api-types"].contains(&layer) {
         return ["axum", "sqlx", "rmcp", "pyo3", "reqwest"].contains(&name);
@@ -51,12 +73,17 @@ fn forbidden_external(layer: &str, name: &str) -> bool {
 }
 
 fn check_deps(metadata: &Value) -> Result<(), Box<dyn Error>> {
-    let members = metadata["workspace_members"].as_array().ok_or("missing members")?;
+    let members = metadata["workspace_members"]
+        .as_array()
+        .ok_or("missing members")?;
     let packages = metadata["packages"].as_array().ok_or("missing packages")?;
     let mut violations = BTreeMap::new();
     for package in packages.iter().filter(|p| members.contains(&p["id"])) {
         let from = package["name"].as_str().ok_or("missing package name")?;
-        for dep in package["dependencies"].as_array().ok_or("missing dependencies")? {
+        for dep in package["dependencies"]
+            .as_array()
+            .ok_or("missing dependencies")?
+        {
             let to = dep["name"].as_str().ok_or("missing dependency name")?;
             let dev = dep["kind"] == "dev";
             if !allowed(from, to, dev) || (!dev && forbidden_external(from, to)) {
@@ -76,7 +103,15 @@ fn main() -> Result<(), Box<dyn Error>> {
     if std::env::args().nth(1).as_deref() != Some("check-deps") {
         return Err("usage: cargo xtask check-deps".into());
     }
-    let output = Command::new("cargo").args(["metadata", "--format-version", "1", "--no-deps", "--all-features"]).output()?;
+    let output = Command::new("cargo")
+        .args([
+            "metadata",
+            "--format-version",
+            "1",
+            "--no-deps",
+            "--all-features",
+        ])
+        .output()?;
     if !output.status.success() {
         return Err(String::from_utf8_lossy(&output.stderr).to_string().into());
     }
