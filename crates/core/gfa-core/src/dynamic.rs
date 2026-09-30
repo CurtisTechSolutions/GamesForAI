@@ -63,6 +63,11 @@ pub trait DynGame: Send + Sync {
     fn returns(&self, state: &Value) -> Result<Vec<f64>, GameError>;
     /// Viewer-scoped state.
     fn observe(&self, state: &Value, viewer: Viewer) -> Result<Observation, GameError>;
+    /// Engine-approved public notation; None falls back to the viewer's observation.
+    fn public_position(&self, _state: &Value) -> Result<Option<String>, GameError> {
+        Ok(None)
+    }
+
     /// Export a validated position.
     fn state_to_notation(&self, state: &Value) -> Result<String, GameError>;
     /// Validate and import a position.
@@ -239,6 +244,10 @@ impl<G: Game> DynGame for GameAdapter<G> {
             }
         }
         Ok(G::observe(&Self::state(state)?, viewer))
+    }
+
+    fn public_position(&self, state: &Value) -> Result<Option<String>, GameError> {
+        G::public_position(&Self::state(state)?)
     }
 
     fn state_to_notation(&self, state: &Value) -> Result<String, GameError> {

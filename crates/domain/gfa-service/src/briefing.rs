@@ -31,9 +31,20 @@ fn preview(
         object.remove("match_id");
         if !full {
             object.remove("action_mask");
+            if let Some(actions) = object.get_mut("legal_actions").and_then(Value::as_array_mut) {
+                if actions.len() > 16 {
+                    let total = actions.len();
+                    actions.truncate(3);
+                    object.insert("legal_actions_total".into(), json!(total));
+                    object.insert("legal_actions_truncated".into(), json!(true));
+                }
+            }
             if let Some(observation) = object.get_mut("observation").and_then(Value::as_object_mut)
             {
                 observation.remove("tensor");
+                if observation.get("json").is_some_and(|value| value.to_string().len() > 512) {
+                    observation.remove("json");
+                }
             }
         }
     }
@@ -218,18 +229,18 @@ impl MatchBrief<'_> {
         )?;
         let you =
             seat.map(|seat| json!({"seat":seat,"name":spec.seat_names.get(usize::from(seat))}));
+        let public_position = if self.origin.start.is_none() {
+            None
+        } else if self.viewer == Viewer::Omniscient {
+            Some(self.game.state_to_notation(&self.initial.state).map_err(error::engine)?)
+        } else {
+            self.game.public_position(&self.initial.state).map_err(error::engine)?
+        };
         let start = if self.origin.start.is_none() {
             json!({"type":"standard"})
-        } else if self.viewer == Viewer::Omniscient
-            || (spec.information == gfa_core::Information::Perfect && !spec.stochastic)
-        {
-            json!({
-                "type":"custom",
-                "position":self.game.state_to_notation(&self.initial.state).map_err(error::engine)?
-            })
+        } else if let Some(position) = public_position {
+            json!({"type":"custom","position":position})
         } else {
-            // State notation may contain hidden cards or an RNG state. Never
-            // expose it as match metadata merely because a caller can view play.
             json!({"type":"custom","view":initial.observation,
                 "note":"Only this viewer's starting observation is available."})
         };
