@@ -40,11 +40,7 @@ impl PostgresMatchStore {
 
     async fn insert(&self, record: MatchRecord) -> Result<(), StoreError> {
         let revision = revision(record.events.len())?;
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(unavailable)?;
+        let mut tx = self.pool.begin().await.map_err(unavailable)?;
         let result = sqlx::query!(
             "INSERT INTO gfa_matches (id, revision) VALUES ($1, $2)",
             record.id,
@@ -67,9 +63,11 @@ impl PostgresMatchStore {
     }
 
     async fn snapshot(&self, id: &str) -> Result<Option<MatchRecord>, StoreError> {
-        let mut tx = self.pool
+        let mut tx = self
+            .pool
             .begin_with("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY")
-            .await.map_err(unavailable)?;
+            .await
+            .map_err(unavailable)?;
         let revision: Option<i64> =
             sqlx::query_scalar!("SELECT revision FROM gfa_matches WHERE id = $1", id)
                 .fetch_optional(&mut *tx)
@@ -128,16 +126,14 @@ impl PostgresMatchStore {
         command: Option<StoredCommand>,
     ) -> Result<AppendResult, StoreError> {
         // Lock this match's revision row before checking receipts or appending events.
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(unavailable)?;
-        let current: Option<i64> =
-            sqlx::query_scalar!("SELECT revision FROM gfa_matches WHERE id = $1 FOR UPDATE", id)
-                .fetch_optional(&mut *tx)
-                .await
-                .map_err(unavailable)?;
+        let mut tx = self.pool.begin().await.map_err(unavailable)?;
+        let current: Option<i64> = sqlx::query_scalar!(
+            "SELECT revision FROM gfa_matches WHERE id = $1 FOR UPDATE",
+            id
+        )
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(unavailable)?;
         let current = current.ok_or(StoreError::NotFound)?;
         if let Some(command) = &command {
             let previous: Option<String> = sqlx::query_scalar!(
@@ -171,10 +167,14 @@ impl PostgresMatchStore {
         if let Some(command) = &command {
             insert_command(&mut tx, id, command).await?;
         }
-        sqlx::query!("UPDATE gfa_matches SET revision = $1 WHERE id = $2", next, id)
-            .execute(&mut *tx)
-            .await
-            .map_err(unavailable)?;
+        sqlx::query!(
+            "UPDATE gfa_matches SET revision = $1 WHERE id = $2",
+            next,
+            id
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(unavailable)?;
         tx.commit().await.map_err(unavailable)?;
         Ok(AppendResult::Appended)
     }

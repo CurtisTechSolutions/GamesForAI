@@ -38,15 +38,7 @@ jobs:
             psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
           done
           mkdir -p "$SQLX_OFFLINE_DIR"
-      - name: Resolve new backend dependencies
-        run: |
-          cargo update --workspace
-          python3 -c 'import json,pathlib; print("GFA_LOCK_JSON:"+json.dumps({"content":pathlib.Path("Cargo.lock").read_text()}))'
       - name: Check queries and exercise PostgreSQL
         run: cargo test -p gfa-store --no-default-features --features postgres --locked -- --ignored
-      - name: Capture PostgreSQL metadata
-        if: always()
-        run: |
-          python3 -c 'import json,pathlib,os; p=pathlib.Path(os.environ["SQLX_OFFLINE_DIR"]); print("GFA_SQLX_JSON:"+json.dumps({x.name:x.read_text() for x in p.glob("*.json")}))'
       - name: Verify PostgreSQL query metadata
         run: python3 .github/scripts/postgres-query-check.py

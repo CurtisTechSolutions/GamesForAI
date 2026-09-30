@@ -71,7 +71,6 @@ fn events() -> Vec<MatchEvent> {
     })]
 }
 
-
 async fn get(store: &PostgresMatchStore, id: &str) -> Result<MatchRecord, StoreError> {
     store.load(id).await?.ok_or(StoreError::NotFound)
 }
@@ -87,13 +86,22 @@ async fn postgres_atomicity_concurrency_snapshots_and_restart() -> TestResult {
     store.create(original.clone()).await?;
     assert_eq!(get(&store, id).await?, original);
     assert_eq!(store.create(original).await, Err(StoreError::DuplicateId));
-    store.append(id, 1, events(), Some(command("key-α"))).await?;
+    store
+        .append(id, 1, events(), Some(command("key-α")))
+        .await?;
     let expected = get(&store, id).await?;
-    assert_eq!(store.append(id, 0, events(), Some(command("key-α"))).await?,
-        AppendResult::AlreadyCommitted(Box::new(command("key-α").response)));
+    assert_eq!(
+        store
+            .append(id, 0, events(), Some(command("key-α")))
+            .await?,
+        AppendResult::AlreadyCommitted(Box::new(command("key-α").response))
+    );
     let mut changed = command("key-α");
     changed.request.action = json!("different");
-    assert_eq!(store.append(id, 2, events(), Some(changed)).await, Err(StoreError::IdempotencyConflict));
+    assert_eq!(
+        store.append(id, 2, events(), Some(changed)).await,
+        Err(StoreError::IdempotencyConflict)
+    );
     assert_eq!(get(&store, id).await?, expected);
 
     store.create(new_record("race")).await?;
@@ -119,11 +127,16 @@ async fn postgres_atomicity_concurrency_snapshots_and_restart() -> TestResult {
     broken.commands = vec![command("duplicate"), command("duplicate")];
     assert!(store.create(broken).await.is_err());
     assert_eq!(store.load("rollback").await?, None);
-    assert_eq!(store.append("missing", 0, events(), None).await, Err(StoreError::NotFound));
+    assert_eq!(
+        store.append("missing", 0, events(), None).await,
+        Err(StoreError::NotFound)
+    );
 
     store.create(new_record("snapshot")).await?;
     let writer = async {
-        for revision in 1..=64 { store.append("snapshot", revision, events(), None).await?; }
+        for revision in 1..=64 {
+            store.append("snapshot", revision, events(), None).await?;
+        }
         Ok::<_, StoreError>(())
     };
     let reader = async {
@@ -140,20 +153,33 @@ async fn postgres_atomicity_concurrency_snapshots_and_restart() -> TestResult {
     let mut updates = Vec::new();
     for _ in 0..32 {
         let store = store.clone();
-        updates.push(tokio::spawn(async move { store.record_simulation("snapshot", 0, 5).await }));
+        updates.push(tokio::spawn(async move {
+            store.record_simulation("snapshot", 0, 5).await
+        }));
     }
-    for update in updates { update.await??; }
-    assert_eq!(store.assist_usage("snapshot").await?, vec![gfa_api_types::AssistUsage {
-        seat: 0, simulation_calls: 32, simulated_moves: 160,
-    }]);
+    for update in updates {
+        update.await??;
+    }
+    assert_eq!(
+        store.assist_usage("snapshot").await?,
+        vec![gfa_api_types::AssistUsage {
+            seat: 0,
+            simulation_calls: 32,
+            simulated_moves: 160,
+        }]
+    );
     assert!(store.record_simulation("missing", 0, 1).await.is_err());
 
-    for id in ["Z", "a", "aa", "a-", "ä"] { store.create(new_record(id)).await?; }
+    for id in ["Z", "a", "aa", "a-", "ä"] {
+        store.create(new_record(id)).await?;
+    }
     let mut ids = Vec::new();
     let mut cursor = String::new();
     loop {
         let next = store.list_ids(&cursor, 2).await?;
-        if next.is_empty() { break; }
+        if next.is_empty() {
+            break;
+        }
         assert!(next.iter().all(|id| id > &cursor));
         cursor = next.last().ok_or("cursor")?.clone();
         ids.extend(next);
@@ -165,7 +191,10 @@ async fn postgres_atomicity_concurrency_snapshots_and_restart() -> TestResult {
     let reopened = PostgresMatchStore::connect(&url).await?;
     assert_eq!(get(&reopened, id).await?, expected);
     assert_eq!(get(&reopened, "snapshot").await?, before);
-    assert_eq!(reopened.assist_usage("snapshot").await?[0].simulation_calls, 32);
+    assert_eq!(
+        reopened.assist_usage("snapshot").await?[0].simulation_calls,
+        32
+    );
     reopened.close().await;
     Ok(())
 }

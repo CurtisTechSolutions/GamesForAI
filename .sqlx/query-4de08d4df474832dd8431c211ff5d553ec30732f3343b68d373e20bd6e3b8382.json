@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gfa_assist_usage (match_id, seat, simulation_calls, simulated_moves) VALUES ($1, $2, 1, $3) ON CONFLICT(match_id, seat) DO UPDATE SET simulation_calls = gfa_assist_usage.simulation_calls + 1, simulated_moves = gfa_assist_usage.simulated_moves + excluded.simulated_moves",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4de08d4df474832dd8431c211ff5d553ec30732f3343b68d373e20bd6e3b8382"
+}

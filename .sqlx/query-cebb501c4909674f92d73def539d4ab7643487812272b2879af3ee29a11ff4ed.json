@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT seat, simulation_calls, simulated_moves FROM gfa_assist_usage WHERE match_id = $1 ORDER BY seat",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "seat",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "simulation_calls",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 2,
+        "name": "simulated_moves",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "cebb501c4909674f92d73def539d4ab7643487812272b2879af3ee29a11ff4ed"
+}
