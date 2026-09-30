@@ -231,7 +231,10 @@ async fn terminal_state_is_delivered_before_the_stream_closes() -> TestResult {
     let url = format!("ws://{address}/v1/matches/{id}/stream");
     let (mut client, _) = connect_async(&url).await?;
     assert_eq!(next_state(&mut client).await?["turn"], 0);
-    for (turn, action) in ["r1c1", "r2c1", "r1c2", "r2c2", "r1c3"].into_iter().enumerate() {
+    for (turn, action) in ["r1c1", "r2c1", "r1c2", "r2c2", "r1c3"]
+        .into_iter()
+        .enumerate()
+    {
         service
             .make_move(
                 &id,
