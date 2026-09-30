@@ -1,0 +1,20 @@
+[package]
+name = "gfa-http"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gfa-core.workspace = true
+gfa-api-types.workspace = true
+gfa-service.workspace = true
+axum.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+tower.workspace = true
+
+[lints]
+workspace = true
