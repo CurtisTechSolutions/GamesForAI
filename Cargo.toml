@@ -6,6 +6,7 @@ members = [
     "crates/games/gfa-game-tictactoe",
     "crates/games/gfa-game-connect4",
     "crates/games/gfa-game-sudoku",
+    "crates/games/gfa-game-chess",
     "crates/games/gfa-games",
     "crates/adapters/gfa-store",
     "crates/adapters/gfa-http",
@@ -30,6 +31,8 @@ gfa-game-tictactoe = { version = "0.1.0", path = "crates/games/gfa-game-tictacto
 gfa-games = { version = "0.1.0", path = "crates/games/gfa-games" }
 gfa-game-connect4 = { version = "0.1.0", path = "crates/games/gfa-game-connect4" }
 gfa-game-sudoku = { version = "0.1.0", path = "crates/games/gfa-game-sudoku" }
+gfa-game-chess = { version = "0.1.0", path = "crates/games/gfa-game-chess" }
+shakmaty = "0.30.1"
 gfa-api-types = { version = "0.1.0", path = "crates/domain/gfa-api-types" }
 gfa-opponents = { version = "0.1.0", path = "crates/players/gfa-opponents" }
 gfa-service = { version = "0.1.0", path = "crates/domain/gfa-service" }
