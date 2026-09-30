@@ -3,10 +3,13 @@ use gfa_core::schemars::JsonSchema;
 use gfa_core::serde::{Deserialize, Serialize};
 use gfa_core::serde_json::{self, json};
 use gfa_core::{
-    schema, ErrorCode, Game, GameError, GameSpec, Information, Observation, PlayerId,
-    StepEvents, Tensor, TurnStructure, Viewer,
+    schema, ErrorCode, Game, GameError, GameSpec, Information, Observation, PlayerId, StepEvents,
+    Tensor, TurnStructure, Viewer,
 };
-use shakmaty::{fen::Fen, san::SanPlus, uci::UciMove, CastlingMode, Chess, Color, EnPassantMode, Position, Square};
+use shakmaty::{
+    fen::Fen, san::SanPlus, uci::UciMove, CastlingMode, Chess, Color, EnPassantMode, Position,
+    Square,
+};
 use std::{collections::BTreeMap, sync::OnceLock};
 
 mod encoding;
@@ -27,13 +30,21 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        Self { start_fen: None, max_plies: MAX_PLIES }
+        Self {
+            start_fen: None,
+            max_plies: MAX_PLIES,
+        }
     }
 }
 
 /// A UCI move or a draw claim, optionally identifying the intended next move.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
-#[serde(crate = "gfa_core::serde", tag = "type", rename_all = "snake_case", deny_unknown_fields)]
+#[serde(
+    crate = "gfa_core::serde",
+    tag = "type",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 #[schemars(crate = "gfa_core::schemars")]
 pub enum Action {
     /// Move a piece, including castling or promotion.
@@ -105,13 +116,19 @@ struct BoardView {
 /// Stateless standard-chess engine.
 pub struct ChessGame;
 
-fn seat(color: Color) -> PlayerId { u8::from(color == Color::Black) }
+fn seat(color: Color) -> PlayerId {
+    u8::from(color == Color::Black)
+}
 
 fn parse_fen(text: &str) -> Result<Chess, GameError> {
     if text.len() > 128 || text.split_whitespace().count() != 6 {
-        return Err(GameError::position("Expected six FEN fields, at most 128 bytes"));
+        return Err(GameError::position(
+            "Expected six FEN fields, at most 128 bytes",
+        ));
     }
-    let fen: Fen = text.parse().map_err(|e| GameError::position(format!("Invalid FEN: {e}")))?;
+    let fen: Fen = text
+        .parse()
+        .map_err(|e| GameError::position(format!("Invalid FEN: {e}")))?;
     fen.into_position(CastlingMode::Standard)
         .map_err(|e| GameError::position(format!("Invalid chess position: {e}")))
 }
@@ -123,24 +140,44 @@ fn fen(position: &Chess) -> String {
 // Legal en passant, side to move, pieces and castling rights define repetition.
 // Counters are deliberately excluded. Full strings avoid probabilistic hash collisions.
 fn key(position: &Chess) -> String {
-    Fen::from_position(position, EnPassantMode::Legal).to_string()
-        .split_whitespace().take(4).collect::<Vec<_>>().join(" ")
+    Fen::from_position(position, EnPassantMode::Legal)
+        .to_string()
+        .split_whitespace()
+        .take(4)
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 fn count(derived: &Derived) -> u8 {
-    derived.repetitions.get(&key(&derived.position)).copied().unwrap_or(0)
+    derived
+        .repetitions
+        .get(&key(&derived.position))
+        .copied()
+        .unwrap_or(0)
 }
 
 fn classify(position: &Chess, repetitions: u8, plies: usize, max_plies: u32) -> Status {
     if position.legal_moves().is_empty() {
         return if position.is_check() {
-            Status::Checkmate { winner: 1 - seat(position.turn()) }
-        } else { Status::Stalemate };
+            Status::Checkmate {
+                winner: 1 - seat(position.turn()),
+            }
+        } else {
+            Status::Stalemate
+        };
     }
-    if position.is_insufficient_material() { return Status::InsufficientMaterial; }
-    if repetitions >= 5 { return Status::FivefoldRepetition; }
-    if position.halfmoves() >= 150 { return Status::SeventyFiveMove; }
-    if plies >= max_plies as usize { return Status::MoveLimit; }
+    if position.is_insufficient_material() {
+        return Status::InsufficientMaterial;
+    }
+    if repetitions >= 5 {
+        return Status::FivefoldRepetition;
+    }
+    if position.halfmoves() >= 150 {
+        return Status::SeventyFiveMove;
+    }
+    if plies >= max_plies as usize {
+        return Status::MoveLimit;
+    }
     Status::Active
 }
 
@@ -153,43 +190,71 @@ fn parse_uci(text: &str) -> Result<UciMove, GameError> {
 }
 
 fn notation_error() -> GameError {
-    GameError::new(ErrorCode::UnparseableAction, "Expected lowercase UCI (e2e4, a7a8q), claim_draw, or claim_draw:<UCI>", "Choose a listed legal action; SAN and null moves are not accepted.")
+    GameError::new(
+        ErrorCode::UnparseableAction,
+        "Expected lowercase UCI (e2e4, a7a8q), claim_draw, or claim_draw:<UCI>",
+        "Choose a listed legal action; SAN and null moves are not accepted.",
+    )
 }
 
 fn claimable(derived: &Derived, intended: Option<&str>) -> Result<bool, GameError> {
     if let Some(text) = intended {
-        let m = parse_uci(text)?.to_move(&derived.position)
+        let m = parse_uci(text)?
+            .to_move(&derived.position)
             .map_err(|_| GameError::illegal("The intended draw-claim move is illegal"))?;
         let mut next = derived.position.clone();
         next.play_unchecked(m);
-        if UciMove::from_standard(m).to_string() != text { return Err(GameError::illegal("Use canonical standard castling notation")); }
-        Ok(next.halfmoves() >= 100 || derived.repetitions.get(&key(&next)).copied().unwrap_or(0) >= 2)
+        if UciMove::from_standard(m).to_string() != text {
+            return Err(GameError::illegal(
+                "Use canonical standard castling notation",
+            ));
+        }
+        Ok(next.halfmoves() >= 100
+            || derived.repetitions.get(&key(&next)).copied().unwrap_or(0) >= 2)
     } else {
         Ok(derived.position.halfmoves() >= 100 || count(derived) >= 3)
     }
 }
 
-fn advance(derived: &mut Derived, action: &Action, plies: usize, config: &Config) -> Result<(), GameError> {
+fn advance(
+    derived: &mut Derived,
+    action: &Action,
+    plies: usize,
+    config: &Config,
+) -> Result<(), GameError> {
     if derived.status != Status::Active {
-        return Err(GameError::new(ErrorCode::MatchFinished, "The chess game has ended", "Create or fork a match."));
+        return Err(GameError::new(
+            ErrorCode::MatchFinished,
+            "The chess game has ended",
+            "Create or fork a match.",
+        ));
     }
     match action {
         Action::Move { uci } => {
-            let m = parse_uci(uci)?.to_move(&derived.position)
+            let m = parse_uci(uci)?
+                .to_move(&derived.position)
                 .map_err(|_| GameError::illegal("The UCI move is not legal in this position"))?;
             // UciMove also accepts king-to-rook castling aliases; canonical standard
             // chess uses king-to-destination notation only.
             if UciMove::from_standard(m).to_string() != *uci {
-                return Err(GameError::illegal("Use e1g1/e1c1 or e8g8/e8c8 for standard castling"));
+                return Err(GameError::illegal(
+                    "Use e1g1/e1c1 or e8g8/e8c8 for standard castling",
+                ));
             }
-            derived.last_move_san = Some(SanPlus::from_move_and_play_unchecked(&mut derived.position, m).to_string());
-            let repetitions = derived.repetitions.entry(key(&derived.position)).or_default();
+            derived.last_move_san =
+                Some(SanPlus::from_move_and_play_unchecked(&mut derived.position, m).to_string());
+            let repetitions = derived
+                .repetitions
+                .entry(key(&derived.position))
+                .or_default();
             *repetitions += 1;
             derived.status = classify(&derived.position, *repetitions, plies, config.max_plies);
         }
         Action::ClaimDraw { intended } => {
             if !claimable(derived, intended.as_deref())? {
-                return Err(GameError::illegal("Neither a threefold repetition nor fifty-move claim is available"));
+                return Err(GameError::illegal(
+                    "Neither a threefold repetition nor fifty-move claim is available",
+                ));
             }
             derived.status = Status::ClaimedDraw;
         }
@@ -208,24 +273,43 @@ impl State {
             return Err(GameError::position("Stored initial_fen must be canonical"));
         }
         let status = classify(&position, 1, 0, self.config.max_plies);
-        let mut derived = Derived { repetitions: BTreeMap::from([(key(&position), 1)]), position, status, last_move_san: None };
+        let mut derived = Derived {
+            repetitions: BTreeMap::from([(key(&position), 1)]),
+            position,
+            status,
+            last_move_san: None,
+        };
         for (index, action) in self.actions.iter().enumerate() {
-            advance(&mut derived, action, index + 1, &self.config)
-                .map_err(|e| GameError::position(format!("Invalid history at action {}: {}", index + 1, e.message)))?;
+            advance(&mut derived, action, index + 1, &self.config).map_err(|e| {
+                GameError::position(format!(
+                    "Invalid history at action {}: {}",
+                    index + 1,
+                    e.message
+                ))
+            })?;
         }
         Ok(derived)
     }
 
     fn derived(&self) -> Result<&Derived, GameError> {
-        self.cache.get_or_init(|| self.derive()).as_ref().map_err(Clone::clone)
+        self.cache
+            .get_or_init(|| self.derive())
+            .as_ref()
+            .map_err(Clone::clone)
     }
 }
 
 fn validate_config(config: &Config) -> Result<(), GameError> {
     if !(1..=MAX_PLIES).contains(&config.max_plies) {
-        return Err(GameError::new(ErrorCode::InvalidConfig, "max_plies must be 1..=1000", "Use the standard default of 1000 or a smaller training cap."));
+        return Err(GameError::new(
+            ErrorCode::InvalidConfig,
+            "max_plies must be 1..=1000",
+            "Use the standard default of 1000 or a smaller training cap.",
+        ));
     }
-    if let Some(start) = &config.start_fen { parse_fen(start)?; }
+    if let Some(start) = &config.start_fen {
+        parse_fen(start)?;
+    }
     Ok(())
 }
 
@@ -266,13 +350,23 @@ impl Game for ChessGame {
 
     fn new_initial_state(config: &Config, _: u64) -> Result<State, GameError> {
         validate_config(config)?;
-        let position = match &config.start_fen { Some(text) => parse_fen(text)?, None => Chess::default() };
-        let state = State { config: config.clone(), initial_fen: fen(&position), actions: vec![], cache: OnceLock::new() };
+        let position = match &config.start_fen {
+            Some(text) => parse_fen(text)?,
+            None => Chess::default(),
+        };
+        let state = State {
+            config: config.clone(),
+            initial_fen: fen(&position),
+            actions: vec![],
+            cache: OnceLock::new(),
+        };
         Self::validate_state(&state)?;
         Ok(state)
     }
 
-    fn validate_state(state: &State) -> Result<(), GameError> { state.derived().map(|_| ()) }
+    fn validate_state(state: &State) -> Result<(), GameError> {
+        state.derived().map(|_| ())
+    }
 
     fn current_players(state: &State) -> Vec<PlayerId> {
         match state.derived() {
@@ -282,39 +376,73 @@ impl Game for ChessGame {
     }
 
     fn legal_actions(state: &State, player: PlayerId) -> Vec<Action> {
-        let Ok(d) = state.derived() else { return vec![]; };
-        if d.status != Status::Active || player != seat(d.position.turn()) { return vec![]; }
+        let Ok(d) = state.derived() else {
+            return vec![];
+        };
+        if d.status != Status::Active || player != seat(d.position.turn()) {
+            return vec![];
+        }
         let moves = d.position.legal_moves();
-        let mut actions: Vec<_> = moves.iter().map(|&m| Action::Move { uci: UciMove::from_standard(m).to_string() }).collect();
-        if claimable(d, None).unwrap_or(false) { actions.push(Action::ClaimDraw { intended: None }); }
+        let mut actions: Vec<_> = moves
+            .iter()
+            .map(|&m| Action::Move {
+                uci: UciMove::from_standard(m).to_string(),
+            })
+            .collect();
+        if claimable(d, None).unwrap_or(false) {
+            actions.push(Action::ClaimDraw { intended: None });
+        }
         if d.position.halfmoves() >= 99 || d.repetitions.values().any(|&n| n >= 2) {
             for &m in &moves {
                 let uci = UciMove::from_standard(m).to_string();
                 if claimable(d, Some(&uci)).unwrap_or(false) {
-                    actions.push(Action::ClaimDraw { intended: Some(uci) });
+                    actions.push(Action::ClaimDraw {
+                        intended: Some(uci),
+                    });
                 }
             }
         }
         actions
     }
 
-    fn apply(state: &mut State, player: PlayerId, action: &Action) -> Result<StepEvents, GameError> {
+    fn apply(
+        state: &mut State,
+        player: PlayerId,
+        action: &Action,
+    ) -> Result<StepEvents, GameError> {
         let d = state.derived()?;
         if d.status != Status::Active {
-            return Err(GameError::new(ErrorCode::MatchFinished, "The chess game has ended", "Create or fork a match."));
+            return Err(GameError::new(
+                ErrorCode::MatchFinished,
+                "The chess game has ended",
+                "Create or fork a match.",
+            ));
         }
         if player != seat(d.position.turn()) {
-            return Err(GameError::new(ErrorCode::NotYourTurn, "The other color must move", "Wait for your turn."));
+            return Err(GameError::new(
+                ErrorCode::NotYourTurn,
+                "The other color must move",
+                "Wait for your turn.",
+            ));
         }
-        let d = state.cache.get_mut().ok_or_else(|| GameError::position("Missing derived board"))?
-            .as_mut().map_err(|e| e.clone())?;
+        let d = state
+            .cache
+            .get_mut()
+            .ok_or_else(|| GameError::position("Missing derived board"))?
+            .as_mut()
+            .map_err(|e| e.clone())?;
         advance(d, action, state.actions.len() + 1, &state.config)?;
         state.actions.push(action.clone());
-        Ok(StepEvents { truncated: d.status == Status::MoveLimit, events: vec![] })
+        Ok(StepEvents {
+            truncated: d.status == Status::MoveLimit,
+            events: vec![],
+        })
     }
 
     fn is_terminal(state: &State) -> bool {
-        state.derived().is_ok_and(|d| !matches!(d.status, Status::Active | Status::MoveLimit))
+        state
+            .derived()
+            .is_ok_and(|d| !matches!(d.status, Status::Active | Status::MoveLimit))
     }
 
     fn returns(state: &State) -> Vec<f64> {
@@ -327,7 +455,11 @@ impl Game for ChessGame {
 
     fn observe(state: &State, _: Viewer) -> Observation {
         let Ok(d) = state.derived() else {
-            return Observation { text: "Invalid chess position.".into(), json: json!(null), tensor: None };
+            return Observation {
+                text: "Invalid chess position.".into(),
+                json: json!(null),
+                tensor: None,
+            };
         };
         let mut text = String::from("  a b c d e f g h\n");
         let mut pieces = BTreeMap::new();
@@ -339,14 +471,20 @@ impl Game for ChessGame {
                 let ch = if let Some(piece) = d.position.board().piece_at(square) {
                     pieces.insert(square.to_string(), piece.char().to_string());
                     let role = match piece.role {
-                        shakmaty::Role::Pawn => 0, shakmaty::Role::Knight => 1,
-                        shakmaty::Role::Bishop => 2, shakmaty::Role::Rook => 3,
-                        shakmaty::Role::Queen => 4, shakmaty::Role::King => 5,
+                        shakmaty::Role::Pawn => 0,
+                        shakmaty::Role::Knight => 1,
+                        shakmaty::Role::Bishop => 2,
+                        shakmaty::Role::Rook => 3,
+                        shakmaty::Role::Queen => 4,
+                        shakmaty::Role::King => 5,
                     };
                     values[(seat(piece.color) as usize * 6 + role) * 64 + row * 8 + col] = 1.0;
                     piece.char()
-                } else { '.' };
-                text.push(ch); text.push(' ');
+                } else {
+                    '.'
+                };
+                text.push(ch);
+                text.push(' ');
             }
             text.push('\n');
         }
@@ -354,8 +492,12 @@ impl Game for ChessGame {
         let rights = current_fen.split_whitespace().nth(2).unwrap_or("-");
         let reps = count(d);
         for i in 0..64 {
-            values[12 * 64 + i] = if d.position.turn() == Color::White { 1.0 } else { 0.0 };
-            for (plane, flag) in ['K','Q','k','q'].into_iter().enumerate() {
+            values[12 * 64 + i] = if d.position.turn() == Color::White {
+                1.0
+            } else {
+                0.0
+            };
+            for (plane, flag) in ['K', 'Q', 'k', 'q'].into_iter().enumerate() {
                 values[(13 + plane) * 64 + i] = if rights.contains(flag) { 1.0 } else { 0.0 };
             }
             values[18 * 64 + i] = (d.position.halfmoves() as f32 / 150.0).min(1.0);
@@ -365,29 +507,55 @@ impl Game for ChessGame {
             let i = ep as usize;
             values[17 * 64 + (7 - i / 8) * 8 + i % 8] = 1.0;
         }
-        text.push_str(&format!("{:?}; {} to move (seat {}).{}",
-            d.status, if d.position.turn() == Color::White { "White" } else { "Black" },
-            seat(d.position.turn()), if d.position.is_check() { " Check." } else { "" }));
+        text.push_str(&format!(
+            "{:?}; {} to move (seat {}).{}",
+            d.status,
+            if d.position.turn() == Color::White {
+                "White"
+            } else {
+                "Black"
+            },
+            seat(d.position.turn()),
+            if d.position.is_check() { " Check." } else { "" }
+        ));
         Observation {
             text,
             json: json!(BoardView {
-                state: state.clone(), fen: current_fen, pieces, to_move: seat(d.position.turn()),
-                check: d.position.is_check(), halfmoves: d.position.halfmoves(),
-                fullmoves: d.position.fullmoves().get(), repetitions: reps,
+                state: state.clone(),
+                fen: current_fen,
+                pieces,
+                to_move: seat(d.position.turn()),
+                check: d.position.is_check(),
+                halfmoves: d.position.halfmoves(),
+                fullmoves: d.position.fullmoves().get(),
+                repetitions: reps,
                 can_claim_draw: d.status == Status::Active && claimable(d, None).unwrap_or(false),
-                status: d.status.clone(), last_move_san: d.last_move_san.clone(),
+                status: d.status.clone(),
+                last_move_san: d.last_move_san.clone(),
             }),
-            tensor: Some(Tensor { shape: vec![20,8,8], values }),
+            tensor: Some(Tensor {
+                shape: vec![20, 8, 8],
+                values,
+            }),
         }
     }
 
-    fn state_from_observation(config: &Config, observation: &Observation, _: Viewer, _: u64) -> Result<State, GameError> {
+    fn state_from_observation(
+        config: &Config,
+        observation: &Observation,
+        _: Viewer,
+        _: u64,
+    ) -> Result<State, GameError> {
         let view: BoardView = serde_json::from_value(observation.json.clone())
             .map_err(|e| GameError::position(e.to_string()))?;
-        if &view.state.config != config { return Err(GameError::position("Observation config does not match")); }
+        if &view.state.config != config {
+            return Err(GameError::position("Observation config does not match"));
+        }
         Self::validate_state(&view.state)?;
         if Self::observe(&view.state, Viewer::Spectator).json != observation.json {
-            return Err(GameError::position("Observation fields disagree with chess history"));
+            return Err(GameError::position(
+                "Observation fields disagree with chess history",
+            ));
         }
         Ok(view.state)
     }
@@ -396,25 +564,38 @@ impl Game for ChessGame {
         match action {
             Action::Move { uci } => uci.clone(),
             Action::ClaimDraw { intended: None } => "claim_draw".into(),
-            Action::ClaimDraw { intended: Some(uci) } => format!("claim_draw:{uci}"),
+            Action::ClaimDraw {
+                intended: Some(uci),
+            } => format!("claim_draw:{uci}"),
         }
     }
 
     fn action_from_string(_: &State, text: &str) -> Result<Action, GameError> {
-        if text == "claim_draw" { return Ok(Action::ClaimDraw { intended: None }); }
+        if text == "claim_draw" {
+            return Ok(Action::ClaimDraw { intended: None });
+        }
         if let Some(uci) = text.strip_prefix("claim_draw:") {
             parse_uci(uci)?;
-            return Ok(Action::ClaimDraw { intended: Some(uci.into()) });
+            return Ok(Action::ClaimDraw {
+                intended: Some(uci.into()),
+            });
         }
         parse_uci(text)?;
         Ok(Action::Move { uci: text.into() })
     }
 
-    fn action_to_index(action: &Action) -> u32 { encoding::index(action) }
+    fn action_to_index(action: &Action) -> u32 {
+        encoding::index(action)
+    }
 
     fn action_from_index(state: &State, index: u32) -> Result<Action, GameError> {
-        Self::current_players(state).first()
-            .and_then(|&seat| Self::legal_actions(state, seat).into_iter().find(|a| Self::action_to_index(a) == index))
+        Self::current_players(state)
+            .first()
+            .and_then(|&seat| {
+                Self::legal_actions(state, seat)
+                    .into_iter()
+                    .find(|a| Self::action_to_index(a) == index)
+            })
             .ok_or_else(|| GameError::illegal("No legal chess action has that index"))
     }
 
@@ -424,19 +605,31 @@ impl Game for ChessGame {
 
     fn state_to_notation(state: &State) -> Result<String, GameError> {
         Self::validate_state(state)?;
-        if state.actions.is_empty() { Ok(state.initial_fen.clone()) }
-        else { Ok(serde_json::to_string(state)?) }
+        if state.actions.is_empty() {
+            Ok(state.initial_fen.clone())
+        } else {
+            Ok(serde_json::to_string(state)?)
+        }
     }
 
     fn state_from_notation(config: &Config, notation: &str) -> Result<State, GameError> {
         validate_config(config)?;
         let state: State = if notation.trim_start().starts_with('{') {
-            if notation.len() > 128 * 1024 { return Err(GameError::position("Chess history exceeds 128 KiB")); }
+            if notation.len() > 128 * 1024 {
+                return Err(GameError::position("Chess history exceeds 128 KiB"));
+            }
             serde_json::from_str(notation).map_err(|e| GameError::position(e.to_string()))?
         } else {
-            State { config: config.clone(), initial_fen: fen(&parse_fen(notation)?), actions: vec![], cache: OnceLock::new() }
+            State {
+                config: config.clone(),
+                initial_fen: fen(&parse_fen(notation)?),
+                actions: vec![],
+                cache: OnceLock::new(),
+            }
         };
-        if &state.config != config { return Err(GameError::position("Imported chess config does not match")); }
+        if &state.config != config {
+            return Err(GameError::position("Imported chess config does not match"));
+        }
         Self::validate_state(&state)?;
         Ok(state)
     }
