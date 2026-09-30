@@ -413,6 +413,111 @@ impl GameService {
         }
     }
 
+    /// Simulate independent lines from a caller-supplied position or authorized
+    /// match observation. Match seeds and hidden live state never enter planning.
+    pub async fn simulate(
+        &self,
+        game_id: &str,
+        request: gfa_api_types::SimulateRequest,
+        viewer: Viewer,
+    ) -> Result<gfa_api_types::SimulationResult, ApiError> {
+        use gfa_api_types::{SimulationFrom, Start};
+        crate::simulation::validate(&request)?;
+        let game = self.registry.get(game_id).map_err(error::engine)?;
+        let seed = request.seed.unwrap_or_else(|| self.ids.next_seed());
+        let (state, turn, accounting) = match &request.from {
+            SimulationFrom::Match { match_id, seat, turn } => {
+                if viewer != Viewer::Player(*seat) {
+                    return Err(assist_denied("Simulation must use the authorized match seat"));
+                }
+                if request.config != json!({}) {
+                    return Err(ApiError::new("INVALID_CONFIG", "Match simulation uses recorded config", "Omit config for a match source."));
+                }
+                let record = self.record(match_id).await?;
+                let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+                    return Err(error::corrupt());
+                };
+                if origin.game_id != game_id {
+                    return Err(ApiError::new("INVALID_CONFIG", "Match belongs to another game", "Use the match's game id."));
+                }
+                if !origin.assists.allow_simulation {
+                    return Err(assist_denied("Simulation is disabled for this match"));
+                }
+                let reconstructed = replay::reconstruct(&self.registry, &record)?;
+                let frame = match turn {
+                    Some(turn) => reconstructed.frames.iter().find(|frame| frame.turn == *turn)
+                        .ok_or_else(|| ApiError::new("INVALID_POSITION", "Historical turn does not exist", "Use a turn from the replay."))?,
+                    None => reconstructed.current()?,
+                };
+                let observation = game.observe(&frame.state, viewer).map_err(error::engine)?;
+                let state = game.state_from_observation(&origin.config, &observation, viewer, seed)
+                    .map_err(error::engine)?;
+                (state, frame.turn, Some((match_id.as_str(), *seat)))
+            }
+            SimulationFrom::Position { position } => {
+                let config = game.normalize_config(&request.config).map_err(error::engine)?;
+                game.initial_state(&config, seed).map_err(error::engine)?;
+                let state = crate::position::import(game.as_ref(), &config, &Start::Position { position: position.clone() }, seed)?;
+                self.guard_standalone_simulation(game_id, &config, &state, viewer).await?;
+                (state, 0, None)
+            }
+            SimulationFrom::State { state } => {
+                let config = game.normalize_config(&request.config).map_err(error::engine)?;
+                game.initial_state(&config, seed).map_err(error::engine)?;
+                let state = crate::position::import(game.as_ref(), &config, &Start::State { state: state.clone() }, seed)?;
+                self.guard_standalone_simulation(game_id, &config, &state, viewer).await?;
+                (state, 0, None)
+            }
+        };
+        let result = crate::simulation::run(game.as_ref(), &state, turn, seed, &request, viewer)?;
+        if let Some((id, seat)) = accounting {
+            let moves = result.lines.iter().map(|line| line.moves_applied).sum();
+            self.store.record_simulation(id, seat, moves).await.map_err(error::store)?;
+        }
+        Ok(result)
+    }
+
+    // Local mode has one owner. Public hosting must scope this index to the
+    // authenticated caller's active matches before exposing this service.
+    async fn guard_standalone_simulation(
+        &self,
+        game_id: &str,
+        config: &Value,
+        state: &Value,
+        viewer: Viewer,
+    ) -> Result<(), ApiError> {
+        let game = self.registry.get(game_id).map_err(error::engine)?;
+        let observation = game.observe(state, viewer).map_err(error::engine)?;
+        let fingerprint = crate::simulation::fingerprint(config, &observation)?;
+        let mut after = String::new();
+        loop {
+            let ids = self.store.list_ids(&after, 100).await.map_err(error::store)?;
+            if ids.len() > 100 || ids.iter().any(|id| id <= &after)
+                || ids.windows(2).any(|pair| pair[0] >= pair[1])
+            {
+                return Err(error::corrupt());
+            }
+            for id in &ids {
+                let record = self.record(id).await?;
+                let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+                    return Err(error::corrupt());
+                };
+                if origin.game_id != game_id || origin.assists.allow_simulation { continue; }
+                let reconstructed = replay::reconstruct(&self.registry, &record)?;
+                let current = reconstructed.current()?;
+                if current.ended() { continue; }
+                let config = game.normalize_config(&origin.config).map_err(error::engine)?;
+                let observation = game.observe(&current.state, viewer).map_err(error::engine)?;
+                if crate::simulation::fingerprint(&config, &observation)? == fingerprint {
+                    return Err(assist_denied("This position belongs to an active match where simulation is disabled"));
+                }
+            }
+            if ids.len() < 100 { break; }
+            after = ids.last().cloned().ok_or_else(error::corrupt)?;
+        }
+        Ok(())
+    }
+
     /// Resign a one- or two-seat match, preserving its engine position.
     pub async fn resign(
         &self,
@@ -511,7 +616,7 @@ impl GameService {
     }
 }
 
-fn canonical(legal: &[LegalAction], input: &Value) -> Option<LegalAction> {
+pub(crate) fn canonical(legal: &[LegalAction], input: &Value) -> Option<LegalAction> {
     legal
         .iter()
         .find(|action| {
@@ -542,4 +647,8 @@ fn validate_command(request: &MoveRequest, key: Option<&str>) -> Result<(), ApiE
         ));
     }
     Ok(())
+}
+
+fn assist_denied(message: &str) -> ApiError {
+    ApiError::new("ASSIST_NOT_ALLOWED", message, "Use a match whose recorded assists allow simulation.")
 }

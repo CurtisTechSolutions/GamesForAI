@@ -5,6 +5,7 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+sha2.workspace = true
 gfa-core.workspace = true
 gfa-api-types.workspace = true
 serde.workspace = true
