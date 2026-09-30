@@ -31,6 +31,7 @@ async fn create(service: &GameService) -> Result<String, ServerError> {
                 config: json!({}),
                 seed: Some(42),
                 start: None,
+                include_info: true,
             },
             Viewer::Player(0),
         )

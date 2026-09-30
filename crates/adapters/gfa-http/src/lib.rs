@@ -70,6 +70,7 @@ fn build_router(
         .route("/v1/games/{game_id}", get(game))
         .route("/v1/games/{game_id}/info", get(info::game_info))
         .route("/v1/matches", post(create))
+        .route("/v1/matches/{id}/info", get(info::match_info))
         .route("/v1/matches/{id}/state", get(state))
         .route("/v1/matches/{id}/legal-actions", get(legal_actions))
         .route("/v1/matches/{id}/actions", post(make_move))
@@ -152,7 +153,7 @@ async fn create(
 ) -> Result<Response, HttpError> {
     let viewer = Viewer::Player(view(query)?.seat.unwrap_or(0));
     let Json(request) = body?;
-    let state = service.create_match(request, viewer).await?;
+    let state = service.create_match_with_info(request, viewer).await?;
     Ok((StatusCode::CREATED, Json(state)).into_response())
 }
 

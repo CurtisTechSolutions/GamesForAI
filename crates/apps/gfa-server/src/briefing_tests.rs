@@ -229,3 +229,112 @@ async fn representations_are_equivalent_and_etags_track_query_variants() -> Test
     app.store.close().await;
     Ok(())
 }
+
+#[tokio::test]
+async fn match_briefings_cover_custom_starts_opt_out_and_restart() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let config = config(&dir);
+    let app = fixture(&config).await?;
+    let position = json!({"board":[0,null,null,null,1,null,null,null,null],"to_move":0});
+    let (status, mut created) = call(
+        &app.router,
+        "POST",
+        "/v1/matches?seat=1",
+        json!({"game_id":"tictactoe","seed":1234,"start":{"state":position}}),
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::CREATED);
+    let info: Briefing = serde_json::from_value(
+        created
+            .as_object_mut()
+            .ok_or("creation object")?
+            .remove("info")
+            .ok_or("creation briefing")?,
+    )?;
+    let id = created["match_id"].as_str().ok_or("match id")?;
+    let live = data(&info, "match")?;
+    assert_eq!(live["state"], created);
+    assert_eq!(live["you"]["seat"], 1);
+    assert_eq!(live["status"], "active");
+    assert_eq!(
+        serde_json::from_str::<Value>(live["start"]["position"].as_str().ok_or("position")?)?,
+        position
+    );
+    let path = format!("/v1/matches/{id}/info?seat=1&detail=compact");
+    let (status, headers, body) = raw(&app.router, &path, Some("*")).await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(headers[header::CACHE_CONTROL], "no-store");
+    assert!(!headers.contains_key(header::ETAG));
+    assert_eq!(serde_json::from_slice::<Briefing>(&body)?, info);
+    let (_, _, markdown) = raw(&app.router, &format!("{path}&format=markdown"), None).await?;
+    assert_eq!(String::from_utf8(markdown)?, info.markdown()?);
+    let (_, _, spectator) = raw(&app.router, &format!("/v1/matches/{id}/info"), None).await?;
+    let spectator: Briefing = serde_json::from_slice(&spectator)?;
+    assert!(data(&spectator, "match")?["you"].is_null());
+    assert_eq!(
+        data(&spectator, "match")?["state"]["legal_actions"],
+        json!([])
+    );
+    assert_eq!(
+        data(&spectator, "initial_state")?["legal_actions"],
+        json!([])
+    );
+    let (status, _) = call(
+        &app.router,
+        "POST",
+        &format!("/v1/matches/{id}/actions"),
+        json!({"seat":0,"turn":0,"action":"r1c2"}),
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK);
+    let (_, _, current) = raw(&app.router, &path, None).await?;
+    let current_info: Briefing = serde_json::from_slice(&current)?;
+    assert_eq!(data(&current_info, "match")?["turn"], 1);
+    assert_eq!(data(&current_info, "match")?["start"], live["start"]);
+    for (query, expected) in [
+        ("seat=255", StatusCode::UNPROCESSABLE_ENTITY),
+        ("config=%7B%7D", StatusCode::BAD_REQUEST),
+        ("detail=unknown", StatusCode::BAD_REQUEST),
+        ("format=html", StatusCode::BAD_REQUEST),
+    ] {
+        assert_eq!(
+            raw(&app.router, &format!("/v1/matches/{id}/info?{query}"), None)
+                .await?
+                .0,
+            expected
+        );
+    }
+    let (_, opted_out) = call(
+        &app.router,
+        "POST",
+        "/v1/matches",
+        json!({"game_id":"tictactoe","include_info":false}),
+        None,
+    )
+    .await?;
+    assert!(opted_out.get("info").is_none());
+    assert!(opted_out["observation"].is_object());
+    assert_eq!(
+        call(
+            &app.router,
+            "POST",
+            "/v1/matches",
+            json!({"game_id":"tictactoe","include_info":"false"}),
+            None
+        )
+        .await?
+        .0,
+        StatusCode::UNPROCESSABLE_ENTITY
+    );
+    assert_eq!(
+        raw(&app.router, "/v1/matches/missing/info", None).await?.0,
+        StatusCode::NOT_FOUND
+    );
+    app.store.close().await;
+    let reopened = fixture(&config).await?;
+    assert_eq!(raw(&reopened.router, &path, None).await?.2, current);
+    reopened.store.close().await;
+    Ok(())
+}

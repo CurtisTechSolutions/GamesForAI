@@ -64,12 +64,33 @@ impl GameService {
         crate::briefing::game_info(game.as_ref(), config, seat, detail)
     }
 
-    /// Validate inputs and persist an immutable match origin.
+    /// Create a match and return only its state for in-process callers.
+    ///
+    /// Transports use create_match_with_info to honor the include_info option.
     pub async fn create_match(
         &self,
         request: CreateMatch,
         viewer: Viewer,
     ) -> Result<MatchState, ApiError> {
+        Ok(self.create(request, viewer, false).await?.state)
+    }
+
+    /// Create a match with an optional compact briefing prepared before persistence.
+    pub async fn create_match_with_info(
+        &self,
+        request: CreateMatch,
+        viewer: Viewer,
+    ) -> Result<gfa_api_types::CreatedMatch, ApiError> {
+        let include_info = request.include_info;
+        self.create(request, viewer, include_info).await
+    }
+
+    async fn create(
+        &self,
+        request: CreateMatch,
+        viewer: Viewer,
+        include_info: bool,
+    ) -> Result<gfa_api_types::CreatedMatch, ApiError> {
         let game = self.registry.get(&request.game_id).map_err(error::engine)?;
         let origin = MatchOrigin {
             game_id: request.game_id,
@@ -89,6 +110,21 @@ impl GameService {
             ));
         }
         let state = frame.project(&id, game.as_ref(), viewer)?;
+        let info = if include_info {
+            Some(
+                crate::briefing::MatchBrief {
+                    game: game.as_ref(),
+                    origin: &origin,
+                    initial: &frame,
+                    current: &frame,
+                    id: &id,
+                    viewer,
+                }
+                .build(gfa_api_types::InfoDetail::Compact)?,
+            )
+        } else {
+            None
+        };
         self.store
             .create(MatchRecord {
                 id,
@@ -98,7 +134,30 @@ impl GameService {
             .await
             .map_err(error::store)?;
         self.observer.committed(&state.match_id);
-        Ok(state)
+        Ok(gfa_api_types::CreatedMatch { state, info })
+    }
+
+    /// Read one consistent event snapshot and produce a viewer-scoped match briefing.
+    pub async fn get_match_info(
+        &self,
+        id: &str,
+        viewer: Viewer,
+        detail: gfa_api_types::InfoDetail,
+    ) -> Result<gfa_api_types::Briefing, ApiError> {
+        let record = self.record(id).await?;
+        let replay = replay::reconstruct(&self.registry, &record)?;
+        let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+            return Err(error::corrupt());
+        };
+        crate::briefing::MatchBrief {
+            game: replay.game.as_ref(),
+            origin,
+            initial: replay.frames.first().ok_or_else(error::corrupt)?,
+            current: replay.current()?,
+            id,
+            viewer,
+        }
+        .build(detail)
     }
 
     /// Reconstruct and project the latest committed state.

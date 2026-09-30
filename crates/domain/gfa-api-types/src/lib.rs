@@ -20,6 +20,10 @@ pub enum Start {
     },
 }
 
+fn include_info_by_default() -> bool {
+    true
+}
+
 fn empty_config() -> Value {
     serde_json::json!({})
 }
@@ -39,6 +43,9 @@ pub struct CreateMatch {
     /// Optional custom position.
     #[serde(default)]
     pub start: Option<Start>,
+    /// Include a compact briefing in transport creation responses.
+    #[serde(default = "include_info_by_default")]
+    pub include_info: bool,
 }
 
 /// Submit one action against an expected turn.
@@ -136,6 +143,7 @@ mod tests {
         assert_eq!(request.config, json!({}));
         assert!(request.seed.is_none());
         assert!(request.start.is_none());
+        assert!(request.include_info);
         assert!(serde_json::from_value::<Start>(json!({"position":"x","state":{}})).is_err());
         assert!(
             serde_json::from_value::<CreateMatch>(json!({"game_id":"tictactoe","typo":true}))
@@ -169,3 +177,14 @@ mod tests {
 
 mod info;
 pub use info::{Briefing, InfoDetail, InfoSection};
+
+/// Match creation response with the existing state fields and optional briefing.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
+pub struct CreatedMatch {
+    /// Initial observation and legal actions, kept at the response's top level.
+    #[serde(flatten)]
+    pub state: MatchState,
+    /// Compact match briefing; absent when include_info was false.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub info: Option<Briefing>,
+}
