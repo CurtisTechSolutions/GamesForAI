@@ -1,0 +1,22 @@
+{
+  "name": "gamesforai",
+  "private": true,
+  "packageManager": "pnpm@10.6.5",
+  "scripts": {
+    "build": "pnpm --filter @gfa/site build",
+    "dev": "pnpm --filter @gfa/site dev",
+    "typecheck": "tsc --noEmit -p web/tsconfig.json",
+    "lint": "eslint web && depcruise web --config .dependency-cruiser.cjs",
+    "format:check": "prettier --check 'web/**/*.{ts,tsx,css,html,json}'",
+    "format": "prettier --write 'web/**/*.{ts,tsx,css,html,json}'"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "dependency-cruiser": "^16.10.2",
+    "eslint": "^9.22.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.0"
+  }
+}
