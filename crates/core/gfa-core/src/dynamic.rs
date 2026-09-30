@@ -21,6 +21,16 @@ pub trait DynGame: Send + Sync {
     }
     /// Create an initial state from validated configuration.
     fn initial_state(&self, config: &Value, seed: u64) -> Result<Value, GameError>;
+    /// Replace an imported position's future randomness while preserving its board.
+    fn reseed(&self, state: &Value, _seed: u64) -> Result<Value, GameError> {
+        if self.spec().stochastic {
+            return Err(GameError::position(
+                "This stochastic engine does not support reseeding",
+            ));
+        }
+        self.validate_state(state)?;
+        Ok(state.clone())
+    }
     /// Validate a JSON state before accepting it from a caller.
     fn validate_state(&self, state: &Value) -> Result<(), GameError>;
     /// Seats currently allowed to act.
@@ -139,6 +149,13 @@ impl<G: Game> DynGame for GameAdapter<G> {
 
     fn validate_state(&self, state: &Value) -> Result<(), GameError> {
         Self::state(state).map(|_| ())
+    }
+
+    fn reseed(&self, state: &Value, seed: u64) -> Result<Value, GameError> {
+        let mut state = Self::state(state)?;
+        G::reseed(&mut state, seed)?;
+        G::validate_state(&state)?;
+        Ok(serde_json::to_value(state)?)
     }
 
     fn current_players(&self, state: &Value) -> Result<Vec<PlayerId>, GameError> {

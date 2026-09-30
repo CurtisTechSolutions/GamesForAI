@@ -188,3 +188,6 @@ pub struct CreatedMatch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub info: Option<Briefing>,
 }
+
+mod position;
+pub use position::{ValidatePosition, ValidatedPosition};

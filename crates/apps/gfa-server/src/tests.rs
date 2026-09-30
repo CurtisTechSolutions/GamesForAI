@@ -280,3 +280,87 @@ async fn connect_four_uses_the_same_routes_and_spectator_projection() -> TestRes
     app.store.close().await;
     Ok(())
 }
+
+#[tokio::test]
+async fn position_validation_accepts_finished_boards_and_round_trips_all_encodings() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let app = fixture(&config(&dir)).await?;
+    for (game, position, terminal) in [
+        (
+            "tictactoe",
+            json!({"board":[0,0,0,1,1,null,null,null,null],"to_move":1}),
+            true,
+        ),
+        ("connect4", json!({"boards":[1,0],"to_move":1}), false),
+    ] {
+        let path = format!("/v1/games/{game}/positions/validate?seat=1");
+        let (status, result) = call(
+            &app.router,
+            "POST",
+            &path,
+            json!({"start":{"state":position},"seed":7}),
+            None,
+        )
+        .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(result["state"], position);
+        assert_eq!(result["terminated"], terminal);
+        let (status, restored) = call(
+            &app.router,
+            "POST",
+            &path,
+            json!({"start":{"position":result["position"]},"seed":7}),
+            None,
+        )
+        .await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(result, restored);
+        if terminal {
+            assert_eq!(result["to_act"], json!([]));
+            assert_eq!(result["legal_actions"], json!([]));
+            assert_eq!(result["returns"], json!([1.0, -1.0]));
+            let (status, error) = call(
+                &app.router,
+                "POST",
+                "/v1/matches",
+                json!({"game_id":game,"start":{"state":position}}),
+                None,
+            )
+            .await?;
+            assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+            assert_eq!(error["error"]["code"], "INVALID_POSITION");
+        } else {
+            assert_eq!(result["legal_actions"].as_array().map(Vec::len), Some(7));
+        }
+    }
+    for (game, request, code) in [
+        (
+            "connect4",
+            json!({"start":{"state":{"boards":[2,0],"to_move":1}}}),
+            "INVALID_POSITION",
+        ),
+        (
+            "tictactoe",
+            json!({"start":{"position":"not a board"}}),
+            "INVALID_POSITION",
+        ),
+        (
+            "tictactoe",
+            json!({"config":{"bad":true},"start":{"state":{}}}),
+            "INVALID_CONFIG",
+        ),
+        ("missing", json!({"start":{"state":{}}}), "UNKNOWN_GAME"),
+    ] {
+        let (_, error) = call(
+            &app.router,
+            "POST",
+            &format!("/v1/games/{game}/positions/validate"),
+            request,
+            None,
+        )
+        .await?;
+        assert_eq!(error["error"]["code"], code);
+    }
+    app.store.close().await;
+    Ok(())
+}

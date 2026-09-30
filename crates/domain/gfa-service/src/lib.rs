@@ -17,3 +17,5 @@ pub use service::GameService;
 mod tests;
 
 mod briefing;
+
+mod position;

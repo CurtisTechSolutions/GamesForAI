@@ -33,6 +33,22 @@ pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
         let mut rng = SeededRng::new(seed);
         let mut state = G::new_initial_state(&config, seed)?;
         let mut replay = G::new_initial_state(&config, seed)?;
+        let mut reseeded = state.clone();
+        let mut same_seed = state.clone();
+        G::reseed(&mut reseeded, seed + 100)?;
+        G::reseed(&mut same_seed, seed + 100)?;
+        G::validate_state(&reseeded)?;
+        assert_eq!(to_value(&reseeded)?, to_value(&same_seed)?);
+        assert_eq!(
+            G::observe(&reseeded, Viewer::Spectator),
+            G::observe(&state, Viewer::Spectator)
+        );
+        for seat in 0..spec.num_players[0] {
+            assert_eq!(
+                G::observe(&reseeded, Viewer::Player(seat)),
+                G::observe(&state, Viewer::Player(seat))
+            );
+        }
         let mut ended = false;
         for _ in 0..=spec.max_game_length {
             G::validate_state(&state)?;
