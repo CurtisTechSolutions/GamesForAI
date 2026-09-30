@@ -30,6 +30,7 @@ jobs:
       - run: cargo test --workspace --all-features --locked
         env:
           SQLX_OFFLINE: "true"
+      - run: cargo test -p gfa-cli --locked
       - run: cargo build -p gfa-cli --locked
       - run: python3 .github/scripts/local-server-smoke.py
       - name: Export generated OpenAPI

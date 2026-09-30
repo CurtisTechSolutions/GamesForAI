@@ -1,10 +1,19 @@
 //! GamesForAI command-line entry point for local play.
-use gfa_server::{Config, ServerError};
+use gfa_server::{Config, Database, ServerError};
 use std::path::PathBuf;
 
-const USAGE: &str = "Usage: gfa serve [--sqlite PATH] [--port PORT]\n\nStarts a local API on 127.0.0.1 (default port 8080).\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.";
+const USAGE: &str = "Usage: gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT]\n\nStarts a local API on 127.0.0.1 (default port 8080).\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.";
 
 fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Config>, String> {
+    parse_with_env(args, |name| std::env::var(name).ok())
+}
+
+fn parse_with_env(
+    args: impl IntoIterator<Item = String>,
+    env: impl Fn(&str) -> Option<String>,
+) -> Result<Option<Config>, String> {
+    // Keep the same parser signature in SQLite-only builds.
+    let _ = &env;
     let mut args = args.into_iter();
     match args.next().as_deref() {
         None | Some("--help" | "-h") => return Ok(None),
@@ -12,18 +21,41 @@ fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Config>, Strin
         Some(command) => return Err(format!("Unknown command: {command}")),
     }
     let mut config = Config::default();
-    let mut sqlite_seen = false;
+    let mut database_seen = false;
     let mut port_seen = false;
     while let Some(option) = args.next() {
         match option.as_str() {
             "--help" | "-h" => return Ok(None),
-            "--sqlite" if !sqlite_seen => {
+            "--sqlite" if !database_seen => {
                 let path = args.next().ok_or("--sqlite requires a path")?;
                 if path.is_empty() || path.starts_with("--") {
                     return Err("--sqlite requires a path".into());
                 }
-                config.sqlite = PathBuf::from(path);
-                sqlite_seen = true;
+                config.database = Database::Sqlite(PathBuf::from(path));
+                database_seen = true;
+            }
+            #[cfg(feature = "postgres")]
+            "--postgres-env" if !database_seen => {
+                let name = args
+                    .next()
+                    .ok_or("--postgres-env requires an environment variable name")?;
+                if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                {
+                    return Err("--postgres-env requires an environment variable name".into());
+                }
+                let url = env(&name)
+                    .ok_or("PostgreSQL environment variable is missing or not Unicode")?;
+                if !(url.starts_with("postgres://") || url.starts_with("postgresql://")) {
+                    return Err(
+                        "PostgreSQL environment variable must contain a PostgreSQL URL".into(),
+                    );
+                }
+                config.database = Database::Postgres(url);
+                database_seen = true;
+            }
+            #[cfg(not(feature = "postgres"))]
+            "--postgres-env" => {
+                return Err("PostgreSQL requires a build with --features postgres".into())
             }
             "--port" if !port_seen => {
                 config.port = args
@@ -90,13 +122,73 @@ mod tests {
         assert_eq!(
             options(&["serve", "--sqlite", "matches.sqlite", "--port", "0"])?,
             Some(Config {
-                sqlite: "matches.sqlite".into(),
+                database: Database::Sqlite("matches.sqlite".into()),
                 port: 0
             })
         );
         assert!(options(&[])?.is_none());
         assert!(options(&["--help"])?.is_none());
         Ok(())
+    }
+
+    #[cfg(feature = "postgres")]
+    #[test]
+    fn reads_postgres_from_environment_without_exposing_the_url() -> Result<(), String> {
+        let url = "postgres://alice:secret@localhost/gfa?sslmode=verify-full";
+        let parsed = parse_with_env(
+            ["serve", "--postgres-env", "GFA_DATABASE_URL"].map(str::to_owned),
+            |name| (name == "GFA_DATABASE_URL").then(|| url.to_owned()),
+        )?
+        .ok_or("missing config")?;
+        assert_eq!(parsed.database, Database::Postgres(url.to_owned()));
+        assert!(!format!("{parsed:?}").contains("secret"));
+        for options in [
+            vec!["serve", "--postgres-env"],
+            vec!["serve", "--postgres-env", "missing"],
+            vec!["serve", "--postgres-env", "--port"],
+            vec![
+                "serve",
+                "--sqlite",
+                "x.sqlite",
+                "--postgres-env",
+                "GFA_DATABASE_URL",
+            ],
+            vec![
+                "serve",
+                "--postgres-env",
+                "GFA_DATABASE_URL",
+                "--sqlite",
+                "x.sqlite",
+            ],
+            vec![
+                "serve",
+                "--postgres-env",
+                "GFA_DATABASE_URL",
+                "--postgres-env",
+                "GFA_DATABASE_URL",
+            ],
+        ] {
+            let result = parse_with_env(options.iter().map(|s| (*s).to_owned()), |name| {
+                (name == "GFA_DATABASE_URL").then(|| url.to_owned())
+            });
+            assert!(result.is_err(), "{options:?}");
+        }
+        let error = parse_with_env(
+            ["serve", "--postgres-env", "GFA_DATABASE_URL"].map(str::to_owned),
+            |_| Some("invalid-secret-url".into()),
+        )
+        .err()
+        .ok_or("invalid URL accepted")?;
+        assert!(!error.contains("invalid-secret-url"));
+        Ok(())
+    }
+
+    #[cfg(not(feature = "postgres"))]
+    #[test]
+    fn explains_missing_postgres_feature() {
+        assert!(options(&["serve", "--postgres-env", "GFA_DATABASE_URL"])
+            .err()
+            .is_some_and(|error| error.contains("--features postgres")));
     }
 
     #[test]

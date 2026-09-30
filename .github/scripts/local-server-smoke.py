@@ -1,5 +1,6 @@
 """Exercise the actual CLI, HTTP listener, graceful shutdown, and restart."""
 import json
+import os
 from pathlib import Path
 import re
 import selectors
@@ -11,8 +12,10 @@ binary = Path("target/debug/gfa").resolve()
 
 
 def start(database):
+    variable = os.environ.get("GFA_SMOKE_POSTGRES_ENV")
+    storage = ["--postgres-env", variable] if variable else ["--sqlite", str(database)]
     process = subprocess.Popen(
-        [str(binary), "serve", "--sqlite", str(database), "--port", "0"],
+        [str(binary), "serve", *storage, "--port", "0"],
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
     )
     try:
@@ -68,4 +71,4 @@ with tempfile.TemporaryDirectory() as directory:
         assert replay["states"][1] == moved["state"]
     finally:
         stop(process)
-print("Local CLI/HTTP/SQLite restart smoke test passed.")
+print("Local CLI/HTTP/database restart smoke test passed.")

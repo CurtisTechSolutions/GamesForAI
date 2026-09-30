@@ -42,3 +42,11 @@ jobs:
         run: cargo test -p gfa-store --no-default-features --features postgres --locked -- --ignored
       - name: Verify PostgreSQL query metadata
         run: python3 .github/scripts/postgres-query-check.py
+      - name: Build PostgreSQL-enabled CLI using both backends' offline queries
+        run: cargo build -p gfa-cli --features postgres --locked
+        env:
+          SQLX_OFFLINE: "true"
+      - name: Exercise CLI and HTTP restart against PostgreSQL
+        run: python3 .github/scripts/local-server-smoke.py
+        env:
+          GFA_SMOKE_POSTGRES_ENV: GFA_TEST_POSTGRES_URL
