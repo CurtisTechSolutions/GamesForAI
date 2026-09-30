@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT seat, simulation_calls, simulated_moves FROM gfa_assist_usage WHERE match_id = ? ORDER BY seat",
+  "describe": {
+    "columns": [
+      {
+        "name": "seat",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "simulation_calls",
+        "ordinal": 1,
+        "type_info": "Integer"
+      },
+      {
+        "name": "simulated_moves",
+        "ordinal": 2,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "cfe706aec984f9789fc4eee3d4d3bfaa65b9013593fd2fab4a2b60ebda3ca4fc"
+}

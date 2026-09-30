@@ -256,8 +256,14 @@ async fn simulation_rejects_bad_sources_and_isolates_illegal_lines() -> TestResu
     .await?;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(ended["lines"][0]["moves_applied"], 0);
-    assert_eq!(ended["lines"][0]["error"]["error"]["code"], "MATCH_FINISHED");
-    assert_eq!(ended["lines"][0]["states"][0]["outcome"]["reason"], "resigned");
+    assert_eq!(
+        ended["lines"][0]["error"]["error"]["code"],
+        "MATCH_FINISHED"
+    );
+    assert_eq!(
+        ended["lines"][0]["states"][0]["outcome"]["reason"],
+        "resigned"
+    );
     app.store.close().await;
     Ok(())
 }

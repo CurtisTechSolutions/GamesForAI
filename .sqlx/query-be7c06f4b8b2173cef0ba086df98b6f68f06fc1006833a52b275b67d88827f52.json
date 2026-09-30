@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO gfa_assist_usage (match_id, seat, simulation_calls, simulated_moves) VALUES (?, ?, 1, ?) ON CONFLICT(match_id, seat) DO UPDATE SET simulation_calls = simulation_calls + 1, simulated_moves = simulated_moves + excluded.simulated_moves",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "be7c06f4b8b2173cef0ba086df98b6f68f06fc1006833a52b275b67d88827f52"
+}

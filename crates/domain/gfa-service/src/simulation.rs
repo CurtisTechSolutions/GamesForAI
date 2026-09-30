@@ -109,7 +109,11 @@ fn step(
     replay::advance(game, state, frame.turn + 1, &events)
 }
 
-pub(crate) fn initial(game: &dyn DynGame, state: Value, turn: u64) -> Result<replay::Frame, ApiError> {
+pub(crate) fn initial(
+    game: &dyn DynGame,
+    state: Value,
+    turn: u64,
+) -> Result<replay::Frame, ApiError> {
     Ok(replay::Frame {
         terminated: game.is_terminal(&state).map_err(error::engine)?,
         state,
