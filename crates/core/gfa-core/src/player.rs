@@ -93,6 +93,33 @@ pub struct ActionChoice {
     pub info: ChoiceInfo,
 }
 
+/// Failure while obtaining a player decision, distinct from an illegal submitted move.
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[non_exhaustive]
+pub enum OpponentError {
+    /// Invalid game input or configuration.
+    #[error(transparent)]
+    Game(#[from] GameError),
+    /// All provider workers are occupied.
+    #[error("All opponent workers are busy")]
+    Busy,
+    /// Provider or installed engine is unavailable.
+    #[error("Opponent is unavailable")]
+    Unavailable,
+    /// Provider exceeded the host's hard deadline.
+    #[error("Opponent exceeded its time budget")]
+    Timeout,
+    /// Host cancelled the request.
+    #[error("Opponent request was cancelled")]
+    Cancelled,
+    /// A durable spending or usage budget prevents another decision.
+    #[error("Opponent usage budget is exhausted")]
+    BudgetExhausted,
+    /// Provider returned a malformed or illegal recommendation.
+    #[error("Opponent returned an invalid response")]
+    InvalidResponse,
+}
+
 /// A player that receives only its observation, legal actions and search clock.
 pub trait Opponent: Send + Sync {
     /// Choose one legal action without modifying the match.
@@ -102,6 +129,17 @@ pub trait Opponent: Send + Sync {
         limits: SearchLimits,
         clock: &dyn Clock,
     ) -> Result<ActionChoice, GameError>;
+
+    /// Operationally typed decision entry point used by hosts.
+    /// Existing in-process players inherit their original game error behavior.
+    fn decide(
+        &self,
+        turn: &PlayerTurn<'_>,
+        limits: SearchLimits,
+        clock: &dyn Clock,
+    ) -> Result<ActionChoice, OpponentError> {
+        self.choose_action(turn, limits, clock).map_err(OpponentError::Game)
+    }
 }
 
 fn invalid(message: &str) -> GameError {
