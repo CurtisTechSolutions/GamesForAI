@@ -5,7 +5,8 @@ use gfa_api_types::{
 };
 use gfa_core::{DynGame, Information, LegalAction, Observation, TurnStructure, Viewer};
 use gfa_opponents::{
-    ActionChoice, Algorithm, Clock, Opponent, PlayerTurn, Random, SearchLimits, SearchOpponent, ReferenceOpponent,
+    ActionChoice, Algorithm, Clock, Opponent, PlayerTurn, Random, ReferenceOpponent, SearchLimits,
+    SearchOpponent,
 };
 use serde_json::Value;
 use std::{future::Future, pin::Pin, sync::Arc};

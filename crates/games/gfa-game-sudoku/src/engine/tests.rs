@@ -242,12 +242,25 @@ fn untrusted_positions_configs_and_action_encodings_are_validated() -> TestResul
 
 #[test]
 fn reference_hints_are_legal_explained_and_solve_all_supported_sizes() -> TestResult {
-    for (size, difficulty) in [(4, crate::Difficulty::Easy), (6, crate::Difficulty::Medium), (9, crate::Difficulty::Expert)] {
-        let mut state = Sudoku::new_initial_state(&Config { size, difficulty, ..Config::default() }, 42)?;
+    for (size, difficulty) in [
+        (4, crate::Difficulty::Easy),
+        (6, crate::Difficulty::Medium),
+        (9, crate::Difficulty::Expert),
+    ] {
+        let mut state = Sudoku::new_initial_state(
+            &Config {
+                size,
+                difficulty,
+                ..Config::default()
+            },
+            42,
+        )?;
         let mut guessed = false;
         for _ in 0..100 {
             let before = serde_json::to_value(&state)?;
-            let Some(advice) = Sudoku::reference_advice(&state, 0)? else { break; };
+            let Some(advice) = Sudoku::reference_advice(&state, 0)? else {
+                break;
+            };
             assert_eq!(before, serde_json::to_value(&state)?);
             assert!(!advice.info.summary.is_empty());
             assert!(Sudoku::legal_actions(&state, 0).contains(&advice.action));
@@ -255,7 +268,9 @@ fn reference_hints_are_legal_explained_and_solve_all_supported_sizes() -> TestRe
             Sudoku::apply(&mut state, 0, &advice.action)?;
         }
         assert_eq!(Sudoku::returns(&state), [1.0], "size {size}");
-        if difficulty == crate::Difficulty::Expert { assert!(guessed); }
+        if difficulty == crate::Difficulty::Expert {
+            assert!(guessed);
+        }
         assert!(Sudoku::reference_advice(&state, 0)?.is_none());
     }
     Ok(())
@@ -266,7 +281,7 @@ fn reference_hints_identify_wrong_entries_without_exporting_the_answer_grid() ->
     let mut state = Sudoku::new_initial_state(&config(), 0)?;
     play(&mut state, "r1c3=5")?;
     let advice = Sudoku::reference_advice(&state, 0)?.ok_or("hint")?;
-    assert_eq!(advice.action, Action::Erase { row:1, col:3 });
+    assert_eq!(advice.action, Action::Erase { row: 1, col: 3 });
     assert_eq!(advice.info.technique, "solution_check");
     assert!(!serde_json::to_string(&advice.info)?.contains(SOLUTION));
     assert!(Sudoku::reference_advice(&state, 1).is_err());
@@ -277,7 +292,11 @@ fn reference_hints_identify_wrong_entries_without_exporting_the_answer_grid() ->
     let adapter = gfa_core::GameAdapter::<Sudoku>::default();
     use gfa_core::DynGame;
     assert!(adapter.supports_reference_advice());
-    let advice = adapter.reference_advice(&serde_json::to_value(&state)?, 0)?.ok_or("dynamic hint")?;
-    assert!(adapter.legal_actions(&serde_json::to_value(&state)?, 0)?.contains(&advice.action));
+    let advice = adapter
+        .reference_advice(&serde_json::to_value(&state)?, 0)?
+        .ok_or("dynamic hint")?;
+    assert!(adapter
+        .legal_actions(&serde_json::to_value(&state)?, 0)?
+        .contains(&advice.action));
     Ok(())
 }

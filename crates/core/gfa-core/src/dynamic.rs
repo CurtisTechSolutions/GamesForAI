@@ -197,11 +197,19 @@ impl<G: Game> DynGame for GameAdapter<G> {
         G::supports_reference_advice()
     }
 
-    fn reference_advice(&self, state: &Value, player: PlayerId) -> Result<Option<crate::Advice<LegalAction>>, GameError> {
+    fn reference_advice(
+        &self,
+        state: &Value,
+        player: PlayerId,
+    ) -> Result<Option<crate::Advice<LegalAction>>, GameError> {
         let state = Self::state(state)?;
-        let Some(advice) = G::reference_advice(&state, player)? else { return Ok(None); };
+        let Some(advice) = G::reference_advice(&state, player)? else {
+            return Ok(None);
+        };
         if !G::legal_actions(&state, player).contains(&advice.action) {
-            return Err(GameError::illegal("Reference solver returned an illegal action"));
+            return Err(GameError::illegal(
+                "Reference solver returned an illegal action",
+            ));
         }
         Ok(Some(crate::Advice {
             action: LegalAction {

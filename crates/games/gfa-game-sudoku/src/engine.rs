@@ -111,7 +111,10 @@ impl Game for Sudoku {
         true
     }
 
-    fn reference_advice(state: &State, player: PlayerId) -> Result<Option<gfa_core::Advice<Action>>, GameError> {
+    fn reference_advice(
+        state: &State,
+        player: PlayerId,
+    ) -> Result<Option<gfa_core::Advice<Action>>, GameError> {
         Self::validate_state(state)?;
         advice::recommend(state, player)
     }

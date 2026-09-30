@@ -20,15 +20,30 @@ impl ReferenceOpponent {
 }
 
 impl Opponent for ReferenceOpponent {
-    fn choose_action(&self, turn: &PlayerTurn<'_>, limits: SearchLimits, _: &dyn Clock) -> Result<ActionChoice, GameError> {
+    fn choose_action(
+        &self,
+        turn: &PlayerTurn<'_>,
+        limits: SearchLimits,
+        _: &dyn Clock,
+    ) -> Result<ActionChoice, GameError> {
         let limits = limits.validate()?;
-        let state = self.game.state_from_observation(&self.config, turn.observation, Viewer::Player(turn.seat), limits.seed)?;
+        let state = self.game.state_from_observation(
+            &self.config,
+            turn.observation,
+            Viewer::Player(turn.seat),
+            limits.seed,
+        )?;
         if self.game.legal_actions(&state, turn.seat)? != turn.legal_actions {
             return Err(GameError::illegal("Observation and legal actions disagree"));
         }
-        let advice = self.game.reference_advice(&state, turn.seat)?.ok_or_else(|| GameError::illegal("No reference action is available"))?;
+        let advice = self
+            .game
+            .reference_advice(&state, turn.seat)?
+            .ok_or_else(|| GameError::illegal("No reference action is available"))?;
         if !turn.legal_actions.contains(&advice.action) {
-            return Err(GameError::illegal("Reference solver returned an illegal action"));
+            return Err(GameError::illegal(
+                "Reference solver returned an illegal action",
+            ));
         }
         let mut result = choice(advice.action, "reference");
         result.info.advice = Some(advice.info);
