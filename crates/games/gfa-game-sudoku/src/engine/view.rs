@@ -158,7 +158,8 @@ pub(super) fn reconstruct(config: &Config, observation: &Observation) -> Result<
                 "Attempt history contains a non-placement",
             ));
         };
-        if super::puzzle_solution(&state)?[usize::from(row - 1) * n + usize::from(col - 1)] != digit {
+        if super::puzzle_solution(&state)?[usize::from(row - 1) * n + usize::from(col - 1)] != digit
+        {
             wrong += u64::from(count);
         }
     }

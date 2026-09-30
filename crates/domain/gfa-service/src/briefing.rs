@@ -31,7 +31,10 @@ fn preview(
         object.remove("match_id");
         if !full {
             object.remove("action_mask");
-            if let Some(actions) = object.get_mut("legal_actions").and_then(Value::as_array_mut) {
+            if let Some(actions) = object
+                .get_mut("legal_actions")
+                .and_then(Value::as_array_mut)
+            {
                 if actions.len() > 16 {
                     let total = actions.len();
                     actions.truncate(3);
@@ -42,7 +45,10 @@ fn preview(
             if let Some(observation) = object.get_mut("observation").and_then(Value::as_object_mut)
             {
                 observation.remove("tensor");
-                if observation.get("json").is_some_and(|value| value.to_string().len() > 512) {
+                if observation
+                    .get("json")
+                    .is_some_and(|value| value.to_string().len() > 512)
+                {
                     observation.remove("json");
                 }
             }

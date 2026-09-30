@@ -58,23 +58,31 @@ pub(super) fn from_grid(config: &Config, puzzle: Grid) -> Result<State, GameErro
     Ok(state)
 }
 
-
 pub(super) fn puzzle_solution(state: &State) -> Result<&[u8], GameError> {
     if state.validated_puzzle.get().is_none() {
         let puzzle = Grid::from_cells(state.config.size, state.puzzle.clone())?;
         let solved = solve(&puzzle);
         if solved.count != 1 || grade(&puzzle)? != state.grade {
-            return Err(GameError::position("Puzzle uniqueness or difficulty metadata is inconsistent"));
+            return Err(GameError::position(
+                "Puzzle uniqueness or difficulty metadata is inconsistent",
+            ));
         }
         if let Some(notation) = &state.config.puzzle {
             if Grid::parse(state.config.size, notation)? != puzzle {
-                return Err(GameError::position("Configured puzzle disagrees with the givens"));
+                return Err(GameError::position(
+                    "Configured puzzle disagrees with the givens",
+                ));
             }
         }
-        let solution = solved.first.ok_or_else(|| GameError::position("Puzzle has no solution"))?;
+        let solution = solved
+            .first
+            .ok_or_else(|| GameError::position("Puzzle has no solution"))?;
         let _ = state.validated_puzzle.set(solution.cells().to_vec());
     }
-    state.validated_puzzle.get().map(Vec::as_slice)
+    state
+        .validated_puzzle
+        .get()
+        .map(Vec::as_slice)
         .ok_or_else(|| GameError::position("Puzzle solution is unavailable"))
 }
 
