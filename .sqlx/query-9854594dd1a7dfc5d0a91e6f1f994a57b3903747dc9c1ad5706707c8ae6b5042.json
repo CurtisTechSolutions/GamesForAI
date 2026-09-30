@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO gfa_matches (id, revision) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "9854594dd1a7dfc5d0a91e6f1f994a57b3903747dc9c1ad5706707c8ae6b5042"
+}
