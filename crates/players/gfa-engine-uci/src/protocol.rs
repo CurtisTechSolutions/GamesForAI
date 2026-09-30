@@ -103,8 +103,10 @@ pub enum EngineLine {
 
 /// Parse one output line without retaining unbounded logs or accepting control sequences.
 pub fn parse_line(line: &str) -> Result<EngineLine, GameError> {
-    if line.len() > MAX_LINE_BYTES { return Err(invalid("UCI line exceeds 8192 bytes")); }
-    let line = line.trim_end_matches(['\r','\n']);
+    if line.len() > MAX_LINE_BYTES {
+        return Err(invalid("UCI line exceeds 8192 bytes"));
+    }
+    let line = line.trim_end_matches(['\r', '\n']);
     if line.chars().any(|c| c.is_control() && c != '\t') {
         return Err(invalid("UCI line contains a control character"));
     }
@@ -117,40 +119,68 @@ pub fn parse_line(line: &str) -> Result<EngineLine, GameError> {
         ["option", "name", ..] => option(&words).map(EngineLine::Option),
         ["info", "string", ..] => Ok(EngineLine::Ignored),
         ["info", rest @ ..] => info(rest).map(EngineLine::Info),
-        ["bestmove", action] => Ok(EngineLine::BestMove { action: move_token(action)?, ponder: None }),
-        ["bestmove", action, "ponder", reply] => Ok(EngineLine::BestMove { action: move_token(action)?, ponder: move_token(reply)? }),
+        ["bestmove", action] => Ok(EngineLine::BestMove {
+            action: move_token(action)?,
+            ponder: None,
+        }),
+        ["bestmove", action, "ponder", reply] => Ok(EngineLine::BestMove {
+            action: move_token(action)?,
+            ponder: move_token(reply)?,
+        }),
         ["bestmove", ..] => Err(invalid("Malformed UCI bestmove")),
         _ => Ok(EngineLine::Ignored),
     }
 }
 
 fn move_token(text: &str) -> Result<Option<String>, GameError> {
-    if matches!(text, "0000" | "(none)") { Ok(None) }
-    else if valid_move(text) { Ok(Some(text.into())) }
-    else { Err(invalid("Invalid UCI move token")) }
+    if matches!(text, "0000" | "(none)") {
+        Ok(None)
+    } else if valid_move(text) {
+        Ok(Some(text.into()))
+    } else {
+        Err(invalid("Invalid UCI move token"))
+    }
 }
 
 fn option(words: &[&str]) -> Result<EngineOption, GameError> {
-    let split = words.iter().position(|&word| word == "type").ok_or_else(|| invalid("UCI option has no type"))?;
-    if split <= 2 || split + 1 >= words.len() { return Err(invalid("Malformed UCI option")); }
+    let split = words
+        .iter()
+        .position(|&word| word == "type")
+        .ok_or_else(|| invalid("UCI option has no type"))?;
+    if split <= 2 || split + 1 >= words.len() {
+        return Err(invalid("Malformed UCI option"));
+    }
     let name = words[2..split].join(" ");
-    if name.len() > 128 { return Err(invalid("UCI option name too long")); }
+    if name.len() > 128 {
+        return Err(invalid("UCI option name too long"));
+    }
     let value = |key: &str| {
-        words[split+2..].windows(2).find(|pair| pair[0] == key).map(|pair| pair[1])
+        words[split + 2..]
+            .windows(2)
+            .find(|pair| pair[0] == key)
+            .map(|pair| pair[1])
             .ok_or_else(|| invalid("Missing UCI option bound/default"))
     };
     let number = |key: &str| -> Result<i64, GameError> {
-        value(key)?.parse().map_err(|_| invalid("Invalid UCI option number"))
+        value(key)?
+            .parse()
+            .map_err(|_| invalid("Invalid UCI option number"))
     };
-    let kind = match words[split+1] {
+    let kind = match words[split + 1] {
         "spin" => {
             let (default, min, max) = (number("default")?, number("min")?, number("max")?);
-            if min > max || !(min..=max).contains(&default) { return Err(invalid("Inconsistent UCI option range")); }
+            if min > max || !(min..=max).contains(&default) {
+                return Err(invalid("Inconsistent UCI option range"));
+            }
             OptionKind::Spin { default, min, max }
         }
-        "check" => OptionKind::Check { default: match value("default")? {
-            "true" => true, "false" => false, _ => return Err(invalid("Invalid UCI boolean")),
-        }},
+        "check" => OptionKind::Check {
+            default: match value("default")? {
+                "true" => true,
+                "false" => false,
+                _ => return Err(invalid("Invalid UCI boolean")),
+            },
+        },
         "button" => OptionKind::Button,
         "string" | "combo" => OptionKind::Other,
         _ => return Err(invalid("Unknown UCI option type")),
@@ -165,43 +195,81 @@ fn info(words: &[&str]) -> Result<Info, GameError> {
         let word = words[i];
         i += 1;
         if word == "pv" {
-            if words.len()-i > 128 || words[i..].iter().any(|m| !valid_move(m)) {
+            if words.len() - i > 128 || words[i..].iter().any(|m| !valid_move(m)) {
                 return Err(invalid("Invalid or oversized UCI principal variation"));
             }
             result.pv = words[i..].iter().map(|s| (*s).into()).collect();
             break;
         }
-        if word == "string" { break; }
-        if word == "lowerbound" { result.bound = Bound::Lower; continue; }
-        if word == "upperbound" { result.bound = Bound::Upper; continue; }
-        let value = |index: usize| words.get(index).copied().ok_or_else(|| invalid("Missing UCI info value"));
+        if word == "string" {
+            break;
+        }
+        if word == "lowerbound" {
+            result.bound = Bound::Lower;
+            continue;
+        }
+        if word == "upperbound" {
+            result.bound = Bound::Upper;
+            continue;
+        }
+        let value = |index: usize| {
+            words
+                .get(index)
+                .copied()
+                .ok_or_else(|| invalid("Missing UCI info value"))
+        };
         let numeric = |index: usize| -> Result<u64, GameError> {
-            value(index)?.parse().map_err(|_| invalid("Invalid UCI info number"))
+            value(index)?
+                .parse()
+                .map_err(|_| invalid("Invalid UCI info number"))
         };
         match word {
-            "depth" => { result.depth = Some(u16::try_from(numeric(i)?).map_err(|_| invalid("Depth overflow"))?); i += 1; }
-            "nodes" => { result.nodes = Some(numeric(i)?); i += 1; }
-            "time" => { result.time_ms = Some(numeric(i)?); i += 1; }
+            "depth" => {
+                result.depth =
+                    Some(u16::try_from(numeric(i)?).map_err(|_| invalid("Depth overflow"))?);
+                i += 1;
+            }
+            "nodes" => {
+                result.nodes = Some(numeric(i)?);
+                i += 1;
+            }
+            "time" => {
+                result.time_ms = Some(numeric(i)?);
+                i += 1;
+            }
             "multipv" => {
                 let rank = u8::try_from(numeric(i)?).map_err(|_| invalid("MultiPV overflow"))?;
-                if rank == 0 { return Err(invalid("MultiPV must be positive")); }
-                result.multipv = Some(rank); i += 1;
+                if rank == 0 {
+                    return Err(invalid("MultiPV must be positive"));
+                }
+                result.multipv = Some(rank);
+                i += 1;
             }
             "score" => {
                 let kind = value(i)?;
-                let score: i32 = value(i+1)?.parse().map_err(|_| invalid("Invalid UCI score"))?;
-                result.score = Some(match kind { "cp" => Score::Centipawns(score), "mate" => Score::Mate(score), _ => return Err(invalid("Unknown UCI score type")) });
+                let score: i32 = value(i + 1)?
+                    .parse()
+                    .map_err(|_| invalid("Invalid UCI score"))?;
+                result.score = Some(match kind {
+                    "cp" => Score::Centipawns(score),
+                    "mate" => Score::Mate(score),
+                    _ => return Err(invalid("Unknown UCI score type")),
+                });
                 i += 2;
             }
             "wdl" => {
-                let mut wdl = [0_u16;3];
+                let mut wdl = [0_u16; 3];
                 for (offset, target) in wdl.iter_mut().enumerate() {
-                    *target = u16::try_from(numeric(i+offset)?).map_err(|_| invalid("WDL overflow"))?;
+                    *target =
+                        u16::try_from(numeric(i + offset)?).map_err(|_| invalid("WDL overflow"))?;
                 }
-                if wdl.iter().map(|&n| u32::from(n)).sum::<u32>() != 1000 { return Err(invalid("WDL must total 1000")); }
-                result.wdl = Some(wdl); i += 3;
+                if wdl.iter().map(|&n| u32::from(n)).sum::<u32>() != 1000 {
+                    return Err(invalid("WDL must total 1000"));
+                }
+                result.wdl = Some(wdl);
+                i += 3;
             }
-            _ => {},
+            _ => {}
         }
     }
     Ok(result)

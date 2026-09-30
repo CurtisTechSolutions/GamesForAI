@@ -227,7 +227,6 @@ pub struct Advice<A> {
     pub info: AdviceInfo,
 }
 
-
 /// A validated chess position exported by a rules engine for a UCI adapter.
 /// This is public information, reconstructed from the acting player's observation.
 #[derive(Clone, Debug, PartialEq, Eq)]

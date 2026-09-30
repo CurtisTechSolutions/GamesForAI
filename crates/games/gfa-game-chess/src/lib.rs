@@ -376,10 +376,14 @@ impl Game for ChessGame {
         Self::validate_state(state)?;
         Ok(Some(gfa_core::UciPosition {
             initial_fen: state.initial_fen.clone(),
-            moves: state.actions.iter().filter_map(|action| match action {
-                Action::Move { uci } => Some(uci.clone()),
-                Action::ClaimDraw { .. } => None,
-            }).collect(),
+            moves: state
+                .actions
+                .iter()
+                .filter_map(|action| match action {
+                    Action::Move { uci } => Some(uci.clone()),
+                    Action::ClaimDraw { .. } => None,
+                })
+                .collect(),
             chess960: false,
         }))
     }

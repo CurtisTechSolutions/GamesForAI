@@ -304,7 +304,6 @@ fn invalid_positions_encodings_and_seats_are_atomic() -> TestResult {
     Ok(())
 }
 
-
 #[test]
 fn uci_export_preserves_initial_position_and_repetition_history() -> TestResult {
     let mut state = ChessGame::new_initial_state(&Config::default(), 0)?;
@@ -312,10 +311,14 @@ fn uci_export_preserves_initial_position_and_repetition_history() -> TestResult 
     cycle(&mut state)?;
     let position = ChessGame::uci_position(&state)?.ok_or("UCI position")?;
     assert_eq!(position.initial_fen, state.initial_fen);
-    assert_eq!(position.moves, ["g1f3","g8f6","f3g1","f6g8","g1f3","g8f6","f3g1","f6g8"]);
+    assert_eq!(
+        position.moves,
+        ["g1f3", "g8f6", "f3g1", "f6g8", "g1f3", "g8f6", "f3g1", "f6g8"]
+    );
     assert!(!position.chess960);
     let view = ChessGame::observe(&state, Viewer::Player(0));
-    let rebuilt = ChessGame::state_from_observation(&Config::default(), &view, Viewer::Player(0), 5)?;
+    let rebuilt =
+        ChessGame::state_from_observation(&Config::default(), &view, Viewer::Player(0), 5)?;
     assert_eq!(ChessGame::uci_position(&rebuilt)?, Some(position));
     Ok(())
 }
