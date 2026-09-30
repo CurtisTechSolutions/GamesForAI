@@ -197,4 +197,4 @@ pub(crate) fn invalid(message: &str) -> GameError {
 mod tests;
 
 mod player;
-pub use player::{validate_recommendation, UciOpponent};
+pub use player::{validate_analysis, validate_recommendation, UciOpponent};

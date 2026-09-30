@@ -36,8 +36,13 @@ impl gfa_opponents::Clock for SearchClock {
     }
 }
 
-impl OpponentExecutor for Workers {
-    fn execute(&self, job: OpponentJob) -> OpponentFuture<'_> {
+impl Workers {
+    fn schedule<T: Send + 'static>(
+        &self,
+        job: impl FnOnce(&SearchClock) -> Result<T, gfa_api_types::ApiError> + Send + 'static,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<T, gfa_api_types::ApiError>> + Send>,
+    > {
         let capacity = self.0.clone();
         Box::pin(async move {
             let permit = capacity.try_acquire_owned().map_err(|_| {
@@ -50,9 +55,9 @@ impl OpponentExecutor for Workers {
             let cancelled = Arc::new(AtomicBool::new(false));
             let _cancel_on_drop = CancelOnDrop(cancelled.clone());
             tokio::task::spawn_blocking(move || {
-                // A dropped HTTP request must not release capacity while CPU work continues.
+                // Capacity remains leased until CPU work responds to cancellation and exits.
                 let _permit = permit;
-                job.run(&SearchClock {
+                job(&SearchClock {
                     cancelled,
                     clock: gfa_opponents::SystemClock::default(),
                 })
@@ -66,6 +71,14 @@ impl OpponentExecutor for Workers {
                 )
             })?
         })
+    }
+}
+impl OpponentExecutor for Workers {
+    fn execute(&self, job: OpponentJob) -> OpponentFuture<'_> {
+        self.schedule(move |clock| job.run(clock))
+    }
+    fn analyze(&self, job: OpponentJob) -> gfa_service::AnalysisFuture<'_> {
+        self.schedule(move |clock| job.analyze(clock))
     }
 }
 
