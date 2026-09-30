@@ -36,19 +36,27 @@ fn parse_with_env(
             }
             #[cfg(feature = "postgres")]
             "--postgres-env" if !database_seen => {
-                let name = args.next().ok_or("--postgres-env requires an environment variable name")?;
-                if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_') {
+                let name = args
+                    .next()
+                    .ok_or("--postgres-env requires an environment variable name")?;
+                if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                {
                     return Err("--postgres-env requires an environment variable name".into());
                 }
-                let url = env(&name).ok_or("PostgreSQL environment variable is missing or not Unicode")?;
+                let url = env(&name)
+                    .ok_or("PostgreSQL environment variable is missing or not Unicode")?;
                 if !(url.starts_with("postgres://") || url.starts_with("postgresql://")) {
-                    return Err("PostgreSQL environment variable must contain a PostgreSQL URL".into());
+                    return Err(
+                        "PostgreSQL environment variable must contain a PostgreSQL URL".into(),
+                    );
                 }
                 config.database = Database::Postgres(url);
                 database_seen = true;
             }
             #[cfg(not(feature = "postgres"))]
-            "--postgres-env" => return Err("PostgreSQL requires a build with --features postgres".into()),
+            "--postgres-env" => {
+                return Err("PostgreSQL requires a build with --features postgres".into())
+            }
             "--port" if !port_seen => {
                 config.port = args
                     .next()
@@ -130,16 +138,35 @@ mod tests {
         let parsed = parse_with_env(
             ["serve", "--postgres-env", "GFA_DATABASE_URL"].map(str::to_owned),
             |name| (name == "GFA_DATABASE_URL").then(|| url.to_owned()),
-        )?.ok_or("missing config")?;
+        )?
+        .ok_or("missing config")?;
         assert_eq!(parsed.database, Database::Postgres(url.to_owned()));
         assert!(!format!("{parsed:?}").contains("secret"));
         for options in [
             vec!["serve", "--postgres-env"],
             vec!["serve", "--postgres-env", "missing"],
             vec!["serve", "--postgres-env", "--port"],
-            vec!["serve", "--sqlite", "x.sqlite", "--postgres-env", "GFA_DATABASE_URL"],
-            vec!["serve", "--postgres-env", "GFA_DATABASE_URL", "--sqlite", "x.sqlite"],
-            vec!["serve", "--postgres-env", "GFA_DATABASE_URL", "--postgres-env", "GFA_DATABASE_URL"],
+            vec![
+                "serve",
+                "--sqlite",
+                "x.sqlite",
+                "--postgres-env",
+                "GFA_DATABASE_URL",
+            ],
+            vec![
+                "serve",
+                "--postgres-env",
+                "GFA_DATABASE_URL",
+                "--sqlite",
+                "x.sqlite",
+            ],
+            vec![
+                "serve",
+                "--postgres-env",
+                "GFA_DATABASE_URL",
+                "--postgres-env",
+                "GFA_DATABASE_URL",
+            ],
         ] {
             let result = parse_with_env(options.iter().map(|s| (*s).to_owned()), |name| {
                 (name == "GFA_DATABASE_URL").then(|| url.to_owned())
@@ -149,7 +176,9 @@ mod tests {
         let error = parse_with_env(
             ["serve", "--postgres-env", "GFA_DATABASE_URL"].map(str::to_owned),
             |_| Some("invalid-secret-url".into()),
-        ).err().ok_or("invalid URL accepted")?;
+        )
+        .err()
+        .ok_or("invalid URL accepted")?;
         assert!(!error.contains("invalid-secret-url"));
         Ok(())
     }
@@ -158,7 +187,8 @@ mod tests {
     #[test]
     fn explains_missing_postgres_feature() {
         assert!(options(&["serve", "--postgres-env", "GFA_DATABASE_URL"])
-            .err().is_some_and(|error| error.contains("--features postgres")));
+            .err()
+            .is_some_and(|error| error.contains("--features postgres")));
     }
 
     #[test]

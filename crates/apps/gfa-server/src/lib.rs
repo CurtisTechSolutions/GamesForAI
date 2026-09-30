@@ -62,7 +62,9 @@ enum Store {
 impl Store {
     async fn open(database: &Database) -> Result<Self, ServerError> {
         match database {
-            Database::Sqlite(path) => Ok(Self::Sqlite(Arc::new(SqliteMatchStore::open(path).await?))),
+            Database::Sqlite(path) => {
+                Ok(Self::Sqlite(Arc::new(SqliteMatchStore::open(path).await?)))
+            }
             #[cfg(feature = "postgres")]
             Database::Postgres(url) => Ok(Self::Postgres(Arc::new(
                 gfa_store::PostgresMatchStore::connect(url).await?,
@@ -122,8 +124,7 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
     let host = Arc::new(Host);
     let updates = Arc::new(gfa_http::LiveUpdates::default());
     let service = Arc::new(
-        GameService::new(registry, store.port(), host.clone(), host)
-            .with_observer(updates.clone()),
+        GameService::new(registry, store.port(), host.clone(), host).with_observer(updates.clone()),
     );
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
     Ok(Application {
