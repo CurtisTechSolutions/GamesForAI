@@ -62,7 +62,7 @@ async fn tic_tac_toe_lifecycle_replay_and_retry_survive_restart() -> TestResult 
         &app.router,
         "POST",
         "/v1/matches",
-        json!({"game_id":"tictactoe","seed":42}),
+        json!({"game_id":"tictactoe","include_info":false,"seed":42}),
         None,
     )
     .await?;
@@ -153,7 +153,7 @@ async fn invalid_and_racing_moves_preserve_the_committed_state() -> TestResult {
         &app.router,
         "POST",
         "/v1/matches",
-        json!({"game_id":"tictactoe"}),
+        json!({"game_id":"tictactoe","include_info":false}),
         None,
     )
     .await?;
@@ -238,7 +238,7 @@ async fn connect_four_uses_the_same_routes_and_spectator_projection() -> TestRes
         &app.router,
         "POST",
         "/v1/matches",
-        json!({"game_id":"connect4","seed":7}),
+        json!({"game_id":"connect4","include_info":false,"seed":7}),
         None,
     )
     .await?;

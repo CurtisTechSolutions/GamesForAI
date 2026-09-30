@@ -51,7 +51,7 @@ limited to 64 KiB. Browser calls must have the same origin; the future web clien
 can use a same-origin development proxy.
 
 This first local host exposes the existing external-player lifecycle. Opponent
-scheduling, game briefings, simulation, forks, public authentication, PostgreSQL,
+scheduling, simulation, forks, public authentication, PostgreSQL,
 and OpenAPI documentation remain separate M1 increments.
 
 ## Live state
@@ -94,3 +94,28 @@ Game briefings return representation-specific ETags and support
 `If-None-Match`, including weak tags and tag lists. They need no credentials
 within local mode; the loopback and Host/Origin restrictions still apply.
 Unavailable capabilities are stated explicitly in their sections.
+
+ 
+## Match briefings
+
+Creation includes a compact `info` briefing alongside the existing observation
+and legal-action fields. Set `"include_info": false` in the JSON body to omit it.
+
+Read `GET /v1/matches/MATCH_ID/info?seat=1&detail=compact` for that seat's
+current briefing. The same `format=json|markdown` and `detail=compact|full`
+options apply. Omit `seat` for a spectator view. Configuration comes from the
+match and cannot be overridden by this query.
+
+The first section, `match`, records the current status and turn, selected seat,
+participants, starting position, untimed control, rejection policy, available
+assists, task, recording policy, and viewer-scoped state. The later game
+examples use a synthetic standard start, even when the match has a custom
+start. Custom notation is exposed only for deterministic perfect-information
+games (or an explicitly authorized in-process omniscient viewer); other viewers
+receive their starting observation instead. Seeds and private engine events
+are not included.
+
+Match briefings are not cached. The service prepares creation briefings before
+committing the match, and reads subsequent briefings from one consistent event
+snapshot. In-process callers that only need state can continue using
+`create_match`; transports use `create_match_with_info`.

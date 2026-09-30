@@ -48,6 +48,20 @@ impl<const TERMINATES: bool> Game for Counter<TERMINATES> {
             observation_schema: schema::<Value>(),
         }
     }
+    fn play_guide() -> Option<gfa_core::PlayGuide> {
+        // The capped fixture intentionally has no guide, to test atomic failures.
+        TERMINATES.then(|| gfa_core::PlayGuide {
+            objective: "Take four turns.".into(),
+            observation: "Public turn and total; only a player's own private label is visible.".into(),
+            tensor: "No tensor.".into(),
+            rewards: "Terminal +1/-1.".into(),
+            config: "No options.".into(),
+            solved: "Not applicable to this fixture.".into(),
+            common_mistakes: vec!["Only 1 and 2 are valid.".into()],
+            strategy_notes: vec![],
+        })
+    }
+
     fn new_initial_state(config: &Value, seed: u64) -> Result<Self::State, GameError> {
         if !config.is_null() && config != &json!({}) {
             return Err(GameError::new(
@@ -281,6 +295,7 @@ fn create(game: &str) -> CreateMatch {
         config: json!({}),
         seed: Some(7),
         start: None,
+        include_info: true,
     }
 }
 fn action(turn: u64, value: Value) -> MoveRequest {
@@ -611,5 +626,62 @@ fn observer_runs_only_after_successful_new_commits() -> TestResult {
         response
     );
     assert_eq!(recorder.0.lock().map_err(|_| "poisoned")?.len(), 2);
+    Ok(())
+}
+
+
+#[test]
+fn match_briefings_preserve_private_views_and_do_not_change_storage() -> TestResult {
+    use gfa_api_types::InfoDetail;
+    let (service, store) = fixture()?;
+    let mut request = create("counter");
+    request.start = Some(Start::State { state:json!([0,1234567890123456_u64,0]) });
+    let created = run(service.create_match_with_info(request, Viewer::Player(1)))?;
+    let id = &created.state.match_id;
+    let original = record(&store, id)?;
+    for (viewer, private) in [
+        (Viewer::Player(0), json!("seat-0")),
+        (Viewer::Player(1), json!("seat-1")),
+        (Viewer::Spectator, Value::Null),
+    ] {
+        let info = run(service.get_match_info(id, viewer, InfoDetail::Full))?;
+        let live = &info.sections[0];
+        assert_eq!(live.id,"match");
+        assert_eq!(live.data["start"]["view"]["json"]["private"],private);
+        assert!(live.data["start"].get("position").is_none());
+        assert_eq!(live.data["state"]["observation"]["json"]["private"],private);
+        assert!(live.data.get("seed").is_none());
+        assert!(!serde_json::to_string(&info)?.contains("1234567890123456"));
+        for section in &info.sections {
+            if section.id == "initial_state" {
+                assert_eq!(section.data["observation"]["json"]["private"],private);
+            }
+        }
+        if viewer == Viewer::Spectator {
+            assert!(live.data["you"].is_null());
+            assert_eq!(live.data["state"]["legal_actions"], json!([]));
+        }
+    }
+    assert_eq!(record(&store,id)?, original);
+    let expected = run(service.get_match_info(id,Viewer::Player(1),InfoDetail::Compact))?;
+    assert_eq!(created.info,Some(expected));
+    code(run(service.get_match_info(id,Viewer::Player(255),InfoDetail::Full)),"INVALID_POSITION");
+    for turn in 0..4 { run(service.make_move(id,action(turn,json!("1")),None))?; }
+    let ended = run(service.get_match_info(id,Viewer::Player(1),InfoDetail::Compact))?;
+    assert_eq!(ended.sections[0].data["status"],"finished");
+    assert_eq!(ended.sections[0].data["turn"],4);
+    Ok(())
+}
+
+#[test]
+fn briefing_failure_prevents_creation_and_opt_out_keeps_state_only_access() -> TestResult {
+    let (service, store) = fixture()?;
+    code(run(service.create_match_with_info(create("capped"),Viewer::Player(0))),"INVALID_BRIEFING");
+    assert!(store.records.lock().map_err(|_|"poisoned")?.is_empty());
+    let mut request = create("capped");
+    request.include_info = false;
+    let created = run(service.create_match_with_info(request,Viewer::Player(0)))?;
+    assert!(created.info.is_none());
+    assert_eq!(store.records.lock().map_err(|_|"poisoned")?.len(),1);
     Ok(())
 }

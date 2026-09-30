@@ -47,6 +47,16 @@ pub(crate) fn game_info(
     seat: Option<u8>,
     detail: InfoDetail,
 ) -> Result<Briefing, ApiError> {
+    game_info_with_viewer(game, config, seat, detail, None)
+}
+
+fn game_info_with_viewer(
+    game: &dyn DynGame,
+    config: &Value,
+    seat: Option<u8>,
+    detail: InfoDetail,
+    sample_viewer: Option<Viewer>,
+) -> Result<Briefing, ApiError> {
     let spec = game.spec();
     let guide = game.play_guide().ok_or_else(internal)?;
     guide.validate().map_err(|_| internal())?;
@@ -54,7 +64,7 @@ pub(crate) fn game_info(
     let state = game.initial_state(&config, 0).map_err(error::engine)?;
     let actors = game.current_players(&state).map_err(error::engine)?;
     let first = actors.first().copied().ok_or_else(internal)?;
-    let viewer = Viewer::Player(seat.unwrap_or(first));
+    let viewer = sample_viewer.unwrap_or(Viewer::Player(seat.unwrap_or(first)));
     let initial = Frame {
         state,
         turn: 0,
@@ -174,4 +184,61 @@ pub(crate) fn game_info(
     };
     result.estimate_tokens().map_err(|_| internal())?;
     Ok(result)
+}
+
+
+pub(crate) struct MatchBrief<'a> {
+    pub game: &'a dyn DynGame,
+    pub origin: &'a crate::MatchOrigin,
+    pub initial: &'a Frame,
+    pub current: &'a Frame,
+    pub id: &'a str,
+    pub viewer: Viewer,
+}
+
+impl MatchBrief<'_> {
+    pub fn build(self, detail: InfoDetail) -> Result<Briefing, ApiError> {
+        let spec = self.game.spec();
+        let seat = match self.viewer { Viewer::Player(seat) => Some(seat), _ => None };
+        // Validate the live projection first, including the requested seat.
+        let current = self.current.project(self.id, self.game, self.viewer)?;
+        let initial = self.initial.project(self.id, self.game, self.viewer)?;
+        let mut info = game_info_with_viewer(self.game, &self.origin.config, seat, detail, Some(self.viewer))?;
+        let you = seat.map(|seat| json!({"seat":seat,"name":spec.seat_names.get(usize::from(seat))}));
+        let start = if self.origin.start.is_none() {
+            json!({"type":"standard"})
+        } else if self.viewer == Viewer::Omniscient
+            || (spec.information == gfa_core::Information::Perfect && !spec.stochastic) {
+            json!({
+                "type":"custom",
+                "position":self.game.state_to_notation(&self.initial.state).map_err(error::engine)?
+            })
+        } else {
+            // State notation may contain hidden cards or an RNG state. Never
+            // expose it as match metadata merely because a caller can view play.
+            json!({"type":"custom","view":initial.observation,
+                "note":"Only this viewer's starting observation is available."})
+        };
+        info.sections.insert(0, section(
+            "match",
+            "Live match settings and viewer-scoped state. Later game examples use an independent synthetic start. Local clients control all seats; invalid moves can be retried without a limit.",
+            json!({
+                "match_id":self.id,
+                "status":if self.current.ended() { "finished" } else { "active" },
+                "turn":current.turn,"to_act":current.to_act,"you":you,
+                "participants":spec.seat_names.iter().enumerate().map(|(seat,name)|
+                    json!({"seat":seat,"name":name,"type":"external","level":null,"rating":null})).collect::<Vec<_>>(),
+                "start":start,
+                "time_control":{"type":"none","clocks":null},
+                "illegal_move_policy":{"policy":"reject","attempts_remaining":null},
+                "assists":{"allow_analysis":false,"allow_simulation":false},
+                "task":{"type":"none","note":"No benchmark task is assigned."},
+                "recording":{"moves":true,"reasoning":true,"llm_transcripts":false,
+                    "visibility":"local","note":"Replays apply the requested viewer; transcripts are unavailable."},
+                "state":current
+            }),
+        ));
+        info.estimate_tokens().map_err(|_| internal())?;
+        Ok(info)
+    }
 }

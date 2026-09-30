@@ -98,3 +98,26 @@ pub(crate) fn render(
     }
     Ok(response)
 }
+
+
+#[derive(Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct MatchQuery {
+    #[serde(default)]
+    format: Format,
+    #[serde(default)]
+    detail: InfoDetail,
+    seat: Option<u8>,
+}
+
+pub(crate) async fn match_info(
+    State(service): State<Arc<GameService>>,
+    path: Id,
+    query: Result<Query<MatchQuery>, QueryRejection>,
+) -> Result<Response, HttpError> {
+    let Query(query) = query.map_err(|error| HttpError::request(error.body_text()))?;
+    let viewer = query.seat.map_or(gfa_core::Viewer::Spectator, gfa_core::Viewer::Player);
+    let info = service.get_match_info(&id(path)?, viewer, query.detail).await?;
+    // Live/private match information is never cached or served conditionally.
+    render(&info, query.format, None)
+}
