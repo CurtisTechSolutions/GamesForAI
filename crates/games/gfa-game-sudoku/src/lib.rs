@@ -1,13 +1,17 @@
 //! Pure Sudoku puzzle validation, exact-cover solving, and seeded generation.
 mod cover;
+mod engine;
 mod generation;
 mod grading;
 mod grid;
+mod model;
 
+pub use engine::Sudoku;
 pub use generation::{generate_graded, supported_difficulties};
 use gfa_core::{GameError, SeededRng};
 pub use grading::{grade, hint, Candidate, Difficulty, Grade, Hint, Technique};
 pub use grid::Grid;
+pub use model::{Action, Config, Outcome, State};
 
 /// A uniqueness check stops at two solutions; the first solution is retained.
 #[derive(Clone, Debug, PartialEq, Eq)]

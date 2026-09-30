@@ -8,6 +8,14 @@ use std::collections::HashSet;
 /// Imperfect-information engines must additionally supply game-specific paired-state
 /// non-leakage tests: generic tests cannot know which parts of their state are private.
 pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
+    conformance_with_config::<G>(&G::Config::default())
+}
+
+/// Run the same complete contract with explicit configuration.
+/// Useful for testing variants and bounding long puzzle episodes.
+pub fn conformance_with_config<G: Game>(
+    config: &G::Config,
+) -> Result<(), Box<dyn std::error::Error>> {
     let spec = G::spec();
     let guide = G::play_guide().ok_or("registered game is missing its play guide")?;
     guide.validate()?;
@@ -24,15 +32,14 @@ pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
     assert!(spec.max_game_length > 0);
     assert!(spec.action_space_size > 0);
     assert!(spec.num_players[0] > 0 && spec.num_players[0] <= spec.num_players[1]);
-    let config = G::Config::default();
-    assert!(jsonschema::is_valid(
-        &spec.config_schema,
-        &to_value(&config)?
-    ));
+    let config_validator = jsonschema::validator_for(&spec.config_schema)?;
+    let observation_validator = jsonschema::validator_for(&spec.observation_schema)?;
+    let action_validator = jsonschema::validator_for(&spec.action_schema)?;
+    assert!(config_validator.is_valid(&to_value(config)?));
     for seed in 0..64 {
         let mut rng = SeededRng::new(seed);
-        let mut state = G::new_initial_state(&config, seed)?;
-        let mut replay = G::new_initial_state(&config, seed)?;
+        let mut state = G::new_initial_state(config, seed)?;
+        let mut replay = G::new_initial_state(config, seed)?;
         let mut reseeded = state.clone();
         let mut same_seed = state.clone();
         G::reseed(&mut reseeded, seed + 100)?;
@@ -57,20 +64,17 @@ pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
             assert_eq!(to_value(&round_trip)?, serialized);
             let notation = G::state_to_notation(&state)?;
             assert_eq!(
-                to_value(G::state_from_notation(&config, &notation)?)?,
+                to_value(G::state_from_notation(config, &notation)?)?,
                 serialized
             );
             assert_eq!(to_value(&replay)?, serialized);
             assert!(G::returns(&state).iter().all(|r| r.is_finite()));
             let public = G::observe(&state, Viewer::Spectator);
             assert!(!public.text.is_empty());
-            assert!(jsonschema::is_valid(&spec.observation_schema, &public.json));
+            assert!(observation_validator.is_valid(&public.json));
             for seat in 0..spec.num_players[0] {
                 let observation = G::observe(&state, Viewer::Player(seat));
-                assert!(jsonschema::is_valid(
-                    &spec.observation_schema,
-                    &observation.json
-                ));
+                assert!(observation_validator.is_valid(&observation.json));
                 if spec.information == Information::Perfect {
                     assert_eq!(observation, public);
                 }
@@ -103,7 +107,7 @@ pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
                 assert!(G::action_from_index(&state, index)? == *action);
                 assert!(G::action_from_string(&state, &string)? == *action);
                 let encoded = to_value(action)?;
-                assert!(jsonschema::is_valid(&spec.action_schema, &encoded));
+                assert!(action_validator.is_valid(&encoded));
                 let restored: G::Action = serde_json::from_value(encoded)?;
                 assert!(restored == *action);
                 let mut next = state.clone();

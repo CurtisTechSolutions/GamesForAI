@@ -31,9 +31,26 @@ fn preview(
         object.remove("match_id");
         if !full {
             object.remove("action_mask");
+            if let Some(actions) = object
+                .get_mut("legal_actions")
+                .and_then(Value::as_array_mut)
+            {
+                if actions.len() > 16 {
+                    let total = actions.len();
+                    actions.truncate(1);
+                    object.insert("legal_actions_total".into(), json!(total));
+                    object.insert("legal_actions_truncated".into(), json!(true));
+                }
+            }
             if let Some(observation) = object.get_mut("observation").and_then(Value::as_object_mut)
             {
                 observation.remove("tensor");
+                if observation
+                    .get("json")
+                    .is_some_and(|value| value.to_string().len() > 512)
+                {
+                    observation.remove("json");
+                }
             }
         }
     }
