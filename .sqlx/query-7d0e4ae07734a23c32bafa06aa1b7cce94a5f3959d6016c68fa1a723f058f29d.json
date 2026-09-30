@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO gfa_commands (match_id, command_key, payload) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "7d0e4ae07734a23c32bafa06aa1b7cce94a5f3959d6016c68fa1a723f058f29d"
+}

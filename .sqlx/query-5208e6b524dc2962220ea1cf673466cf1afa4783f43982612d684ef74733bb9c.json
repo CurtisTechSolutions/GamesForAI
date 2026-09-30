@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO gfa_events (match_id, sequence, payload) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "5208e6b524dc2962220ea1cf673466cf1afa4783f43982612d684ef74733bb9c"
+}

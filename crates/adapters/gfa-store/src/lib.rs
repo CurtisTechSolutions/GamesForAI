@@ -65,9 +65,13 @@ impl SqliteMatchStore {
             .begin_with("BEGIN IMMEDIATE")
             .await
             .map_err(unavailable)?;
-        let result = sqlx::query!("INSERT INTO gfa_matches (id, revision) VALUES (?, ?)", record.id, revision)
-            .execute(&mut *tx)
-            .await;
+        let result = sqlx::query!(
+            "INSERT INTO gfa_matches (id, revision) VALUES (?, ?)",
+            record.id,
+            revision
+        )
+        .execute(&mut *tx)
+        .await;
         match result {
             Err(sqlx::Error::Database(error)) if error.is_unique_violation() => {
                 return Err(StoreError::DuplicateId)
@@ -156,7 +160,8 @@ impl SqliteMatchStore {
         if let Some(command) = &command {
             let previous: Option<String> = sqlx::query_scalar!(
                 "SELECT payload FROM gfa_commands WHERE match_id = ? AND command_key = ?",
-                id, command.key
+                id,
+                command.key
             )
             .fetch_optional(&mut *tx)
             .await
@@ -224,10 +229,15 @@ async fn insert_events(
             .checked_add(revision(offset)?)
             .ok_or_else(|| unavailable("Event revision overflow"))?;
         let payload = serde_json::to_string(event).map_err(unavailable)?;
-        sqlx::query!("INSERT INTO gfa_events (match_id, sequence, payload) VALUES (?, ?, ?)", id, sequence, payload)
-            .execute(&mut **tx)
-            .await
-            .map_err(unavailable)?;
+        sqlx::query!(
+            "INSERT INTO gfa_events (match_id, sequence, payload) VALUES (?, ?, ?)",
+            id,
+            sequence,
+            payload
+        )
+        .execute(&mut **tx)
+        .await
+        .map_err(unavailable)?;
     }
     Ok(())
 }
@@ -238,10 +248,15 @@ async fn insert_command(
     command: &StoredCommand,
 ) -> Result<(), StoreError> {
     let payload = serde_json::to_string(command).map_err(unavailable)?;
-    sqlx::query!("INSERT INTO gfa_commands (match_id, command_key, payload) VALUES (?, ?, ?)", id, command.key, payload)
-        .execute(&mut **tx)
-        .await
-        .map_err(unavailable)?;
+    sqlx::query!(
+        "INSERT INTO gfa_commands (match_id, command_key, payload) VALUES (?, ?, ?)",
+        id,
+        command.key,
+        payload
+    )
+    .execute(&mut **tx)
+    .await
+    .map_err(unavailable)?;
     Ok(())
 }
 

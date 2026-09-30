@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE gfa_matches SET revision = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f46112d84231d4ae02cec81ad64184439203ff59b72e4267da986fa1edbd6c18"
+}

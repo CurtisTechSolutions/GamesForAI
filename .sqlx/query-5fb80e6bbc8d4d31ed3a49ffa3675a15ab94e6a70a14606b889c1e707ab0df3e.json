@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT revision FROM gfa_matches WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "revision",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5fb80e6bbc8d4d31ed3a49ffa3675a15ab94e6a70a14606b889c1e707ab0df3e"
+}

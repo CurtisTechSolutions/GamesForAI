@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT payload FROM gfa_commands WHERE match_id = ? AND command_key = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "payload",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ca5f2be2a6c311362b2ff66003dd93bed484c203b638def218dfea0aa22b8fa9"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT command_key, payload FROM gfa_commands WHERE match_id = ? ORDER BY rowid",
+  "describe": {
+    "columns": [
+      {
+        "name": "command_key",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "payload",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "c51e45ae89d25cce62d804fcd3fd129b38f4bdbedf39eb61e070f864351060c6"
+}

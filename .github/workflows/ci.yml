@@ -21,9 +21,8 @@ jobs:
         env:
           DATABASE_URL: sqlite:${{ runner.temp }}/gfa-sqlx/schema.sqlite
           SQLX_OFFLINE_DIR: ${{ runner.temp }}/gfa-sqlx/queries
-      - name: Capture generated query metadata
-        if: always()
-        run: python3 -c 'import json,os,pathlib; [print("GFA_SQLX_JSON:"+json.dumps({"path":".sqlx/"+p.name,"content":p.read_text()})) for p in sorted((pathlib.Path(os.environ["RUNNER_TEMP"])/"gfa-sqlx"/"queries").glob("query-*.json"))]'
+      - name: Verify offline query metadata
+        run: python3 .github/scripts/sqlite-query-check.py verify
       - run: cargo xtask check-deps
       - run: cargo check -p gfa-games --no-default-features --locked
   lint:
