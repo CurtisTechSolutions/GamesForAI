@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.2 (changes in §20) |
+| **Status** | Draft v0.3 (changes in §20) |
 | **Last updated** | 2026-09-30 |
 | **License** | GPL-3.0 (repo license; compatible with bundling Stockfish) |
 | **Stack** | Rust backend (engines, API, MCP, storage) · React + Phaser frontend · PostgreSQL / SQLite |
@@ -42,7 +42,7 @@ The main design principle: **learn the API once, play any game.** An agent that 
 
 ### Non-goals (v1)
 - Hosting model training or inference. GamesForAI is the *environment*, not the trainer. The built-in LLM player calls external model APIs; it does not host models.
-- Real-money play, public matchmaking at internet scale, or anti-cheat for human competitive play.
+- Real-money play (including poker: chips have no cash value), public matchmaking at internet scale, or anti-cheat for human competitive play.
 - Video/3D games or pixel-observation Atari-style emulation. v1 targets turn-based board, card and puzzle games; real-time games are a later phase.
 - A mobile-native app. The web app should be responsive, which is sufficient.
 
@@ -99,6 +99,7 @@ GamesForAI/
 │   │   ├── tictactoe/
 │   │   ├── connect4/
 │   │   ├── sudoku/
+│   │   ├── holdem/
 │   │   ├── chess/             # wraps `shakmaty` for move generation
 │   │   └── ...
 │   ├── gfa-opponents/         # Opponent trait + adapters (uci, gtp, mcts, minimax, random)
@@ -190,7 +191,7 @@ A type-erased `DynGame` wrapper (JSON in, JSON out) lets the server, MCP layer a
 | P2 | Othello | 2 | Perfect | Medium complexity | Edax (GPL) or built-in alpha-beta |
 | P2 | Go (9×9, 13×13, 19×19) | 2 | Perfect | Deep planning | **KataGo** (GTP), GNU Go fallback |
 | P2 | 2048 / Sokoban | 1 | Perfect, stochastic / deterministic | Single-agent planning | Expectimax / solver |
-| P3 | Heads-up Limit Texas Hold'em | 2 | Imperfect, stochastic | Bluffing, hidden info | CFR-based bot |
+| P3 | Texas Hold'em (limit and no-limit) | 2–9 | Imperfect, stochastic | Bluffing, hidden info, decisions under uncertainty (§6.5) | CFR-based bots, equity calculator |
 | P3 | Battleship | 2 | Imperfect | Inference under uncertainty | Probability-density heuristic |
 | P3 | Liar's Dice / Kuhn Poker | 2+ | Imperfect | Small game-theory testbeds | Exact Nash / CFR |
 | P3 | Hanabi | 2–5 | Imperfect, cooperative | Cooperation, theory of mind | Rule-based bots |
@@ -232,6 +233,34 @@ A **position set** is a named, versioned list of positions for one game, stored 
 - **FR-P1** Every position is validated when a set is loaded. A set containing an invalid position fails to load.
 - **FR-P2** A published version never changes. Sets are addressed as `<set>@<version>` and carry a content hash, which benchmark suites pin.
 - **FR-P3** Each set records its source and license. Imports from outside sources keep their original ids so results can be traced back.
+
+### 6.5 Texas Hold'em
+
+Texas Hold'em is the flagship imperfect-information game. It tests what perfect-information games can't: reasoning about hidden cards, bluffing, reading opponents, and making good decisions whose results are dominated by luck. It is also the game where evaluation is hardest, because a few hundred hands are not enough to tell a strong player from a lucky one; the requirements below are built around that.
+
+- **Variants** (config): `betting` = `limit` or `no_limit` (default), `players` 2–9 (default 2), `blinds` (default 1/2 chips), `starting_stack` in big blinds (default 100), optional `ante`. Heads-up follows standard rules (the button posts the small blind and acts first before the flop, last after it).
+- **Match structure:** a match is a session of `hands` hands (default 100). Stacks reset to `starting_stack` at the start of every hand, as in AI poker research, so each hand is an independent decision problem and results can be averaged. A `tournament` option (stacks carry over, rising blinds, play until one player has all chips) comes later.
+- **Rules engine:** full betting rules, including minimum raise sizes, all-ins for less than a full raise, side pots for 3+ players, split pots, odd-chip rules and showdown order. Hand ranking uses a precomputed evaluator (millions of hands per second per core).
+- **Cards and randomness:** the deck is shuffled with the match's seeded RNG (FR-E1), so every deal is reproducible. Dealing is recorded as `chance` events that are visible only to the players who may see those cards.
+- **Actions:**
+  - Strings: `f` (fold), `k` (check), `c` (call), `r<amount>` (bet or raise *to* a total amount this street, e.g. `r600`), `allin`. JSON: `{"type": "raise", "to": 600}`.
+  - Legal actions are listed as `f`, `c`/`k`, and a raise range (`r400..r20000`) rather than every amount.
+  - The discrete index space (for RL) uses a fixed menu: fold, check/call, raise to ⅓, ½, ¾, 1×, 1.5× and 2× pot, and all-in. The string form accepts any legal amount, so LLM agents are not limited to the menu.
+- **Observation (per seat):** your hole cards, the board, pot and side pots, every stack and current bet, positions (button, blinds), this hand's action history, amount to call, minimum and maximum raise, hand number, and your running result in big blinds. Cards use two characters (`As`, `Td`, `7h`). The text form is a short table layout that fits in about 200 tokens. The tensor form uses card planes plus betting features.
+- **Hidden information:** a seat sees only its own hole cards. Hands shown at showdown become public; folded and mucked hands never do. Spectators see hole cards only after the hand ends (or with a configurable delay on live streams), and the omniscient replay view (M7) shows everything once the match is over. Simulation (FR-S2) and forks (FR-P7) re-deal the cards a seat can't see.
+- **Rewards:** per hand, chips won or lost in big blinds; the match return is the session total. Results are reported in **milli-big-blinds per hand (mbb/hand)**, the standard poker AI unit, with 95% confidence intervals.
+- **Variance reduction (required for evaluation):**
+  - *Duplicate mode:* matches run in pairs with the same card sequence and the seats swapped, so both players get the same luck. On by default for heads-up benchmarks and ratings.
+  - *All-in adjustment:* when players are all-in before the river, the reported result uses their equity instead of the actual cards that came, removing the luck of the run-out.
+  - Reports state the number of hands and the confidence interval, and leaderboards don't rank agents whose intervals overlap as different.
+- **Opponents and reference tools:**
+  - Levels 1–3: rule-based bots (e.g. calling station, tight-aggressive, hand-strength based).
+  - Levels 4–10: counterfactual regret minimization (CFR) bots trained offline for heads-up play with increasingly fine card and bet abstractions, shipped as policy files. Heads-up limit is essentially solved, so the top limit bot plays close to the equilibrium.
+  - An **equity calculator** (exact enumeration or Monte Carlo) used for analysis, the all-in adjustment and move-quality metrics (F2). `analyze_position` returns the seat's equity against a range, never the opponent's actual cards.
+  - Levels for more than two players are rule-based at first; multi-player CFR bots are a later addition.
+- **Info route:** the `rules` section includes the hand rankings, betting order and a worked showdown example; `action_format` explains raise-to amounts with examples, the most common LLM mistake being a raise *by* an amount instead of *to* it.
+- **Frontend:** a Phaser table scene with seats, chip stacks, cards, pot and bet animations, and a raise slider with pot-size buttons. The replay viewer can switch between one player's view and the omniscient view, and shows equity per player at each street.
+- **Benchmarks:** `holdem-hu-duplicate-v1` (heads-up no-limit, duplicate, 2,000 hands against each of levels 1, 4, 7 and 10, scored in mbb/hand) ships with M7.
 
 ## 7. Functional requirements — Opponents (built-in players)
 
@@ -665,7 +694,7 @@ Games without a custom scene fall back to a **generic text renderer** that shows
 | **M4 – Training** | PyO3 SDK, Gymnasium/PettingZoo wrappers, VectorEnv, position sets and curricula, `clone`/`get_state`/`set_state`, batch REST, exports, ratings, tournaments CLI | Throughput targets met; PPO example trains Connect Four agent that beats level 3 |
 | **M5 – Evaluation** | Benchmark suite format and runner (server-driven, self-driven, CLI, MCP), puzzle position sets, the six initial suites with public and hidden splits, reports, per-suite leaderboards, benchmark pages in the web app | Every initial suite runs end to end; reports published for at least three agents; an engine run twice gives identical reports |
 | **M6 – Catalog expansion** | Checkers, Othello, Go + KataGo (GTP), 2048 | Each passes conformance and has a calibrated opponent ladder |
-| **M7 – Imperfect information** | Hold'em, Battleship, Kuhn/Liar's Dice, Hanabi; omniscient replay view | Hidden-info leakage tests pass; CFR baselines available |
+| **M7 – Imperfect information** | Texas Hold'em (§6.5) with duplicate mode, equity calculator, rule-based and CFR bots, table scene and `holdem-hu-duplicate-v1`; Battleship, Kuhn/Liar's Dice, Hanabi; omniscient replay view | Hidden-info leakage tests pass; CFR baselines available; the hold'em ladder is calibrated in mbb/hand with duplicate matches |
 
 ## 16. Future phases
 
@@ -718,6 +747,8 @@ Planned after M7, in no fixed order:
 - **Assists:** per-match permissions for help beyond the rules, such as engine analysis or simulation.
 - **Benchmark suite:** a fixed, versioned set of tasks with a scoring rule. Its **hidden split** stays on the server and is used for official scores.
 - **Determinization:** sampling the hidden parts of a state so they are consistent with what a player has seen.
+- **Duplicate poker:** playing each deal twice with the seats swapped, so both players get the same cards and luck largely cancels out.
+- **mbb/hand:** milli-big-blinds won per hand, the standard unit for poker results (1,000 mbb = 1 big blind).
 
 ## 20. Revision history
 
@@ -725,3 +756,4 @@ Planned after M7, in no fixed order:
 |---|---|---|
 | v0.1 | 2026-09-29 | Initial draft, game info route (§8.4), Sudoku (§6.3) |
 | v0.2 | 2026-09-30 | Position sets (§6.4), built-in LLM player (§7.1), match info route (§8.5), simulation (§8.6), custom starts and forks (§8.7), evaluation and benchmark suites (§9), evaluation milestone (M5), future phases (§16) |
+| v0.3 | 2026-09-30 | Texas Hold'em spec (§6.5): variants, betting rules, duplicate evaluation, opponents and benchmark |
