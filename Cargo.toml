@@ -29,6 +29,7 @@ gfa-testkit = { version = "0.1.0", path = "crates/core/gfa-testkit" }
 gfa-game-tictactoe = { version = "0.1.0", path = "crates/games/gfa-game-tictactoe" }
 gfa-games = { version = "0.1.0", path = "crates/games/gfa-games" }
 gfa-game-connect4 = { version = "0.1.0", path = "crates/games/gfa-game-connect4" }
+gfa-game-sudoku = { version = "0.1.0", path = "crates/games/gfa-game-sudoku" }
 gfa-api-types = { version = "0.1.0", path = "crates/domain/gfa-api-types" }
 gfa-opponents = { version = "0.1.0", path = "crates/players/gfa-opponents" }
 gfa-service = { version = "0.1.0", path = "crates/domain/gfa-service" }

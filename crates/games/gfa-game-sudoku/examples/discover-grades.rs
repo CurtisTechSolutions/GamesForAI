@@ -9,9 +9,15 @@ fn main() -> Result<(), Box<dyn Error>> {
             let puzzle = generate(size, seed)?;
             let assessment = grade(&puzzle)?;
             if seen.insert(assessment.difficulty) {
-                println!("GFA_PUZZLE:{size}:{seed}:{:?}:{}", assessment.difficulty, puzzle.notation());
+                println!(
+                    "GFA_PUZZLE:{size}:{seed}:{:?}:{}",
+                    assessment.difficulty,
+                    puzzle.notation()
+                );
             }
-            if seen.len() == 4 || size == 4 && seen.contains(&Difficulty::Easy) { break; }
+            if seen.len() == 4 || size == 4 && seen.contains(&Difficulty::Easy) {
+                break;
+            }
         }
         println!("GFA_GRADES:{size}:{seen:?}");
     }

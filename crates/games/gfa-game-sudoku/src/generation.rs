@@ -17,7 +17,10 @@ const SEEDS: &[(u8, Difficulty, u64)] = &[
 /// Generation grades supported by the embedded, solver-verified seed corpus.
 /// Arbitrary imported puzzles may be graded at any difficulty.
 pub fn supported_difficulties(size: u8) -> Vec<Difficulty> {
-    SEEDS.iter().filter_map(|&(n, difficulty, _)| (n == size).then_some(difficulty)).collect()
+    SEEDS
+        .iter()
+        .filter_map(|&(n, difficulty, _)| (n == size).then_some(difficulty))
+        .collect()
 }
 
 /// Generate a unique puzzle at a verified technique grade.
@@ -26,7 +29,11 @@ pub fn supported_difficulties(size: u8) -> Vec<Difficulty> {
 /// puzzle. Each candidate is regraded, so solving-order differences cannot
 /// silently change the advertised difficulty. Unsupported size/grade pairs
 /// return a clear error instead of mislabelling a puzzle.
-pub fn generate_graded(size: u8, difficulty: Difficulty, seed: u64) -> Result<(Grid, Grade), GameError> {
+pub fn generate_graded(
+    size: u8,
+    difficulty: Difficulty,
+    seed: u64,
+) -> Result<(Grid, Grade), GameError> {
     let source = SEEDS.iter().find(|&&(n, grade, _)| n == size && grade == difficulty)
         .ok_or_else(|| GameError::position(format!(
             "No generated {difficulty:?} corpus for size {size}; use a supported grade or supply a puzzle"
@@ -44,20 +51,32 @@ pub fn generate_graded(size: u8, difficulty: Difficulty, seed: u64) -> Result<(G
         let mut cells = Vec::with_capacity(n * n);
         for &row in &rows {
             for &col in &cols {
-                let index = if transpose { col * n + row } else { row * n + col };
+                let index = if transpose {
+                    col * n + row
+                } else {
+                    row * n + col
+                };
                 let value = base.cells[index];
-                cells.push(if value == 0 { 0 } else { digits[usize::from(value - 1)] });
+                cells.push(if value == 0 {
+                    0
+                } else {
+                    digits[usize::from(value - 1)]
+                });
             }
         }
         let candidate = Grid::from_cells(size, cells)?;
         let assessment = grade(&candidate)?;
-        if assessment.difficulty == difficulty { return Ok((candidate, assessment)); }
+        if assessment.difficulty == difficulty {
+            return Ok((candidate, assessment));
+        }
     }
     // The source itself is an exact, deterministic fallback when transformed
     // candidates follow a different logical path. Never return a false label.
     let assessment = grade(&base)?;
     if assessment.difficulty != difficulty {
-        return Err(GameError::position("Generated puzzle corpus requires recalibration"));
+        return Err(GameError::position(
+            "Generated puzzle corpus requires recalibration",
+        ));
     }
     Ok((base, assessment))
 }
@@ -69,7 +88,8 @@ mod tests {
     use std::collections::BTreeSet;
 
     #[test]
-    fn every_supported_grade_is_unique_seeded_and_verified() -> Result<(), Box<dyn std::error::Error>> {
+    fn every_supported_grade_is_unique_seeded_and_verified(
+    ) -> Result<(), Box<dyn std::error::Error>> {
         for &(size, difficulty, _) in SEEDS {
             let mut boards = BTreeSet::new();
             for seed in 0..24 {
