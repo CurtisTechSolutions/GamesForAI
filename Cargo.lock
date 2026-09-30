@@ -770,6 +770,7 @@ dependencies = [
 name = "gfa-server"
 version = "0.1.0"
 dependencies = [
+ "gfa-game-chess",
  "axum",
  "futures-util",
  "gfa-api-types",

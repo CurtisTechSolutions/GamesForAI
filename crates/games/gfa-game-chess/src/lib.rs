@@ -328,22 +328,26 @@ impl Game for ChessGame {
             stochastic: false, max_game_length: MAX_PLIES, reward_range: [-1.0, 1.0],
             action_space_size: encoding::ACTION_SPACE,
             rules_markdown: include_str!("rules.md").into(),
-            action_notation: "Lowercase UCI: e2e4, e1g1 (castling), a7a8q/r/b/n (promotion). Draw claims: claim_draw or claim_draw:e2e4. Indices: 64 origin squares * 73 move planes, 4672 for current-position claim, 4673 + move index for intended-move claim; use the legal list.".into(),
+            action_notation: "UCI e2e4, castling e1g1, promotion a7a8q/r/b/n; claim_draw[:<UCI>]. Structured JSON or {index:n} from legal_actions also accepted.".into(),
             position_notation: "Six-field FEN imports a board with no earlier repetition history. Pristine exports are FEN; played-state exports are lossless JSON {config,initial_fen,actions}. public_position always gives current FEN.".into(),
             config_schema: schema::<Config>(), action_schema: schema::<Action>(),
             observation_schema: schema::<BoardView>(),
         }
     }
 
+    fn compact_rules() -> String {
+        include_str!("compact-rules.md").into()
+    }
+
     fn play_guide() -> Option<gfa_core::PlayGuide> {
         Some(gfa_core::PlayGuide {
-            objective: "Checkmate wins. Stalemate and insufficient mating material draw. Threefold repetition and 50 moves per side without a pawn move or capture allow an explicit claim; fivefold and 75 moves per side draw automatically. Checkmate takes precedence over automatic move-count draws.".into(),
-            observation: "Files a..h run left to right; ranks 8..1 top to bottom. Uppercase pieces are White (seat 0); lowercase Black (seat 1); . is empty. JSON includes FEN, a square-to-piece map, check, counters, status, last SAN move and the complete public starting position/action history, needed to reproduce draw claims.".into(),
-            tensor: "Shape [20,8,8], rank 8 first. Planes 0..5 White P,N,B,R,Q,K; 6..11 Black; 12 White-to-move; 13..16 K,Q,k,q rights; 17 legal en-passant target; 18 halfmove count/150 capped at 1; 19 current repetition count/5 capped at 1. History remains in JSON.".into(),
-            rewards: "Only checkmate pays +1 to the winner and -1 to the loser. Draws, unfinished states and the max_plies truncation pay 0. No shaped rewards.".into(),
-            config: "start_fen optionally replaces the standard board with a validated six-field FEN. max_plies is 1..1000 (default 1000) and caps actions from the imported start. Standard chess only; clocks and resign/draw agreement are match controls.".into(),
+            objective: "Checkmate wins; stalemate, insufficient material and valid draw claims draw. See rules for repetition and move-count limits.".into(),
+            observation: "Files a..h left-to-right, ranks 8..1 top-to-bottom. Uppercase=White, lowercase=Black, .=empty. JSON: FEN, pieces, check, counters, status, last SAN and public history.".into(),
+            tensor: "Tensor [20,8,8], rank 8 first: White PNBRQK planes 0..5, Black 6..11; White-to-move 12; KQkq rights 13..16; legal EP target 17; min(halfmoves/150,1) 18; repetitions/5 19.".into(),
+            rewards: "Checkmate: +1 winner, -1 loser. Otherwise 0. No shaping.".into(),
+            config: "start_fen: optional six-field FEN. max_plies: 1..1000, default 1000, truncates with zero returns. Standard chess; clocks/resign/agreement are match controls.".into(),
             solved: "Standard chess is not solved.".into(),
-            common_mistakes: vec!["Use UCI e2e4, not SAN e4. Use lowercase promotion letters including underpromotions.".into(), "You cannot castle through check, and en passant is available for one move only.".into(), "A FEN alone cannot preserve earlier repetitions; use the complete JSON export to resume history.".into(), "Claim a draw only when claim_draw or the intended-move claim appears in legal_actions.".into()],
+            common_mistakes: vec!["Use UCI, not SAN; append promotion q/r/b/n.".into(), "FEN alone resets repetition history; use full JSON to resume.".into()],
             strategy_notes: vec!["Check immediate threats to both kings before committing a move.".into()],
         })
     }

@@ -21,6 +21,11 @@ pub trait Game: Send + Sync + 'static {
         None
     }
 
+    /// Concise, self-contained rules for prompt-sized briefings.
+    fn compact_rules() -> String {
+        Self::spec().rules_markdown
+    }
+
     /// Create a state, rejecting unsupported configuration.
     fn new_initial_state(config: &Self::Config, seed: u64) -> Result<Self::State, GameError>;
     /// Replace future randomness after importing a position, without changing its board.

@@ -12,6 +12,10 @@ pub trait DynGame: Send + Sync {
     fn play_guide(&self) -> Option<crate::PlayGuide> {
         None
     }
+    /// Concise rules, with a compatible default for existing adapters.
+    fn compact_rules(&self) -> String {
+        self.spec().rules_markdown
+    }
     /// Normalize defaults through the engine's config type.
     ///
     /// Engines with custom implementations should override this when defaults
@@ -164,6 +168,10 @@ impl<G: Game> DynGame for GameAdapter<G> {
 
     fn play_guide(&self) -> Option<crate::PlayGuide> {
         G::play_guide()
+    }
+
+    fn compact_rules(&self) -> String {
+        G::compact_rules()
     }
 
     fn normalize_config(&self, config: &Value) -> Result<Value, GameError> {

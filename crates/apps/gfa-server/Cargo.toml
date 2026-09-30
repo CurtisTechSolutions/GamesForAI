@@ -20,6 +20,7 @@ tokio.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+gfa-game-chess.workspace = true
 jsonschema.workspace = true
 gfa-core.workspace = true
 tokio-tungstenite.workspace = true
