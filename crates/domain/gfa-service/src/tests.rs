@@ -220,7 +220,9 @@ impl MatchStore for MemoryStore {
                     .find(|previous| previous.key == command.key)
                 {
                     return if previous.request == command.request {
-                        Ok(AppendResult::AlreadyCommitted(Box::new(previous.response.clone())))
+                        Ok(AppendResult::AlreadyCommitted(Box::new(
+                            previous.response.clone(),
+                        )))
                     } else {
                         Err(StoreError::IdempotencyConflict)
                     };
