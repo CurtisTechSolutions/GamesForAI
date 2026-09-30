@@ -27,6 +27,8 @@ jobs:
         run: python3 .github/scripts/sqlite-query-check.py verify
         env:
           GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
+      - run: cargo build -p gfa-cli --locked
+      - run: python3 .github/scripts/local-server-smoke.py
       - run: cargo xtask check-deps
       - run: cargo check -p gfa-games --no-default-features --locked
   lint:
