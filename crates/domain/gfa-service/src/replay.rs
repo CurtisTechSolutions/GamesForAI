@@ -1,5 +1,5 @@
 use crate::{error, MatchEvent, MatchOrigin, MatchRecord};
-use gfa_api_types::{ApiError, MatchState, Start};
+use gfa_api_types::{ApiError, MatchState};
 use gfa_core::{DynGame, GameRegistry, StepEvents, Viewer};
 use serde_json::Value;
 use std::sync::Arc;
@@ -67,13 +67,7 @@ pub(crate) fn initial(game: &dyn DynGame, origin: &MatchOrigin) -> Result<Frame,
         .map_err(error::engine)?;
     let state = match &origin.start {
         None => default,
-        Some(Start::Position { position }) => game
-            .state_from_notation(&origin.config, position)
-            .map_err(error::engine)?,
-        Some(Start::State { state }) => {
-            game.validate_state(state).map_err(error::engine)?;
-            state.clone()
-        }
+        Some(start) => crate::position::import(game, &origin.config, start, origin.seed)?,
     };
     if game.is_terminal(&state).map_err(error::engine)?
         || game

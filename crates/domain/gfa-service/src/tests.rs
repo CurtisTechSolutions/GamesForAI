@@ -73,6 +73,10 @@ impl<const TERMINATES: bool> Game for Counter<TERMINATES> {
         }
         Ok([0, seed, 0])
     }
+    fn reseed(state: &mut Self::State, seed: u64) -> Result<(), GameError> {
+        state[1] = seed;
+        Ok(())
+    }
     fn validate_state(state: &Self::State) -> Result<(), GameError> {
         if state[0] > 4 || state[2] > state[0] * 3 {
             return Err(GameError::position("Invalid counter"));
@@ -696,5 +700,32 @@ fn briefing_failure_prevents_creation_and_opt_out_keeps_state_only_access() -> T
     let created = run(service.create_match_with_info(request, Viewer::Player(0)))?;
     assert!(created.info.is_none());
     assert_eq!(store.records.lock().map_err(|_| "poisoned")?.len(), 1);
+    Ok(())
+}
+
+
+#[test]
+fn imported_positions_get_fresh_rng_without_storage_writes() -> TestResult {
+    use gfa_api_types::ValidatePosition;
+    let (service, store) = fixture()?;
+    let input = json!([2,999,3]);
+    let request = ValidatePosition { config:json!({}), start:Start::State { state:input.clone() }, seed:Some(17) };
+    let imported = service.validate_position("counter",request.clone(),Viewer::Player(0))?;
+    assert_eq!(imported.state,json!([2,17,3]));
+    assert_eq!(service.validate_position("counter",request,Viewer::Player(0))?,imported);
+    let notation = ValidatePosition { config:json!({}), start:Start::Position { position:imported.position }, seed:None };
+    let fresh = service.validate_position("counter",notation,Viewer::Player(0))?;
+    assert_eq!(fresh.seed,42);
+    assert_eq!(fresh.state,json!([2,42,3]));
+    assert_eq!(fresh.observation,imported.observation);
+    assert_eq!(input,json!([2,999,3]));
+    assert!(store.records.lock().map_err(|_|"poisoned")?.is_empty());
+    let created = run(service.create_match(CreateMatch {
+        game_id:"counter".into(),config:json!({}),seed:Some(17),
+        start:Some(Start::State { state:input }),include_info:false
+    },Viewer::Player(0)))?;
+    assert_eq!(created.observation,imported.observation);
+    let replay = run(service.get_replay(&created.match_id,Viewer::Player(0)))?;
+    assert_eq!(replay.states[0],created);
     Ok(())
 }

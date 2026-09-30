@@ -23,6 +23,16 @@ pub trait Game: Send + Sync + 'static {
 
     /// Create a state, rejecting unsupported configuration.
     fn new_initial_state(config: &Self::Config, seed: u64) -> Result<Self::State, GameError>;
+    /// Replace future randomness after importing a position, without changing its board.
+    ///
+    /// Stochastic engines must override this. Deterministic engines need no RNG.
+    fn reseed(state: &mut Self::State, _seed: u64) -> Result<(), GameError> {
+        if Self::spec().stochastic {
+            return Err(GameError::position("This stochastic engine does not support reseeding"));
+        }
+        Self::validate_state(state)
+    }
+
     /// Validate state received through a persistence or API boundary.
     fn validate_state(state: &Self::State) -> Result<(), GameError>;
     /// Seats that can act; empty after a terminal or truncated transition.

@@ -119,3 +119,19 @@ Match briefings are not cached. The service prepares creation briefings before
 committing the match, and reads subsequent briefings from one consistent event
 snapshot. In-process callers that only need state can continue using
 `create_match`; transports use `create_match_with_info`.
+
+ 
+## Standalone positions
+
+Validate a complete position without creating a match:
+`POST /v1/games/tictactoe/positions/validate?seat=0` with
+`{"start":{"position":"<game notation>"},"seed":42}`.
+Alternatively use `start: {"state": ...}` with a structured state.
+Optional `config` uses the same options as match creation.
+
+The response includes canonical notation, structured state, observation/tensor,
+legal actions and mask, actors, returns, and terminal status. Finished positions
+are valid for analysis but cannot start a match. Imported states receive a new
+seed for future randomness; supply one to reproduce a validation, or reuse the
+returned seed. This endpoint accepts caller-supplied positions and never loads
+private state from an existing match.
