@@ -21,6 +21,12 @@ pub struct MatchOrigin {
     pub assists: gfa_api_types::Assists,
     /// Unix milliseconds from the injected clock.
     pub created_at_ms: u64,
+    /// Internal fork flag; preserve a complete snapshot's serialized RNG.
+    #[serde(default)]
+    pub preserve_start_rng: bool,
+    /// Internal benchmark assignment; active benchmark matches cannot be forked.
+    #[serde(default)]
+    pub benchmark_run: Option<String>,
 }
 
 /// One action accepted by the engine.
@@ -44,6 +50,15 @@ pub struct AppliedAction {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "kind", content = "data", rename_all = "snake_case")]
 pub enum MatchEvent {
+    /// Optional variation preface, followed immediately by MatchCreated.
+    ForkedFrom {
+        /// Parent match and local turn.
+        source: gfa_api_types::ForkSource,
+        /// View preserved when sampling the child.
+        viewer: gfa_core::Viewer,
+        /// Event revision of the parent snapshot; later controls cannot rewrite history.
+        parent_revision: u64,
+    },
     /// Initial game inputs; exactly one, at sequence zero.
     MatchCreated(MatchOrigin),
     /// Validated action.
@@ -108,4 +123,32 @@ pub enum AppendResult {
     Appended,
     /// The same command was already committed, including during a race.
     AlreadyCommitted(Box<MoveResult>),
+}
+
+impl MatchRecord {
+    pub(crate) fn origin(&self) -> Option<&MatchOrigin> {
+        match self.events.as_slice() {
+            [MatchEvent::MatchCreated(origin), ..]
+            | [MatchEvent::ForkedFrom { .. }, MatchEvent::MatchCreated(origin), ..] => Some(origin),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn fork_source(&self) -> Option<&gfa_api_types::ForkSource> {
+        match self.events.first() {
+            Some(MatchEvent::ForkedFrom { source, .. }) => Some(source),
+            _ => None,
+        }
+    }
+}
+
+/// Trusted host authorization for a fork; transport input must not set these flags.
+#[derive(Clone, Copy, Debug)]
+pub struct ForkAccess {
+    /// Already-authorized source viewer.
+    pub viewer: gfa_core::Viewer,
+    /// The caller owns the parent; required while it is active.
+    pub owns_parent: bool,
+    /// The caller may inspect the complete state, including hidden cards and RNG.
+    pub full_state: bool,
 }

@@ -121,8 +121,11 @@ pub struct Replay {
     pub match_id: String,
     /// Engine version used to reconstruct this replay.
     pub engine_version: String,
-    /// One viewer-scoped state per turn.
+    /// One viewer-scoped state per local turn.
     pub states: Vec<MatchState>,
+    /// Public parent histories, oldest first; absent for a root match.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ancestors: Vec<ReplayAncestor>,
 }
 
 /// Stable, recoverable domain failure; transports wrap it under an error field.
@@ -273,3 +276,6 @@ pub use simulation::{
     AssistUsage, Assists, SimulateRequest, SimulatedLine, SimulationFailure, SimulationFrom,
     SimulationOutput, SimulationResult,
 };
+
+mod fork;
+pub use fork::{ForkMatch, ForkSource, ReplayAncestor};
