@@ -85,6 +85,11 @@ engine state and RNG seed, so custom starts and forked histories can be rebuilt
 exactly. The ordinary REST views omit those private inputs. Full responses have
 a 16 MiB budget; larger histories remain available through paginated events.
 
+Game briefings provide compact rules and full schemas/examples. Full previews mark
+large numeric arrays in `omitted_fields`; fetch the normal state/legal-action
+routes for complete tensors and masks. This keeps model prompts readable without
+changing the live state contract.
+
 ## Chess
 
 Chess is enabled by default and uses the same create, move, simulate, fork,
