@@ -1,8 +1,15 @@
 mod actions;
 mod view;
 
-use crate::{generate_graded, grade, model::{BoardView, Policy}, solve, Action, Config, Grid, Outcome, State};
-use gfa_core::{schema, serde_json, ErrorCode, Game, GameError, GameSpec, Information, Observation, PlayerId, StepEvents, TurnStructure, Viewer};
+use crate::{
+    generate_graded, grade,
+    model::{BoardView, Policy},
+    solve, Action, Config, Grid, Outcome, State,
+};
+use gfa_core::{
+    schema, serde_json, ErrorCode, Game, GameError, GameSpec, Information, Observation, PlayerId,
+    StepEvents, TurnStructure, Viewer,
+};
 use std::sync::OnceLock;
 
 /// Single-player Sudoku with reproducible puzzles and explicit mistake policies.
@@ -11,7 +18,8 @@ pub struct Sudoku;
 pub(super) fn outcome(state: &State) -> Option<Outcome> {
     if state.grid == state.solution {
         Some(Outcome::Solved)
-    } else if matches!(state.config.policy(), Ok(Policy::SolutionCheck(limit)) if state.wrong >= limit) {
+    } else if matches!(state.config.policy(), Ok(Policy::SolutionCheck(limit)) if state.wrong >= limit)
+    {
         Some(Outcome::MistakeLimit)
     } else if state.moves >= state.config.max_moves.unwrap_or(200) || state.actions >= 50000 {
         Some(Outcome::MaxMoves)
@@ -24,15 +32,28 @@ pub(super) fn from_grid(config: &Config, puzzle: Grid) -> Result<State, GameErro
     config.validate()?;
     if let Some(notation) = &config.puzzle {
         if Grid::parse(config.size, notation)? != puzzle {
-            return Err(GameError::position("Configured puzzle disagrees with the imported grid"));
+            return Err(GameError::position(
+                "Configured puzzle disagrees with the imported grid",
+            ));
         }
     }
     let assessment = grade(&puzzle)?;
-    let solution = solve(&puzzle).first.ok_or_else(|| GameError::position("Puzzle has no solution"))?;
+    let solution = solve(&puzzle)
+        .first
+        .ok_or_else(|| GameError::position("Puzzle has no solution"))?;
     let state = State {
-        config: config.clone(), puzzle: puzzle.cells().to_vec(), solution: solution.cells().to_vec(),
-        grid: puzzle.cells().to_vec(), notes: vec![0; puzzle.cells().len()], grade: assessment,
-        moves: 0, wrong: 0, attempts: Default::default(), erasures: 0, actions: 0, validated_puzzle: OnceLock::new(),
+        config: config.clone(),
+        puzzle: puzzle.cells().to_vec(),
+        solution: solution.cells().to_vec(),
+        grid: puzzle.cells().to_vec(),
+        notes: vec![0; puzzle.cells().len()],
+        grade: assessment,
+        moves: 0,
+        wrong: 0,
+        attempts: Default::default(),
+        erasures: 0,
+        actions: 0,
+        validated_puzzle: OnceLock::new(),
     };
     let _ = state.validated_puzzle.set(());
     Ok(state)
@@ -72,7 +93,10 @@ impl Game for Sudoku {
     }
 
     fn new_initial_state(config: &Config, seed: u64) -> Result<State, GameError> {
-        config.validate().map_err(|mut error| { error.code = ErrorCode::InvalidConfig; error })?;
+        config.validate().map_err(|mut error| {
+            error.code = ErrorCode::InvalidConfig;
+            error
+        })?;
         let puzzle = match &config.puzzle {
             Some(puzzle) => Grid::parse(config.size, puzzle)?,
             None => generate_graded(config.size, config.difficulty, seed)?.0,
@@ -80,7 +104,12 @@ impl Game for Sudoku {
         from_grid(config, puzzle)
     }
 
-    fn state_from_observation(config: &Config, observation: &Observation, _: Viewer, _: u64) -> Result<State, GameError> {
+    fn state_from_observation(
+        config: &Config,
+        observation: &Observation,
+        _: Viewer,
+        _: u64,
+    ) -> Result<State, GameError> {
         view::reconstruct(config, observation)
     }
 
@@ -88,44 +117,72 @@ impl Game for Sudoku {
         state.config.validate()?;
         let n = usize::from(state.config.size);
         let len = n * n;
-        if state.grid.len() != len || state.puzzle.len() != len || state.solution.len() != len ||
-            state.notes.len() != len || state.grid.iter().any(|&d| d > state.config.size) ||
-            state.moves > state.config.max_moves.unwrap_or(200) || state.actions > 50000 ||
-            state.erasures > state.moves || state.wrong > state.moves - state.erasures || state.actions < state.moves {
-            return Err(GameError::position("Grid dimensions, digits or move counters are invalid"));
+        if state.grid.len() != len
+            || state.puzzle.len() != len
+            || state.solution.len() != len
+            || state.notes.len() != len
+            || state.grid.iter().any(|&d| d > state.config.size)
+            || state.moves > state.config.max_moves.unwrap_or(200)
+            || state.actions > 50000
+            || state.erasures > state.moves
+            || state.wrong > state.moves - state.erasures
+            || state.actions < state.moves
+        {
+            return Err(GameError::position(
+                "Grid dimensions, digits or move counters are invalid",
+            ));
         }
         let mut placements = 0_u64;
         let mut wrong = 0_u64;
         for (&index, &count) in &state.attempts {
             let Action::Place { row, col, digit } = actions::from_index(state, index)? else {
-                return Err(GameError::position("Attempt counts must refer to placements"));
+                return Err(GameError::position(
+                    "Attempt counts must refer to placements",
+                ));
             };
-            if count == 0 { return Err(GameError::position("Attempt counts must be positive")); }
+            if count == 0 {
+                return Err(GameError::position("Attempt counts must be positive"));
+            }
             placements += u64::from(count);
             let cell = usize::from(row - 1) * n + usize::from(col - 1);
-            if state.solution[cell] != digit { wrong += u64::from(count); }
+            if state.solution[cell] != digit {
+                wrong += u64::from(count);
+            }
         }
-        if placements != u64::from(state.moves - state.erasures) || wrong != u64::from(state.wrong) {
-            return Err(GameError::position("Placement history disagrees with scoring counters"));
+        if placements != u64::from(state.moves - state.erasures) || wrong != u64::from(state.wrong)
+        {
+            return Err(GameError::position(
+                "Placement history disagrees with scoring counters",
+            ));
         }
         let all = (1_u16 << state.config.size) - 1;
         for i in 0..len {
-            if state.puzzle[i] != 0 && state.grid[i] != state.puzzle[i] ||
-                state.notes[i] & !all != 0 || state.grid[i] != 0 && state.notes[i] != 0 ||
-                !state.config.allow_notes && state.notes[i] != 0 {
-                return Err(GameError::position("Givens or candidate notes are inconsistent"));
+            if state.puzzle[i] != 0 && state.grid[i] != state.puzzle[i]
+                || state.notes[i] & !all != 0
+                || state.grid[i] != 0 && state.notes[i] != 0
+                || !state.config.allow_notes && state.notes[i] != 0
+            {
+                return Err(GameError::position(
+                    "Givens or candidate notes are inconsistent",
+                ));
             }
         }
         if state.validated_puzzle.get().is_none() {
             let puzzle = Grid::from_cells(state.config.size, state.puzzle.clone())?;
             let solution = solve(&puzzle);
-            if solution.count != 1 || solution.first.as_ref().map(Grid::cells) != Some(state.solution.as_slice()) ||
-                grade(&puzzle)? != state.grade {
-                return Err(GameError::position("Puzzle solution or difficulty metadata is inconsistent"));
+            if solution.count != 1
+                || solution.first.as_ref().map(Grid::cells) != Some(state.solution.as_slice())
+                || grade(&puzzle)? != state.grade
+            {
+                return Err(GameError::position(
+                    "Puzzle solution or difficulty metadata is inconsistent",
+                ));
             }
             if let Some(notation) = &state.config.puzzle {
                 if Grid::parse(state.config.size, notation)? != puzzle {
-                    return Err(GameError::position("Configured puzzle disagrees with the givens"));
+                    return Err(GameError::position(
+                        "Configured puzzle disagrees with the givens",
+                    ));
                 }
             }
             let _ = state.validated_puzzle.set(());
@@ -134,30 +191,59 @@ impl Game for Sudoku {
     }
 
     fn current_players(state: &State) -> Vec<PlayerId> {
-        if outcome(state).is_none() { vec![0] } else { vec![] }
+        if outcome(state).is_none() {
+            vec![0]
+        } else {
+            vec![]
+        }
     }
 
-    fn legal_actions(state: &State, player: PlayerId) -> Vec<Action> { actions::legal(state, player) }
+    fn legal_actions(state: &State, player: PlayerId) -> Vec<Action> {
+        actions::legal(state, player)
+    }
 
-    fn apply(state: &mut State, player: PlayerId, action: &Action) -> Result<StepEvents, GameError> {
+    fn apply(
+        state: &mut State,
+        player: PlayerId,
+        action: &Action,
+    ) -> Result<StepEvents, GameError> {
         actions::apply(state, player, action)
     }
 
     fn is_terminal(state: &State) -> bool {
-        matches!(outcome(state), Some(Outcome::Solved | Outcome::MistakeLimit))
+        matches!(
+            outcome(state),
+            Some(Outcome::Solved | Outcome::MistakeLimit)
+        )
     }
 
-    fn returns(state: &State) -> Vec<f64> { vec![if outcome(state) == Some(Outcome::Solved) { 1.0 } else { 0.0 }] }
+    fn returns(state: &State) -> Vec<f64> {
+        vec![if outcome(state) == Some(Outcome::Solved) {
+            1.0
+        } else {
+            0.0
+        }]
+    }
 
-    fn observe(state: &State, _: Viewer) -> Observation { view::observe(state) }
+    fn observe(state: &State, _: Viewer) -> Observation {
+        view::observe(state)
+    }
 
-    fn action_to_string(_: &State, action: &Action) -> String { actions::notation(action) }
+    fn action_to_string(_: &State, action: &Action) -> String {
+        actions::notation(action)
+    }
 
-    fn action_from_string(state: &State, text: &str) -> Result<Action, GameError> { actions::parse(state, text) }
+    fn action_from_string(state: &State, text: &str) -> Result<Action, GameError> {
+        actions::parse(state, text)
+    }
 
-    fn action_to_index(action: &Action) -> u32 { actions::index(action) }
+    fn action_to_index(action: &Action) -> u32 {
+        actions::index(action)
+    }
 
-    fn action_from_index(state: &State, index: u32) -> Result<Action, GameError> { actions::from_index(state, index) }
+    fn action_from_index(state: &State, index: u32) -> Result<Action, GameError> {
+        actions::from_index(state, index)
+    }
 
     fn state_to_notation(state: &State) -> Result<String, GameError> {
         Self::validate_state(state)?;
@@ -171,8 +257,13 @@ impl Game for Sudoku {
 
     fn state_from_notation(config: &Config, text: &str) -> Result<State, GameError> {
         let state = if text.starts_with('{') {
-            let state: State = serde_json::from_str(text).map_err(|error| GameError::position(error.to_string()))?;
-            if state.config != *config { return Err(GameError::position("Position config differs from the requested config")); }
+            let state: State = serde_json::from_str(text)
+                .map_err(|error| GameError::position(error.to_string()))?;
+            if state.config != *config {
+                return Err(GameError::position(
+                    "Position config differs from the requested config",
+                ));
+            }
             state
         } else {
             from_grid(config, Grid::parse(config.size, text)?)?

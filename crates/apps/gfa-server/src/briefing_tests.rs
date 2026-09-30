@@ -154,6 +154,8 @@ async fn every_game_briefing_contains_executable_examples_and_matching_views() -
             data(&compact, "observation_format")?["tensor_shape"],
             if game == "tictactoe" {
                 json!([3, 3, 3])
+            } else if game == "sudoku" {
+                json!([10, 9, 9])
             } else {
                 Value::Null
             }
