@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.3 (changes in §20) |
+| **Status** | Draft v0.4 (changes in §20) |
 | **Last updated** | 2026-09-30 |
 | **License** | GPL-3.0 (repo license; compatible with bundling Stockfish) |
 | **Stack** | Rust backend (engines, API, MCP, storage) · React + Phaser frontend · PostgreSQL / SQLite |
@@ -88,38 +88,91 @@ The main design principle: **learn the API once, play any game.** An agent that 
                                         PostgreSQL (prod) / SQLite (local)
 ```
 
-### 5.1 Repository layout (Cargo workspace + web app)
+### 5.1 Repository layout (Cargo workspace + pnpm workspace)
 
 ```
 GamesForAI/
-├── Cargo.toml                 # workspace
+├── Cargo.toml                     # workspace: shared lints, dependency versions, profiles
+├── xtask/                         # repo tooling: dependency-rule check, schema generation
 ├── crates/
-│   ├── gfa-core/              # Game trait, shared types, schemas, errors, RNG, text rendering helpers
-│   ├── gfa-games/             # one sub-crate per game (independent, feature-gated)
-│   │   ├── tictactoe/
-│   │   ├── connect4/
-│   │   ├── sudoku/
-│   │   ├── holdem/
-│   │   ├── chess/             # wraps `shakmaty` for move generation
-│   │   └── ...
-│   ├── gfa-opponents/         # Opponent trait + adapters (uci, gtp, mcts, minimax, random)
-│   ├── gfa-llm/               # built-in LLM player: provider clients, prompts, transcripts
-│   ├── gfa-store/             # sqlx repositories, migrations, export (JSONL/Parquet)
-│   ├── gfa-server/            # axum HTTP + WebSocket API, match orchestration, auth
-│   ├── gfa-mcp/               # MCP server (rmcp), maps tools onto gfa-core/gfa-server
-│   ├── gfa-bench/             # benchmark suites: loader, runner, scoring, reports
-│   ├── gfa-py/                # PyO3 bindings + Gymnasium/PettingZoo wrappers (maturin)
-│   └── gfa-cli/               # `gfa` CLI: run server, play, tournaments, benchmarks, export
-├── web/                       # React + Vite + Phaser app
-│   └── src/games/<game_id>/   # one Phaser scene per game
-├── schemas/                   # generated JSON Schemas + OpenAPI spec (source of truth for TS types)
-├── positions/                 # position sets (JSONL) for curricula, puzzles and benchmarks
-├── benchmarks/                # versioned benchmark suite definitions (public splits only)
-├── docker/                    # Dockerfiles, compose (server, db, engines)
+│   ├── core/
+│   │   ├── gfa-core/              # Game trait, DynGame, shared types, errors, RNG. Pure: no I/O
+│   │   └── gfa-testkit/           # conformance kit, property-test helpers, fixtures
+│   ├── games/                     # one crate per game; each depends only on gfa-core
+│   │   ├── gfa-game-tictactoe/
+│   │   ├── gfa-game-connect4/
+│   │   ├── gfa-game-sudoku/
+│   │   ├── gfa-game-chess/        # wraps `shakmaty` for move generation
+│   │   ├── gfa-game-holdem/
+│   │   └── gfa-games/             # registry: the only list of games, one feature flag each
+│   ├── players/                   # built-in players; depend on gfa-core, never on a game
+│   │   ├── gfa-opponents/         # Opponent trait, random, minimax, MCTS
+│   │   ├── gfa-engine-uci/        # UCI process adapter (Stockfish)
+│   │   ├── gfa-engine-gtp/        # GTP process adapter (KataGo, GNU Go)
+│   │   └── gfa-llm/               # LLM player: provider clients, prompts, transcripts
+│   ├── domain/                    # use cases; no HTTP, MCP, SQL or game-specific code
+│   │   ├── gfa-api-types/         # request/response types shared by every transport
+│   │   ├── gfa-service/           # matches, info, simulation, forks, ratings; defines ports
+│   │   └── gfa-bench/             # benchmark suites: model, runner, scoring, reports
+│   ├── adapters/                  # implement ports or expose the service; never import each other
+│   │   ├── gfa-store/             # storage port via sqlx (PostgreSQL, SQLite), exports
+│   │   ├── gfa-http/              # axum REST + WebSocket: thin handlers over gfa-service
+│   │   └── gfa-mcp/               # MCP tools (rmcp): thin handlers over gfa-service
+│   └── apps/                      # binaries: configuration and wiring only
+│       ├── gfa-server/            # builds the service, adapters and registry; serves
+│       ├── gfa-cli/               # `gfa` CLI: serve, play, tournaments, benchmarks, export
+│       └── gfa-py/                # Python wheel (PyO3): in-process envs + remote client
+├── web/                           # pnpm workspace
+│   ├── apps/site/                 # React app shell: routing, pages, layout
+│   └── packages/
+│       ├── api-client/            # generated from OpenAPI; the only code that calls the API
+│       ├── ui/                    # shared components and design tokens
+│       ├── game-kit/              # GameScenePlugin interface, Phaser host, text fallback
+│       └── game-<id>/             # one package per game scene; depends only on game-kit
+├── schemas/                       # generated JSON Schemas + OpenAPI spec
+├── positions/                     # position sets (JSONL) for curricula, puzzles, benchmarks
+├── benchmarks/                    # versioned benchmark suite definitions (public splits)
+├── docker/                        # Dockerfiles, compose (server, db, engines)
 └── docs/
+    └── adr/                       # architecture decision records
 ```
 
-Each game is its own crate with no dependency on the server, database or other games. It can be tested, benchmarked and published on its own, and embedded directly in a training loop.
+### 5.2 Architecture principles
+
+Modularity and clean, separated code are primary goals, not side effects. Every part of the system has one job, depends only on what it needs, and can be tested and replaced on its own. These rules are requirements: CI enforces them, and a change that breaks one needs an architecture decision record (ADR) in `docs/adr/`.
+
+**Layers and dependency direction.** Dependencies point one way only, from the outside in:
+
+```
+apps        gfa-server · gfa-cli · gfa-py             wiring only
+  ↓
+adapters    gfa-http · gfa-mcp · gfa-store            never import each other
+  ↓
+domain      gfa-service · gfa-bench · gfa-api-types   no transport, SQL or game code
+  ↓
+players     gfa-opponents · gfa-engine-* · gfa-llm    no game-specific code
+  ↓
+core        gfa-core  ←  games/gfa-game-*             games depend on gfa-core only
+```
+
+- **AR-1 Pure core and games.** `gfa-core` and every game crate are synchronous and deterministic, with no I/O, no async runtime, no global state and no logging side effects. They can be embedded in a training loop, a WebAssembly build or a test without any setup.
+- **AR-2 Games are plug-ins.** A game crate depends only on `gfa-core` (plus game-specific libraries such as `shakmaty`). No other crate names a game type: the service, adapters and players work only with `DynGame` through the registry. `gfa-games` is the single list of games, with one Cargo feature per game, so a build can include any subset.
+- **AR-3 Transport-independent service.** All behavior (creating matches, applying moves, info routes, simulation, forks, ratings, benchmark runs) lives in `gfa-service`. REST, WebSocket, MCP, the LLM player's tools and the Python remote mode are thin adapters that translate requests into service calls and results back. None of them contains rules or business logic, so the same request gives the same answer on every transport. When a lower layer needs a service feature (the LLM player's `simulate_moves` and `analyze_position` tools), it defines a small trait in its own crate and the service implements it, so dependencies still point down.
+- **AR-4 Ports and adapters.** The service defines traits (ports) for what it needs from outside: `MatchStore`, `EventLog`, `Clock`, `OpponentFactory`, `LlmProvider`, `RatingStore`. Adapters implement them (`gfa-store` for sqlx, in-memory versions in `gfa-testkit`). The service never imports `axum`, `rmcp`, `sqlx` or `pyo3`.
+- **AR-5 One definition of each type.** Request and response types live once in `gfa-api-types`. The OpenAPI spec, JSON Schemas, MCP tool schemas and TypeScript types are all generated from them, never written by hand.
+- **AR-6 Wiring only in apps.** Configuration is read, and concrete adapters and games are chosen, only in `apps/`. Libraries take their dependencies as constructor arguments.
+- **AR-7 Small public surfaces.** Each crate exposes a minimal, documented API; everything else is `pub(crate)`. `gfa-core`'s API is semver-checked (`cargo-semver-checks`) because every game depends on it.
+- **AR-8 Frontend separation.** The web app never implements game rules: it renders `observation.json` and offers only the server's `legal_actions`. Each game's scene is its own package that depends only on `game-kit`, and only `api-client` talks to the server. Pages and components don't import game packages directly; they load them through the game-kit registry.
+- **AR-9 Adding a game is local.** A new game touches only its own crate, one line and feature in `gfa-games`, and optionally its own `game-<id>` web package plus one registry line. Nothing in the service, adapters, players or site changes.
+
+**Clean-code standards**
+- **CS-1 Lints:** shared workspace lints: `rustfmt`, Clippy with warnings as errors (including `unwrap_used` and `expect_used` in library crates), `unsafe_code = "forbid"`, and `missing_docs` on public items of core, domain and player crates. On the web side, TypeScript `strict`, ESLint and Prettier.
+- **CS-2 Errors:** each library crate defines its own error type (`thiserror`), with errors mapped to API error codes (§8.9) in one place in the service. `anyhow` is allowed only in `apps/` and tests. No panics on bad input anywhere reachable from a request.
+- **CS-3 Focused modules:** one responsibility per module and file; long functions and deep nesting are refactored rather than allowed. Names follow the domain vocabulary in §8.2 and the glossary.
+- **CS-4 Tests per layer:** games are tested with the conformance kit and unit tests; the service with in-memory ports, a fake clock and fake opponents (no network or database); adapters with contract tests that check they only translate; and a small set of end-to-end tests covers whole flows.
+- **CS-5 Dependencies:** versions are declared once in the workspace. `cargo-deny` checks licenses, duplicate versions and advisories. A new external dependency needs a one-line justification in the pull request.
+
+**Enforcement.** `cargo xtask check-deps` reads `cargo metadata` and fails CI if any crate depends on something its layer doesn't allow (for example, `gfa-service` on `sqlx`, `gfa-http` on `gfa-mcp`, a player crate on `gfa-service`, or anything outside `gfa-games` and `apps/` on a game crate). On the web side, `dependency-cruiser` enforces the same rules between packages.
 
 ## 6. Functional requirements — Game engine layer
 
@@ -176,7 +229,7 @@ A type-erased `DynGame` wrapper (JSON in, JSON out) lets the server, MCP layer a
 - **FR-E6 Rules as data:** `GameSpec.rules_markdown` holds complete, concise rules, win conditions, notation explanation and 1–3 worked examples. It is the `rules` section of the game info route (§8.4).
 - **FR-E7 Termination:** games declare a max length. Draw rules (threefold repetition, 50-move rule, etc.) are enforced by the engine. Truncation is distinct from termination in the step result.
 - **FR-E8 Performance:** engines are allocation-light. Targets are listed in §13.
-- **FR-E9 Conformance test kit:** `gfa-core::testing::conformance::<G>()` runs random playouts to check determinism, serialization round-trips, legal-action/apply consistency, index/string encoding bijections, observation schema validity, position notation round-trips and hidden-info non-leakage. Every game must pass it in CI.
+- **FR-E9 Conformance test kit:** `gfa_testkit::conformance::<G>()` runs random playouts to check determinism, serialization round-trips, legal-action/apply consistency, index/string encoding bijections, observation schema validity, position notation round-trips and hidden-info non-leakage. Every game must pass it in CI.
 - **FR-E10 Positions:** every game can write any state in its standard notation and read one back with full validation: FEN for chess, SGF for Go, the 81-character grid for Sudoku, and the JSON state for games without a common notation. Import rejects impossible positions with `INVALID_POSITION` and a plain-English hint (e.g. "Black has no king", "column 3 has a floating piece"). Finished positions can be imported for analysis but can't start a match. Imported positions get a fresh seeded RNG for later chance events.
 
 ### 6.2 Game catalog
@@ -499,7 +552,7 @@ Stable codes: `UNKNOWN_GAME`, `INVALID_CONFIG`, `INVALID_POSITION`, `MATCH_NOT_F
 
 ### 8.10 MCP server (`gfa-mcp`)
 
-Built with the official Rust MCP SDK (`rmcp`). It supports **stdio** (local, one command to launch) and **streamable HTTP** (hosted at `/mcp` on the same server).
+Built with the official Rust MCP SDK (`rmcp`) as a thin adapter over `gfa-service` (AR-3). It supports **stdio** (local, one command to launch) and **streamable HTTP** (hosted at `/mcp` on the same server).
 
 **Tools** (small set, verb-first names, flat parameters, every result includes readable `text` content plus `structuredContent` that matches a declared `outputSchema`):
 
@@ -533,7 +586,7 @@ Built with the official Rust MCP SDK (`rmcp`). It supports **stdio** (local, one
 
 ### 8.11 Training interfaces
 
-- **FR-T1 Rust crate:** use `gfa-games` directly as a library with zero network overhead, e.g. `Env::<Connect4>::new(seed)`.
+- **FR-T1 Rust crate:** use a game crate (or `gfa-games`) directly as a library with zero network overhead, e.g. `Env::<Connect4>::new(seed)`.
 - **FR-T2 Python SDK (`gamesforai`, PyO3 + maturin wheels):**
   - `gamesforai.make("connect4")` returns a **Gymnasium**-compatible env (`reset(seed)`, `step(action)` → `obs, reward, terminated, truncated, info` with `info["action_mask"]`).
   - A **PettingZoo** AEC wrapper for multi-agent games.
@@ -671,13 +724,14 @@ Games without a custom scene fall back to a **generic text renderer** that shows
 | Concurrent active matches per server instance (4 vCPU) | ≥ 10,000 lightweight matches; engine-backed matches limited by the engine pool |
 | Determinism | 100% of conformance-suite replays reproduce identical states |
 | Availability (hosted) | 99.5% monthly for v1 |
-| Test coverage | Conformance kit for every game; ≥ 80% line coverage in `gfa-core` and `gfa-server` |
+| Test coverage | Conformance kit for every game; ≥ 80% line coverage in `gfa-core` and `gfa-service` |
+| Architecture | Zero dependency-rule violations (`cargo xtask check-deps`, `dependency-cruiser`); zero Clippy warnings |
 | Security | Engine processes sandboxed; no user-controlled strings reach engine stdin without validation; API keys hashed with argon2 |
 
 ## 14. Success metrics
 
 - **Time-to-first-game for an LLM agent:** under 5 minutes from `docker compose up` to Claude finishing a chess game against Stockfish through MCP.
-- **Game onboarding cost:** a new perfect-information game (engine plus conformance tests plus text rendering) in ≤ 1 day, with zero changes to server, MCP or frontend core.
+- **Game onboarding cost:** a new perfect-information game (engine plus conformance tests plus text rendering) in ≤ 1 day, changing only the files AR-9 allows.
 - **API uniformity:** 0 game-specific endpoints or MCP tools.
 - **Adoption:** the Python SDK is used in at least one external training run. Leaderboards exist for ≥ 3 games.
 - **Data quality:** 100% of finished matches can be replayed. Exported datasets load in Hugging Face `datasets` without custom code.
@@ -687,8 +741,8 @@ Games without a custom scene fall back to a **generic text renderer** that shows
 
 | Milestone | Scope | Exit criteria |
 |---|---|---|
-| **M0 – Foundations** | Cargo workspace, `gfa-core` trait + `DynGame`, conformance kit, CI (fmt, clippy, test), Tic-Tac-Toe | Tic-Tac-Toe passes conformance; benchmarks in CI |
-| **M1 – Playable API** | `gfa-server` REST + WS, game and match info routes, SQLite/Postgres store, event log, Connect Four, Sudoku, built-in minimax/MCTS/random opponents, position import/export, custom starts and forks, simulation, OpenAPI | Full match lifecycle via curl for two-player and single-player games; replays rebuild exactly, including forks; simulation matches real play move for move |
+| **M0 – Foundations** | Cargo and pnpm workspaces with the §5.1 layout, shared lints, `gfa-core` trait + `DynGame`, `gfa-testkit` with the conformance kit, `xtask check-deps`, CI (fmt, clippy, test, deny), first ADRs, Tic-Tac-Toe | Tic-Tac-Toe passes conformance; dependency rules enforced in CI; benchmarks in CI |
+| **M1 – Playable API** | `gfa-service` with ports, `gfa-api-types`, `gfa-http` REST + WS, `gfa-server` wiring, game and match info routes, SQLite/Postgres store, event log, Connect Four, Sudoku, built-in minimax/MCTS/random opponents, position import/export, custom starts and forks, simulation, OpenAPI | Full match lifecycle via curl for two-player and single-player games; replays rebuild exactly, including forks; simulation matches real play move for move |
 | **M2 – MCP, Chess + LLM player** | `gfa-mcp` (stdio + HTTP) including `simulate_moves`, chess engine (shakmaty), UCI adapter + Stockfish, difficulty ladder, built-in LLM player (Anthropic provider, `tools` and `direct` modes) | Claude completes chess games vs Stockfish levels 1–10, both through MCP and as the built-in LLM player; illegal moves are recoverable; the FR-I8 eval runs for every MVP game |
 | **M3 – Frontend** | React+Phaser shell, library, play (incl. custom positions and LLM opponents), live spectate, replay viewer with branch-from-here, generic text renderer, chess/C4/TTT/Sudoku scenes | Human can play and replay all MVP games and branch from any move; live AI-vs-AI viewable |
 | **M4 – Training** | PyO3 SDK, Gymnasium/PettingZoo wrappers, VectorEnv, position sets and curricula, `clone`/`get_state`/`set_state`, batch REST, exports, ratings, tournaments CLI | Throughput targets met; PPO example trains Connect Four agent that beats level 3 |
@@ -757,3 +811,4 @@ Planned after M7, in no fixed order:
 | v0.1 | 2026-09-29 | Initial draft, game info route (§8.4), Sudoku (§6.3) |
 | v0.2 | 2026-09-30 | Position sets (§6.4), built-in LLM player (§7.1), match info route (§8.5), simulation (§8.6), custom starts and forks (§8.7), evaluation and benchmark suites (§9), evaluation milestone (M5), future phases (§16) |
 | v0.3 | 2026-09-30 | Texas Hold'em spec (§6.5): variants, betting rules, duplicate evaluation, opponents and benchmark |
+| v0.4 | 2026-09-30 | Layered repository layout (§5.1) and architecture principles and clean-code standards with CI enforcement (§5.2) |
