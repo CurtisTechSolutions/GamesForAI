@@ -45,7 +45,9 @@ pub trait Game: Send + Sync + 'static {
         _viewer: Viewer,
         _seed: u64,
     ) -> Result<Self::State, GameError> {
-        Err(GameError::position("This engine cannot reconstruct planning states"))
+        Err(GameError::position(
+            "This engine cannot reconstruct planning states",
+        ))
     }
 
     /// Validate state received through a persistence or API boundary.

@@ -39,7 +39,9 @@ pub trait DynGame: Send + Sync {
         _viewer: Viewer,
         _seed: u64,
     ) -> Result<Value, GameError> {
-        Err(GameError::position("This engine cannot reconstruct planning states"))
+        Err(GameError::position(
+            "This engine cannot reconstruct planning states",
+        ))
     }
     /// Validate a JSON state before accepting it from a caller.
     fn validate_state(&self, state: &Value) -> Result<(), GameError>;
@@ -167,7 +169,9 @@ impl<G: Game> DynGame for GameAdapter<G> {
         let state = G::state_from_observation(&Self::config(config)?, observation, viewer, seed)?;
         G::validate_state(&state)?;
         if G::observe(&state, viewer).json != observation.json {
-            return Err(GameError::position("Planning state changed the viewer's observation"));
+            return Err(GameError::position(
+                "Planning state changed the viewer's observation",
+            ));
         }
         Ok(serde_json::to_value(state)?)
     }

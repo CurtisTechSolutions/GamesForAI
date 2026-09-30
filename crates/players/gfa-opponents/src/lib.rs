@@ -1,6 +1,6 @@
 //! Bounded, observation-only in-process opponents.
-mod minimax;
 mod mcts;
+mod minimax;
 
 use gfa_core::serde::{Deserialize, Serialize};
 use gfa_core::serde_json::Value;
@@ -69,10 +69,16 @@ impl SearchLimits {
     }
 
     fn validate(self) -> Result<Self, GameError> {
-        if self.nodes == 0 || self.nodes > 1_000_000 || self.depth == 0 || self.depth > 64
-            || self.time_ms == 0 || self.time_ms > 60_000
+        if self.nodes == 0
+            || self.nodes > 1_000_000
+            || self.depth == 0
+            || self.depth > 64
+            || self.time_ms == 0
+            || self.time_ms > 60_000
         {
-            return Err(invalid("Search requires 1..1000000 nodes, 1..64 depth and 1..60000 ms"));
+            return Err(invalid(
+                "Search requires 1..1000000 nodes, 1..64 depth and 1..60000 ms",
+            ));
         }
         Ok(self)
     }
@@ -128,7 +134,8 @@ impl Opponent for Random {
         _: &dyn Clock,
     ) -> Result<ActionChoice, GameError> {
         let limits = limits.validate()?;
-        let index = SeededRng::new(limits.seed).index(turn.legal_actions.len())
+        let index = SeededRng::new(limits.seed)
+            .index(turn.legal_actions.len())
             .ok_or_else(|| GameError::illegal("No legal actions for this seat"))?;
         Ok(choice(turn.legal_actions[index].clone(), "random"))
     }
@@ -161,11 +168,14 @@ impl SearchOpponent {
         algorithm: Algorithm,
     ) -> Result<Self, GameError> {
         let spec = game.spec();
-        if spec.information != Information::Perfect || spec.stochastic
+        if spec.information != Information::Perfect
+            || spec.stochastic
             || spec.turn_structure != TurnStructure::Sequential
             || (matches!(algorithm, Algorithm::Minimax) && spec.num_players != [2, 2])
         {
-            return Err(invalid("Search requires a supported sequential perfect-information game"));
+            return Err(invalid(
+                "Search requires a supported sequential perfect-information game",
+            ));
         }
         if !spec.reward_range.iter().all(|v| v.is_finite())
             || spec.reward_range[0] >= spec.reward_range[1]
@@ -174,7 +184,11 @@ impl SearchOpponent {
         }
         let config = game.normalize_config(&config)?;
         game.initial_state(&config, 0)?;
-        Ok(Self { game, config, algorithm })
+        Ok(Self {
+            game,
+            config,
+            algorithm,
+        })
     }
 }
 
@@ -188,12 +202,18 @@ impl Opponent for SearchOpponent {
         let limits = limits.validate()?;
         let mut budget = Budget::new(limits, clock);
         let state = self.game.state_from_observation(
-            &self.config, turn.observation, Viewer::Player(turn.seat), limits.seed,
+            &self.config,
+            turn.observation,
+            Viewer::Player(turn.seat),
+            limits.seed,
         )?;
-        if self.game.is_terminal(&state)? || self.game.current_players(&state)? != [turn.seat]
+        if self.game.is_terminal(&state)?
+            || self.game.current_players(&state)? != [turn.seat]
             || self.game.legal_actions(&state, turn.seat)? != turn.legal_actions
         {
-            return Err(GameError::illegal("Observation and legal actions do not describe this turn"));
+            return Err(GameError::illegal(
+                "Observation and legal actions do not describe this turn",
+            ));
         }
         match self.algorithm {
             Algorithm::Minimax => minimax::choose(self.game.as_ref(), &state, turn, &mut budget),
@@ -203,7 +223,11 @@ impl Opponent for SearchOpponent {
 }
 
 fn invalid(message: &str) -> GameError {
-    GameError::new(ErrorCode::InvalidConfig, message, "Use a supported opponent and bounded limits.")
+    GameError::new(
+        ErrorCode::InvalidConfig,
+        message,
+        "Use a supported opponent and bounded limits.",
+    )
 }
 
 fn choice(action: LegalAction, algorithm: &str) -> ActionChoice {
@@ -253,14 +277,18 @@ impl<'a> Budget<'a> {
 fn actor(game: &dyn DynGame, state: &Value) -> Result<PlayerId, GameError> {
     let players = game.current_players(state)?;
     if players.len() != 1 {
-        return Err(GameError::illegal("Search expected exactly one current player"));
+        return Err(GameError::illegal(
+            "Search expected exactly one current player",
+        ));
     }
     Ok(players[0])
 }
 
 fn payoff(game: &dyn DynGame, state: &Value, seat: PlayerId) -> Result<f64, GameError> {
     let returns = game.returns(state)?;
-    let value = returns.get(usize::from(seat)).copied()
+    let value = returns
+        .get(usize::from(seat))
+        .copied()
         .ok_or_else(|| GameError::illegal("Engine omitted a player's return"))?;
     if !value.is_finite() {
         return Err(GameError::illegal("Engine produced a non-finite return"));

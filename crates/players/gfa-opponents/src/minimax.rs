@@ -8,14 +8,26 @@ pub(super) fn choose(
     turn: &PlayerTurn<'_>,
     budget: &mut Budget<'_>,
 ) -> Result<ActionChoice, GameError> {
-    let fallback = turn.legal_actions.first()
+    let fallback = turn
+        .legal_actions
+        .first()
         .ok_or_else(|| GameError::illegal("No legal action"))?;
     let mut result = choice(fallback.clone(), "minimax");
     for depth in 1..=budget.limits.depth {
         let Some((score, variation)) = search(
-            game, state, turn.seat, depth, (f64::NEG_INFINITY, f64::INFINITY), budget,
-        )? else { break; };
-        if let Some(action) = turn.legal_actions.iter()
+            game,
+            state,
+            turn.seat,
+            depth,
+            (f64::NEG_INFINITY, f64::INFINITY),
+            budget,
+        )?
+        else {
+            break;
+        };
+        if let Some(action) = turn
+            .legal_actions
+            .iter()
             .find(|action| variation.first() == Some(&action.string))
         {
             result.action = action.clone();
@@ -45,23 +57,35 @@ fn search(
     }
     let seat = actor(game, state)?;
     let maximizing = seat == root;
-    let mut best = if maximizing { f64::NEG_INFINITY } else { f64::INFINITY };
+    let mut best = if maximizing {
+        f64::NEG_INFINITY
+    } else {
+        f64::INFINITY
+    };
     let mut variation = Vec::new();
     let actions = game.legal_actions(state, seat)?;
     if actions.is_empty() {
-        return Err(GameError::illegal("Non-terminal engine position has no legal moves"));
+        return Err(GameError::illegal(
+            "Non-terminal engine position has no legal moves",
+        ));
     }
     for action in actions {
         let (next, _) = game.apply(state, seat, &action.json)?;
-        let Some((score, mut child_line)) = search(
-            game, &next, root, depth - 1, (alpha, beta), budget,
-        )? else { return Ok(None); };
+        let Some((score, mut child_line)) =
+            search(game, &next, root, depth - 1, (alpha, beta), budget)?
+        else {
+            return Ok(None);
+        };
         if (maximizing && score > best) || (!maximizing && score < best) {
             best = score;
             child_line.insert(0, action.string);
             variation = child_line;
         }
-        if maximizing { alpha = alpha.max(best); } else { beta = beta.min(best); }
+        if maximizing {
+            alpha = alpha.max(best);
+        } else {
+            beta = beta.min(best);
+        }
         if beta <= alpha {
             break;
         }
