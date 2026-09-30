@@ -589,6 +589,9 @@ impl Game for ChessGame {
     }
 
     fn action_from_index(state: &State, index: u32) -> Result<Action, GameError> {
+        if index >= encoding::ACTION_SPACE {
+            return Err(notation_error());
+        }
         Self::current_players(state)
             .first()
             .and_then(|&seat| {
