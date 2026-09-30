@@ -130,7 +130,9 @@ fn en_passant_expires_and_cannot_expose_the_king() -> TestResult {
         .clone()
         .to_setup(EnPassantMode::Always);
     no_ep.ep_square = None;
-    let no_ep = Fen::try_from_setup(no_ep).map_err(|e| format!("{e:?}"))?.into_position::<Chess>(CastlingMode::Standard)?;
+    let no_ep = Fen::try_from_setup(no_ep)
+        .map_err(|e| format!("{e:?}"))?
+        .into_position::<Chess>(CastlingMode::Standard)?;
     assert_eq!(key(&pinned.derived()?.position), key(&no_ep));
     Ok(())
 }
