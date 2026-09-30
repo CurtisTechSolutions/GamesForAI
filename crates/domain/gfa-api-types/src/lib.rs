@@ -293,3 +293,6 @@ pub use opponents::{
 
 mod seats;
 pub use seats::{OpponentReply, Seat};
+
+mod events;
+pub use events::{EventData, EventPage, EventsQuery, RecordedEvent};

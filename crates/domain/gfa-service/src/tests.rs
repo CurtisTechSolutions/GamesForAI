@@ -1425,3 +1425,55 @@ fn automatic_matches_resume_from_durable_turns_and_bad_records_do_not_block_the_
     );
     Ok(())
 }
+
+#[test]
+fn event_pages_preserve_sequences_and_hide_other_seats_actions_reasoning_and_chance() -> TestResult {
+    use gfa_api_types::{EventData, EventsQuery};
+    let (service, _) = fixture()?;
+    let initial = run(service.create_match(create("counter"), Viewer::Player(0)))?;
+    run(service.make_move(&initial.match_id, action(0,json!(1)),None))?;
+    run(service.make_move(&initial.match_id, action(1,json!(2)),None))?;
+    let first = run(service.get_events(&initial.match_id, EventsQuery { limit:2, ..Default::default() }, Viewer::Player(0)))?;
+    assert_eq!(first.revision, 3);
+    assert_eq!(first.events.iter().map(|e| e.sequence).collect::<Vec<_>>(), [0,1]);
+    assert_eq!(first.next, Some(1));
+    let EventData::Created { seed, initial:created, .. } = &first.events[0].event else { return Err("header".into()); };
+    assert!(seed.is_none());
+    assert_eq!(created.observation.json["private"], "seat-0");
+    let EventData::Action { action:accepted, reasoning, events, .. } = &first.events[1].event else { return Err("action".into()); };
+    assert!(accepted.is_some());
+    assert_eq!(reasoning.as_deref(), Some("test move"));
+    assert_eq!(events.len(), 1);
+    let second = run(service.get_events(&initial.match_id, EventsQuery { since:first.next, limit:2, seat:Some(0) }, Viewer::Player(0)))?;
+    assert_eq!(second.events[0].sequence, 2);
+    assert!(second.next.is_none());
+    let EventData::Action { action:accepted, reasoning, opponent_info, events, .. } = &second.events[0].event else { return Err("action".into()); };
+    assert!(accepted.is_none() && reasoning.is_none() && opponent_info.is_none() && events.is_empty());
+    let omniscient = run(service.get_events(&initial.match_id, EventsQuery::default(), Viewer::Omniscient))?;
+    assert!(matches!(omniscient.events[0].event, EventData::Created { seed:Some(7), .. }));
+    assert!(matches!(&omniscient.events[2].event, EventData::Action { action:Some(_), reasoning:Some(_), events, .. } if events.len()==1));
+    run(service.resign(&initial.match_id, gfa_api_types::ControlRequest { turn:2, seat:0 }))?;
+    let public = run(service.get_events(&initial.match_id, EventsQuery::default(), Viewer::Spectator))?;
+    assert!(matches!(&public.events[1].event, EventData::Action { action:None, reasoning:None, events, .. } if events.is_empty()));
+    assert!(matches!(public.events[3].event, EventData::Resigned { turn:2, seat:0, .. }));
+    let empty = run(service.get_events(&initial.match_id, EventsQuery { since:Some(3), ..Default::default() }, Viewer::Player(0)))?;
+    assert!(empty.events.is_empty());
+    code(run(service.get_events(&initial.match_id, EventsQuery { limit:0, ..Default::default() }, Viewer::Player(0))), "INVALID_CONFIG");
+    code(run(service.get_events(&initial.match_id, EventsQuery { since:Some(u64::MAX), ..Default::default() }, Viewer::Player(0))), "INVALID_CONFIG");
+    code(run(service.get_events(&initial.match_id, EventsQuery { seat:Some(1), ..Default::default() }, Viewer::Player(0))), "FORBIDDEN");
+    code(run(service.get_events(&initial.match_id, EventsQuery::default(), Viewer::Player(255))), "INVALID_POSITION");
+    Ok(())
+}
+
+#[test]
+fn creation_events_keep_the_pristine_start_after_same_turn_resignation() -> TestResult {
+    use gfa_api_types::{EventData, EventsQuery};
+    let (service, _) = fixture()?;
+    let initial = run(service.create_match(create("counter"), Viewer::Player(0)))?;
+    run(service.resign(&initial.match_id, gfa_api_types::ControlRequest { turn:0, seat:0 }))?;
+    let page = run(service.get_events(&initial.match_id, EventsQuery::default(), Viewer::Player(0)))?;
+    let EventData::Created { initial:created, .. } = &page.events[0].event else { return Err("header".into()); };
+    assert_eq!(created.as_ref(), &initial);
+    assert!(matches!(page.events[1].event, EventData::Resigned { turn:0, .. }));
+    Ok(())
+}

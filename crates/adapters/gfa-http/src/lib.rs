@@ -5,6 +5,7 @@
 //! It does not issue seat credentials and must not be mounted behind a public proxy.
 mod access;
 mod error;
+mod events;
 mod info;
 mod openapi;
 mod opponents;
@@ -110,6 +111,7 @@ fn build_router(
         .route("/v1/matches/{id}/legal-actions", get(legal_actions))
         .route("/v1/matches/{id}/actions", post(make_move))
         .route("/v1/matches/{id}/replay", get(replay))
+        .route("/v1/matches/{id}/events", get(events::history))
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed);
     if let Some(updates) = updates {

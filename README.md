@@ -69,3 +69,11 @@ background. The server scans persisted matches at startup and between batches,
 so a restart resumes pending turns. Live streams receive each committed update.
 Four concurrent scheduler tasks and four search workers bound resource use.
 Interactive reply chains longer than eight moves continue through this runner.
+
+`GET /v1/matches/{id}/events?since=&limit=&seat=` pages through consecutive
+event sequences from one recorded revision. Omit `since` for the beginning;
+use `next` for the following page. Limits are 1–100. The service projects each
+event to the authorized player or spectator: private actions, reasoning, chance
+events, match seeds, and internal fork permissions are omitted when unauthorized.
+Own reasoning is available immediately; other reasoning in perfect-information
+games becomes available after completion.

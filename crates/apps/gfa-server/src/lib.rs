@@ -218,3 +218,6 @@ mod seat_tests;
 
 #[cfg(test)]
 mod runner_tests;
+
+#[cfg(test)]
+mod event_tests;
