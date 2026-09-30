@@ -736,6 +736,7 @@ dependencies = [
 name = "gfa-games"
 version = "0.1.0"
 dependencies = [
+ "gfa-game-chess",
  "gfa-core",
  "gfa-game-connect4",
  "gfa-game-sudoku",

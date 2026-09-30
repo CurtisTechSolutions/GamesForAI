@@ -89,3 +89,16 @@ Game briefings provide compact rules and full schemas/examples. Full previews ma
 large numeric arrays in `omitted_fields`; fetch the normal state/legal-action
 routes for complete tensors and masks. This keeps model prompts readable without
 changing the live state contract.
+
+## Chess
+
+Chess is enabled by default and uses the same create, move, simulate, fork,
+analysis and replay routes. Submit UCI moves such as `e2e4`, `e1g1` or `a7a8n`,
+or the structured/index representation from `legal_actions`. White is seat 0.
+`GET /v1/games/chess/info` explains draw claims and every encoding.
+
+Use `start: {"position":"<six-field FEN>"}` for a custom board. A bare FEN begins
+new repetition history; complete played-state JSON keeps the original position
+and actions. Replay and forks retain that history. The engine accepts standard
+chess only. Generic random/search opponents are available; Stockfish integration
+is tracked separately.

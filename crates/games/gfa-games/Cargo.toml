@@ -5,10 +5,11 @@ edition.workspace = true
 license.workspace = true
 
 [features]
-default = ["tictactoe", "connect4", "sudoku"]
+default = ["tictactoe", "connect4", "sudoku", "chess"]
 tictactoe = ["dep:gfa-game-tictactoe"]
 connect4 = ["dep:gfa-game-connect4"]
 sudoku = ["dep:gfa-game-sudoku"]
+chess = ["dep:gfa-game-chess"]
 
 [dependencies]
 gfa-core.workspace = true
@@ -17,6 +18,7 @@ gfa-game-tictactoe = { workspace = true, optional = true }
 gfa-game-connect4 = { workspace = true, optional = true }
 
 gfa-game-sudoku = { workspace = true, optional = true }
+gfa-game-chess = { workspace = true, optional = true }
 
 [lints]
 workspace = true

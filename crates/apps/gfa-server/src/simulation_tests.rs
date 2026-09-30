@@ -14,6 +14,10 @@ async fn simulation_matches_live_play_and_records_usage_without_changing_replay(
     let app = fixture(&settings).await?;
     for (game, line) in [
         (
+            "chess",
+            vec![json!("f2f3"), json!("e7e5"), json!("g2g4"), json!("d8h4")],
+        ),
+        (
             "tictactoe",
             vec![
                 json!("r1c1"),

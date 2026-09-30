@@ -233,7 +233,7 @@ async fn connect_four_uses_the_same_routes_and_spectator_projection() -> TestRes
     let dir = tempfile::tempdir()?;
     let app = fixture(&config(&dir)).await?;
     let (_, games) = call(&app.router, "GET", "/v1/games", Value::Null, None).await?;
-    assert_eq!(games.as_array().map(Vec::len), Some(3));
+    assert_eq!(games.as_array().map(Vec::len), Some(4));
     let (status, initial) = call(
         &app.router,
         "POST",
