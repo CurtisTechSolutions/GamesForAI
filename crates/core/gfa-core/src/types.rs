@@ -175,8 +175,14 @@ impl PlayGuide {
         .iter()
         .any(|text| text.trim().is_empty())
             || self.common_mistakes.is_empty()
-            || self.common_mistakes.iter().any(|text| text.trim().is_empty())
-            || self.strategy_notes.iter().any(|text| text.trim().is_empty())
+            || self
+                .common_mistakes
+                .iter()
+                .any(|text| text.trim().is_empty())
+            || self
+                .strategy_notes
+                .iter()
+                .any(|text| text.trim().is_empty())
         {
             return Err(crate::GameError::new(
                 crate::ErrorCode::InvalidConfig,
