@@ -16,6 +16,9 @@ pub struct MatchOrigin {
     pub seed: u64,
     /// Optional validated custom start.
     pub start: Option<Start>,
+    /// Assistance policy; old records use the local-play defaults.
+    #[serde(default)]
+    pub assists: gfa_api_types::Assists,
     /// Unix milliseconds from the injected clock.
     pub created_at_ms: u64,
 }

@@ -4,6 +4,7 @@ use gfa_core::{DynGame, GameRegistry, StepEvents, Viewer};
 use serde_json::Value;
 use std::sync::Arc;
 
+#[derive(Clone)]
 pub(crate) struct Frame {
     pub state: Value,
     pub turn: u64,
