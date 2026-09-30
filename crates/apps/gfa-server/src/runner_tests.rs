@@ -68,3 +68,30 @@ async fn server_resumes_an_unfinished_bot_match_streams_it_and_persists_completi
     reopened.store.close().await;
     Ok(())
 }
+
+#[tokio::test]
+async fn busy_workers_back_off_instead_of_spinning_on_the_same_match() -> Result<(), ServerError> {
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    struct Busy(Arc<AtomicUsize>);
+    impl gfa_service::OpponentExecutor for Busy {
+        fn execute(&self, _: gfa_service::OpponentJob) -> gfa_service::OpponentFuture<'_> {
+            self.0.fetch_add(1, Ordering::SeqCst);
+            Box::pin(async { Err(gfa_api_types::ApiError::new("ENGINE_BUSY", "busy", "retry")) })
+        }
+    }
+    let store = Arc::new(SqliteMatchStore::in_memory().await?);
+    let host = Arc::new(Host);
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let service = Arc::new(GameService::new(gfa_games::registry()?, store.clone(), host.clone(), host)
+        .with_opponents(Arc::new(gfa_service::BuiltinOpponentFactory), Arc::new(Busy(attempts.clone()))));
+    let bot = json!({"type":"opponent","opponent":{"id":"random"},"seed":71});
+    service.create_match(serde_json::from_value(json!({"game_id":"tictactoe","seats":[bot.clone(),bot]}))?, Viewer::Player(0)).await?;
+    let (stop, stopped) = tokio::sync::watch::channel(false);
+    let task = tokio::spawn(super::runner::run(service, stopped));
+    tokio::time::sleep(Duration::from_millis(450)).await;
+    stop.send(true)?;
+    task.await?;
+    assert!((1..=2).contains(&attempts.load(Ordering::SeqCst)));
+    store.close().await;
+    Ok(())
+}
