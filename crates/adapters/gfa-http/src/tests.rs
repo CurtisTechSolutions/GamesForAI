@@ -218,3 +218,48 @@ fn domain_errors_preserve_recovery_context_and_http_status() {
         assert_eq!(mapped.error.details["turn"], 7);
     }
 }
+
+#[tokio::test]
+async fn interactive_docs_are_bundled_and_share_local_access_guards() -> TestResult {
+    let app = router()?;
+    let response = app.clone().oneshot(request("GET", "/docs", "")?).await?;
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+    assert_eq!(response.headers()[header::LOCATION], "/docs/");
+    for (path, content_type, content) in [
+        ("/docs/", "text/html", "swagger-ui"),
+        ("/docs/swagger-ui.css", "text/css", ".swagger-ui"),
+        (
+            "/docs/swagger-ui-bundle.js",
+            "javascript",
+            "SwaggerUIBundle",
+        ),
+        (
+            "/docs/swagger-initializer.js",
+            "javascript",
+            "/v1/openapi.json",
+        ),
+    ] {
+        let response = app.clone().oneshot(request("GET", path, "")?).await?;
+        assert_eq!(response.status(), StatusCode::OK, "{path}");
+        assert!(response.headers()[header::CONTENT_TYPE]
+            .to_str()?
+            .contains(content_type));
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+        let body = to_bytes(response.into_body(), 8 * 1024 * 1024).await?;
+        let body = std::str::from_utf8(&body)?;
+        assert!(body.contains(content), "{path}");
+        if path.ends_with("initializer.js") {
+            assert!(body.contains(r#""validatorUrl": "none""#));
+            assert!(body.contains(r#""queryConfigEnabled": false"#));
+        }
+        let mut rejected = request("GET", path, "")?;
+        rejected
+            .headers_mut()
+            .insert(header::ORIGIN, "https://example.org".parse()?);
+        assert_eq!(
+            app.clone().oneshot(rejected).await?.status(),
+            StatusCode::FORBIDDEN
+        );
+    }
+    Ok(())
+}
