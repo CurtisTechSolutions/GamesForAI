@@ -34,10 +34,17 @@ pub(crate) struct InfoArgs {
 #[derive(Clone, Copy, Default, Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 #[serde(rename_all = "snake_case")]
-pub(crate) enum Detail { #[default] Compact, Full }
+pub(crate) enum Detail {
+    #[default]
+    Compact,
+    Full,
+}
 impl From<Detail> for gfa_api_types::InfoDetail {
     fn from(value: Detail) -> Self {
-        match value { Detail::Compact => Self::Compact, Detail::Full => Self::Full }
+        match value {
+            Detail::Compact => Self::Compact,
+            Detail::Full => Self::Full,
+        }
     }
 }
 
@@ -51,43 +58,73 @@ pub(crate) struct GameSummary {
 }
 #[derive(Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
-pub(crate) struct GamesOutput { pub games: Vec<GameSummary> }
+pub(crate) struct GamesOutput {
+    pub games: Vec<GameSummary>,
+}
 
 #[derive(Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
-pub(crate) struct Level { pub level: u8, pub rating: Option<f64> }
-#[derive(Serialize, JsonSchema)]
-#[schemars(crate = "rmcp::schemars")]
-pub(crate) struct OpponentSummary {
-    pub id: String, pub name: String, pub levels: Vec<Level>, pub calibrated: bool,
+pub(crate) struct Level {
+    pub level: u8,
+    pub rating: Option<f64>,
 }
 #[derive(Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
-pub(crate) struct OpponentsOutput { pub opponents: Vec<OpponentSummary> }
+pub(crate) struct OpponentSummary {
+    pub id: String,
+    pub name: String,
+    pub levels: Vec<Level>,
+    pub calibrated: bool,
+}
+#[derive(Serialize, JsonSchema)]
+#[schemars(crate = "rmcp::schemars")]
+pub(crate) struct OpponentsOutput {
+    pub opponents: Vec<OpponentSummary>,
+}
 
 #[derive(Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
-pub(crate) struct Section { pub id: String, pub text: String, pub data: Value }
+pub(crate) struct Section {
+    pub id: String,
+    pub text: String,
+    pub data: Value,
+}
 #[derive(Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 pub(crate) struct BriefingOutput {
-    pub info_version: String, pub approx_tokens: usize, pub sections: Vec<Section>,
+    pub info_version: String,
+    pub approx_tokens: usize,
+    pub sections: Vec<Section>,
 }
 impl From<gfa_api_types::Briefing> for BriefingOutput {
     fn from(briefing: gfa_api_types::Briefing) -> Self {
         Self {
-            info_version: briefing.info_version, approx_tokens: briefing.approx_tokens,
-            sections: briefing.sections.into_iter().map(|section| Section {
-                id: section.id, text: section.text, data: section.data,
-            }).collect(),
+            info_version: briefing.info_version,
+            approx_tokens: briefing.approx_tokens,
+            sections: briefing
+                .sections
+                .into_iter()
+                .map(|section| Section {
+                    id: section.id,
+                    text: section.text,
+                    data: section.data,
+                })
+                .collect(),
         }
     }
 }
 
 #[derive(Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
-pub(crate) struct Failure { pub code: String, pub message: String, pub hint: String }
+pub(crate) struct Failure {
+    pub code: String,
+    pub message: String,
+    pub hint: String,
+}
 #[derive(Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 #[serde(untagged)]
-pub(crate) enum Output<T> { Success { data: T }, Failure { error: Failure } }
+pub(crate) enum Output<T> {
+    Success { data: T },
+    Failure { error: Failure },
+}
