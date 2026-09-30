@@ -1609,33 +1609,67 @@ fn replay_bundle_contains_projected_events_and_privileged_reconstruction_inputs(
     use gfa_api_types::EventData;
     let (service, _) = fixture()?;
     let initial = run(service.create_match(create("counter"), Viewer::Player(0)))?;
-    run(service.make_move(&initial.match_id, action(0,json!(1)),None))?;
-    run(service.make_move(&initial.match_id, action(1,json!(2)),None))?;
+    run(service.make_move(&initial.match_id, action(0, json!(1)), None))?;
+    run(service.make_move(&initial.match_id, action(1, json!(2)), None))?;
     let public = run(service.get_replay(&initial.match_id, Viewer::Player(0)))?;
     assert_eq!(public.game_id, "counter");
     assert_eq!(public.config, json!({}));
     assert_eq!(public.revision, 3);
     assert_eq!(public.events.len(), 3);
     assert!(public.seed.is_none() && public.initial_state.is_none());
-    assert!(matches!(public.events[0].event, EventData::Created { seed:None, initial_state:None, .. }));
-    assert!(matches!(public.events[2].event, EventData::Action { action:None, reasoning:None, .. }));
+    assert!(matches!(
+        public.events[0].event,
+        EventData::Created {
+            seed: None,
+            initial_state: None,
+            ..
+        }
+    ));
+    assert!(matches!(
+        public.events[2].event,
+        EventData::Action {
+            action: None,
+            reasoning: None,
+            ..
+        }
+    ));
     let full = run(service.get_replay(&initial.match_id, Viewer::Omniscient))?;
     assert_eq!(full.seed, Some(7));
     let game = service.registry.get("counter")?;
     let mut state = full.initial_state.clone().ok_or("initial engine state")?;
-    assert_eq!(game.observe(&state, Viewer::Omniscient)?, full.states[0].observation);
+    assert_eq!(
+        game.observe(&state, Viewer::Omniscient)?,
+        full.states[0].observation
+    );
     for event in &full.events {
-        if let EventData::Action { seat, action:Some(action), .. } = &event.event {
+        if let EventData::Action {
+            seat,
+            action: Some(action),
+            ..
+        } = &event.event
+        {
             state = game.apply(&state, *seat, &action.json)?.0;
         }
     }
-    assert_eq!(game.observe(&state, Viewer::Omniscient)?, full.states.last().ok_or("last")?.observation);
-    let child = run(service.fork_match(&initial.match_id, fork_request(1,false), ForkAccess {
-        viewer:Viewer::Player(1), owns_parent:true, full_state:false,
-    }))?;
+    assert_eq!(
+        game.observe(&state, Viewer::Omniscient)?,
+        full.states.last().ok_or("last")?.observation
+    );
+    let child = run(service.fork_match(
+        &initial.match_id,
+        fork_request(1, false),
+        ForkAccess {
+            viewer: Viewer::Player(1),
+            owns_parent: true,
+            full_state: false,
+        },
+    ))?;
     let fork = run(service.get_replay(&child.state.match_id, Viewer::Omniscient))?;
     assert!(matches!(fork.events[0].event, EventData::ForkedFrom { .. }));
-    assert_eq!(game.observe(&fork.initial_state.ok_or("fork state")?, Viewer::Omniscient)?, fork.states[0].observation);
+    assert_eq!(
+        game.observe(&fork.initial_state.ok_or("fork state")?, Viewer::Omniscient)?,
+        fork.states[0].observation
+    );
     assert_eq!(fork.ancestors.len(), 1);
     Ok(())
 }

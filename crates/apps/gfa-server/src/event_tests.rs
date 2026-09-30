@@ -114,17 +114,46 @@ async fn event_http_pages_round_trip_across_restart_and_redact_internal_fork_met
 }
 
 #[tokio::test]
-async fn replay_bundle_matches_paged_events_without_exposing_private_inputs() -> Result<(), ServerError> {
+async fn replay_bundle_matches_paged_events_without_exposing_private_inputs(
+) -> Result<(), ServerError> {
     let directory = tempfile::tempdir()?;
     let app = fixture(&config(&directory)).await?;
-    let (_, created) = call(&app.router,"POST","/v1/matches",json!({"game_id":"tictactoe","seed":42}),None).await?;
+    let (_, created) = call(
+        &app.router,
+        "POST",
+        "/v1/matches",
+        json!({"game_id":"tictactoe","seed":42}),
+        None,
+    )
+    .await?;
     let id = created["match_id"].as_str().ok_or("id")?;
-    call(&app.router,"POST",&format!("/v1/matches/{id}/actions"),json!({"seat":0,"turn":0,"action":"r2c2","reasoning":"Center"}),None).await?;
-    let (_, replay) = call(&app.router,"GET",&format!("/v1/matches/{id}/replay?seat=0"),Value::Null,None).await?;
-    let (_, page) = call(&app.router,"GET",&format!("/v1/matches/{id}/events?seat=0"),Value::Null,None).await?;
-    assert_eq!(replay["game_id"],"tictactoe");
-    assert_eq!(replay["revision"],page["revision"]);
-    assert_eq!(replay["events"],page["events"]);
+    call(
+        &app.router,
+        "POST",
+        &format!("/v1/matches/{id}/actions"),
+        json!({"seat":0,"turn":0,"action":"r2c2","reasoning":"Center"}),
+        None,
+    )
+    .await?;
+    let (_, replay) = call(
+        &app.router,
+        "GET",
+        &format!("/v1/matches/{id}/replay?seat=0"),
+        Value::Null,
+        None,
+    )
+    .await?;
+    let (_, page) = call(
+        &app.router,
+        "GET",
+        &format!("/v1/matches/{id}/events?seat=0"),
+        Value::Null,
+        None,
+    )
+    .await?;
+    assert_eq!(replay["game_id"], "tictactoe");
+    assert_eq!(replay["revision"], page["revision"]);
+    assert_eq!(replay["events"], page["events"]);
     assert!(replay["config"].is_object());
     assert!(replay.get("seed").is_none() && replay.get("initial_state").is_none());
     assert!(replay["events"][0].get("initial_state").is_none());
