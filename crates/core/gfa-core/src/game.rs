@@ -55,6 +55,16 @@ pub trait Game: Send + Sync + 'static {
         ))
     }
 
+    /// Whether this engine can export validated positions to a UCI player.
+    fn supports_uci() -> bool {
+        false
+    }
+
+    /// Export a caller-owned planning state, including repetition history.
+    fn uci_position(_state: &Self::State) -> Result<Option<crate::UciPosition>, GameError> {
+        Ok(None)
+    }
+
     /// Whether this engine provides a reference solver or hint policy.
     fn supports_reference_advice() -> bool {
         false

@@ -16,6 +16,7 @@ members = [
     "crates/domain/gfa-api-types",
     "crates/domain/gfa-service",
     "crates/players/gfa-opponents",
+    "crates/players/gfa-engine-uci",
 ]
 
 [workspace.package]
@@ -35,6 +36,7 @@ gfa-game-chess = { version = "0.1.0", path = "crates/games/gfa-game-chess" }
 shakmaty = "0.30.1"
 gfa-api-types = { version = "0.1.0", path = "crates/domain/gfa-api-types" }
 gfa-opponents = { version = "0.1.0", path = "crates/players/gfa-opponents" }
+gfa-engine-uci = { version = "0.1.0", path = "crates/players/gfa-engine-uci" }
 gfa-service = { version = "0.1.0", path = "crates/domain/gfa-service" }
 gfa-http = { version = "0.1.0", path = "crates/adapters/gfa-http" }
 gfa-store = { version = "0.1.0", path = "crates/adapters/gfa-store" }
