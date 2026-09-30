@@ -1,0 +1,220 @@
+use crate::{ErrorCode, Game, GameError, GameSpec, LegalAction, Observation, PlayerId, StepEvents, Viewer};
+use serde_json::Value;
+use std::{collections::BTreeMap, marker::PhantomData, sync::Arc};
+
+/// Object-safe interface used by services, transports, and players.
+pub trait DynGame: Send + Sync {
+    /// Game metadata and schemas.
+    fn spec(&self) -> GameSpec;
+    /// Create an initial state from validated configuration.
+    fn initial_state(&self, config: &Value, seed: u64) -> Result<Value, GameError>;
+    /// Validate a JSON state before accepting it from a caller.
+    fn validate_state(&self, state: &Value) -> Result<(), GameError>;
+    /// Seats currently allowed to act.
+    fn current_players(&self, state: &Value) -> Result<Vec<PlayerId>, GameError>;
+    /// Legal actions in all encodings, sorted by canonical notation.
+    fn legal_actions(&self, state: &Value, player: PlayerId) -> Result<Vec<LegalAction>, GameError>;
+    /// Apply a string, structured action, or index action; return a new state atomically.
+    fn apply(
+        &self,
+        state: &Value,
+        player: PlayerId,
+        action: &Value,
+    ) -> Result<(Value, StepEvents), GameError>;
+    /// Whether the rules have ended play.
+    fn is_terminal(&self, state: &Value) -> Result<bool, GameError>;
+    /// Per-player returns.
+    fn returns(&self, state: &Value) -> Result<Vec<f64>, GameError>;
+    /// Viewer-scoped state.
+    fn observe(&self, state: &Value, viewer: Viewer) -> Result<Observation, GameError>;
+    /// Export a validated position.
+    fn state_to_notation(&self, state: &Value) -> Result<String, GameError>;
+    /// Validate and import a position.
+    fn state_from_notation(&self, config: &Value, notation: &str) -> Result<Value, GameError>;
+
+    /// Fixed-size legal mask, indexed by each action's discrete index.
+    fn action_mask(&self, state: &Value, player: PlayerId) -> Result<Vec<bool>, GameError> {
+        let mut mask = vec![false; self.spec().action_space_size as usize];
+        for action in self.legal_actions(state, player)? {
+            let slot = mask.get_mut(action.index as usize).ok_or_else(|| {
+                GameError::illegal("Engine returned an action outside its declared index space")
+            })?;
+            *slot = true;
+        }
+        Ok(mask)
+    }
+}
+
+/// Erases a typed game without introducing any game-specific service behavior.
+pub struct GameAdapter<G: Game>(PhantomData<G>);
+
+impl<G: Game> Default for GameAdapter<G> {
+    fn default() -> Self {
+        Self(PhantomData)
+    }
+}
+
+impl<G: Game> GameAdapter<G> {
+    fn state(value: &Value) -> Result<G::State, GameError> {
+        let state = serde_json::from_value(value.clone())
+            .map_err(|e| GameError::position(format!("{e}")))?;
+        G::validate_state(&state)?;
+        Ok(state)
+    }
+
+    fn config(value: &Value) -> Result<G::Config, GameError> {
+        if value.is_null() {
+            return Ok(G::Config::default());
+        }
+        serde_json::from_value(value.clone()).map_err(|e| {
+            GameError::new(
+                ErrorCode::InvalidConfig,
+                e.to_string(),
+                "Use the fields and values in config_schema.",
+            )
+        })
+    }
+
+    fn action(state: &G::State, value: &Value) -> Result<G::Action, GameError> {
+        if let Some(text) = value.as_str() {
+            return G::action_from_string(state, text);
+        }
+        if let Some(object) = value.as_object() {
+            if object.len() == 1 && object.contains_key("index") {
+                let index = object["index"]
+                    .as_u64()
+                    .and_then(|i| u32::try_from(i).ok())
+                    .ok_or_else(|| {
+                        GameError::new(
+                            ErrorCode::UnparseableAction,
+                            "Index must be an unsigned 32-bit integer",
+                            "Use an index from legal_actions.",
+                        )
+                    })?;
+                return G::action_from_index(state, index);
+            }
+        }
+        serde_json::from_value(value.clone()).map_err(|e| {
+            GameError::new(
+                ErrorCode::UnparseableAction,
+                e.to_string(),
+                "Use canonical notation, the action schema, or {\"index\": n}.",
+            )
+        })
+    }
+}
+
+impl<G: Game> DynGame for GameAdapter<G> {
+    fn spec(&self) -> GameSpec {
+        G::spec()
+    }
+
+    fn initial_state(&self, config: &Value, seed: u64) -> Result<Value, GameError> {
+        let state = G::new_initial_state(&Self::config(config)?, seed)?;
+        G::validate_state(&state)?;
+        Ok(serde_json::to_value(state)?)
+    }
+
+    fn validate_state(&self, state: &Value) -> Result<(), GameError> {
+        Self::state(state).map(|_| ())
+    }
+
+    fn current_players(&self, state: &Value) -> Result<Vec<PlayerId>, GameError> {
+        Ok(G::current_players(&Self::state(state)?))
+    }
+
+    fn legal_actions(&self, state: &Value, player: PlayerId) -> Result<Vec<LegalAction>, GameError> {
+        let state = Self::state(state)?;
+        let mut actions = G::legal_actions(&state, player)
+            .into_iter()
+            .map(|action| {
+                Ok(LegalAction {
+                    string: G::action_to_string(&state, &action),
+                    index: G::action_to_index(&action),
+                    json: serde_json::to_value(action)?,
+                })
+            })
+            .collect::<Result<Vec<_>, GameError>>()?;
+        actions.sort_by(|a, b| a.string.cmp(&b.string));
+        Ok(actions)
+    }
+
+    fn apply(
+        &self,
+        state: &Value,
+        player: PlayerId,
+        action: &Value,
+    ) -> Result<(Value, StepEvents), GameError> {
+        let mut state = Self::state(state)?;
+        let action = Self::action(&state, action)?;
+        let events = G::apply(&mut state, player, &action)?;
+        G::validate_state(&state)?;
+        Ok((serde_json::to_value(state)?, events))
+    }
+
+    fn is_terminal(&self, state: &Value) -> Result<bool, GameError> {
+        Ok(G::is_terminal(&Self::state(state)?))
+    }
+
+    fn returns(&self, state: &Value) -> Result<Vec<f64>, GameError> {
+        Ok(G::returns(&Self::state(state)?))
+    }
+
+    fn observe(&self, state: &Value, viewer: Viewer) -> Result<Observation, GameError> {
+        if let Viewer::Player(seat) = viewer {
+            if seat >= self.spec().num_players[1] {
+                return Err(GameError::position("Viewer seat is out of range"));
+            }
+        }
+        Ok(G::observe(&Self::state(state)?, viewer))
+    }
+
+    fn state_to_notation(&self, state: &Value) -> Result<String, GameError> {
+        G::state_to_notation(&Self::state(state)?)
+    }
+
+    fn state_from_notation(&self, config: &Value, notation: &str) -> Result<Value, GameError> {
+        let state = G::state_from_notation(&Self::config(config)?, notation)?;
+        G::validate_state(&state)?;
+        Ok(serde_json::to_value(state)?)
+    }
+}
+
+/// Ordered, constructor-injected registry. Only gfa-games names concrete game types.
+#[derive(Default, Clone)]
+pub struct GameRegistry {
+    games: BTreeMap<String, Arc<dyn DynGame>>,
+}
+
+impl GameRegistry {
+    /// Register a game, rejecting duplicate identifiers.
+    pub fn register<G: Game>(&mut self) -> Result<(), GameError> {
+        let spec = G::spec();
+        if self.games.contains_key(&spec.id) {
+            return Err(GameError::new(
+                ErrorCode::InvalidConfig,
+                format!("Duplicate game id: {}", spec.id),
+                "Register each game exactly once.",
+            ));
+        }
+        self.games
+            .insert(spec.id, Arc::new(GameAdapter::<G>::default()));
+        Ok(())
+    }
+
+    /// Resolve a game by its stable id.
+    pub fn get(&self, id: &str) -> Result<Arc<dyn DynGame>, GameError> {
+        self.games.get(id).cloned().ok_or_else(|| {
+            GameError::new(
+                ErrorCode::UnknownGame,
+                format!("Unknown game: {id}"),
+                "Choose a game returned by list_games.",
+            )
+        })
+    }
+
+    /// Metadata in stable identifier order.
+    pub fn specs(&self) -> Vec<GameSpec> {
+        self.games.values().map(|game| game.spec()).collect()
+    }
+}
