@@ -32,6 +32,17 @@ pub trait MatchStore: Send + Sync {
     /// Read one consistent event/command snapshot.
     fn load<'a>(&'a self, id: &'a str) -> StoreFuture<'a, Option<MatchRecord>>;
 
+    /// List up to limit identifiers in ascending order, strictly after the cursor.
+    ///
+    /// Limit is 1..101. Hosts must authorize access to this local history index.
+    fn list_ids<'a>(&'a self, _after: &'a str, _limit: u32) -> StoreFuture<'a, Vec<String>> {
+        Box::pin(async {
+            Err(StoreError::Unavailable(
+                "History is unsupported by this store".into(),
+            ))
+        })
+    }
+
     /// Compare-and-append using the current event count as the revision.
     ///
     /// Check idempotency before the revision: an identical command returns its

@@ -220,6 +220,23 @@ impl MatchStore for SqliteMatchStore {
         Box::pin(self.snapshot(id))
     }
 
+    fn list_ids<'a>(&'a self, after: &'a str, limit: u32) -> StoreFuture<'a, Vec<String>> {
+        Box::pin(async move {
+            if !(1..=101).contains(&limit) {
+                return Err(unavailable("History limit must be 1..101"));
+            }
+            let limit = i64::from(limit);
+            sqlx::query_scalar!(
+                "SELECT id FROM gfa_matches WHERE id > ? ORDER BY id LIMIT ?",
+                after,
+                limit
+            )
+            .fetch_all(&self.pool)
+            .await
+            .map_err(unavailable)
+        })
+    }
+
     fn append<'a>(
         &'a self,
         id: &'a str,

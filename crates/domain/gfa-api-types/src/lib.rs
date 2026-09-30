@@ -252,3 +252,6 @@ pub enum StreamMessage {
         error: ApiError,
     },
 }
+
+mod history;
+pub use history::{MatchHistory, MatchHistoryQuery, MatchMetadata, MatchStatus};
