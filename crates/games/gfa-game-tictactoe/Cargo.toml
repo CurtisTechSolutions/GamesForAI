@@ -12,3 +12,7 @@ gfa-testkit.workspace = true
 
 [lints]
 workspace = true
+
+[[bench]]
+name = "playout"
+harness = false

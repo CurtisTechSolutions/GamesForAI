@@ -29,3 +29,51 @@ jobs:
       - run: cargo fmt --all -- --check
       - if: success() || failure()
         run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm build
+      - name: Check formatting with diagnostic diff
+        run: |
+          pnpm format
+          git diff --exit-code -- web
+  dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-deny
+      - run: cargo deny check
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo bench -p gfa-game-tictactoe --bench playout
+  core-api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: taiki-e/install-action@cargo-semver-checks
+      - name: Check core compatibility against the PR base
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if git cat-file -e "$BASE_REF:crates/core/gfa-core/Cargo.toml"; then
+            cargo semver-checks check-release -p gfa-core --baseline-rev "$BASE_REF"
+          else
+            echo "Initial core API: no baseline crate exists yet."
+          fi

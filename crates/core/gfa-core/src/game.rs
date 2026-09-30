@@ -45,5 +45,6 @@ pub trait Game: Send + Sync + 'static {
     /// Export a validated position.
     fn state_to_notation(state: &Self::State) -> Result<String, GameError>;
     /// Import and validate a position.
-    fn state_from_notation(config: &Self::Config, notation: &str) -> Result<Self::State, GameError>;
+    fn state_from_notation(config: &Self::Config, notation: &str)
+        -> Result<Self::State, GameError>;
 }
