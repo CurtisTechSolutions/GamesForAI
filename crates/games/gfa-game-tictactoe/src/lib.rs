@@ -104,6 +104,18 @@ impl Game for TicTacToe {
         })
     }
 
+    fn state_from_observation(
+        _: &Config,
+        observation: &Observation,
+        _: Viewer,
+        _: u64,
+    ) -> Result<State, GameError> {
+        let state = serde_json::from_value(observation.json.clone())
+            .map_err(|error| GameError::position(error.to_string()))?;
+        Self::validate_state(&state)?;
+        Ok(state)
+    }
+
     fn validate_state(state: &State) -> Result<(), GameError> {
         if state.board.iter().flatten().any(|&p| p > 1) {
             return Err(GameError::position(

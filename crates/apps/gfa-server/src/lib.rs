@@ -129,3 +129,6 @@ mod briefing_tests;
 
 #[cfg(test)]
 mod openapi_tests;
+
+#[cfg(test)]
+mod opponent_tests;

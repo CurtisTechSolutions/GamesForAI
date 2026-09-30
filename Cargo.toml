@@ -13,6 +13,7 @@ members = [
     "xtask",
     "crates/domain/gfa-api-types",
     "crates/domain/gfa-service",
+    "crates/players/gfa-opponents",
 ]
 
 [workspace.package]
@@ -28,6 +29,7 @@ gfa-game-tictactoe = { version = "0.1.0", path = "crates/games/gfa-game-tictacto
 gfa-games = { version = "0.1.0", path = "crates/games/gfa-games" }
 gfa-game-connect4 = { version = "0.1.0", path = "crates/games/gfa-game-connect4" }
 gfa-api-types = { version = "0.1.0", path = "crates/domain/gfa-api-types" }
+gfa-opponents = { version = "0.1.0", path = "crates/players/gfa-opponents" }
 gfa-service = { version = "0.1.0", path = "crates/domain/gfa-service" }
 gfa-http = { version = "0.1.0", path = "crates/adapters/gfa-http" }
 gfa-store = { version = "0.1.0", path = "crates/adapters/gfa-store" }
