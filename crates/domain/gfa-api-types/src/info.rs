@@ -69,7 +69,6 @@ impl Briefing {
     }
 }
 
-
 /// HTTP representation of a briefing.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]

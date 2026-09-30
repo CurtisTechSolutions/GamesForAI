@@ -4,7 +4,9 @@ use axum::{
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
-use gfa_api_types::{Briefing, GameInfoQuery as GameQuery, InfoFormat as Format, MatchInfoQuery as MatchQuery};
+use gfa_api_types::{
+    Briefing, GameInfoQuery as GameQuery, InfoFormat as Format, MatchInfoQuery as MatchQuery,
+};
 use gfa_service::GameService;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
@@ -12,7 +14,7 @@ use std::sync::Arc;
 
 #[utoipa::path(
     get, path = "/v1/games/{game_id}/info", tag = "Briefings",
-    
+
     params(("game_id" = String, Path, description = "Registered game identifier"),gfa_api_types::GameInfoQuery, ("If-None-Match" = Option<String>, Header, description = "ETag, weak tag, list, or *")),
     responses((status = 200, description = "Deterministic synthetic briefing", content((Briefing = "application/json"), (String = "text/markdown")), headers(("ETag" = String, description = "SHA-256 of this representation"))), (status = 304, description = "Unchanged; no body"), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
 )]
@@ -87,7 +89,7 @@ pub(crate) fn render(
 
 #[utoipa::path(
     get, path = "/v1/matches/{id}/info", tag = "Briefings",
-    
+
     params(("id" = String, Path, description = "Match identifier"),gfa_api_types::MatchInfoQuery),
     responses((status = 200, description = "Live match briefing; never cached", content((Briefing = "application/json"), (String = "text/markdown"))), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
 )]

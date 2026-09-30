@@ -57,7 +57,7 @@ pub struct CreateMatch {
 #[serde(deny_unknown_fields)]
 pub struct MoveRequest {
     /// Acting seat.
-    #[cfg_attr(feature = "openapi", schema(minimum = 0, maximum = 255))]
+    #[cfg_attr(feature = "openapi", schema(value_type = u8, minimum = 0, maximum = 255))]
     pub seat: PlayerId,
     /// Expected accepted-action count.
     #[cfg_attr(feature = "openapi", schema(minimum = 0))]
@@ -204,7 +204,6 @@ pub struct CreatedMatch {
 mod position;
 pub use position::{ValidatePosition, ValidatedPosition};
 
- 
 /// Local host liveness response.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
@@ -236,7 +235,6 @@ pub struct ErrorResponse {
     /// Recoverable failure with retry context.
     pub error: ApiError,
 }
-
 
 /// JSON messages emitted by the read-only live state stream.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]

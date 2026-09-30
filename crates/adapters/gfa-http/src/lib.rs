@@ -28,7 +28,6 @@ use gfa_api_types::{ApiError, CreateMatch, MatchState, MoveRequest, MoveResult, 
 use gfa_core::{GameSpec, Viewer};
 use gfa_service::GameService;
 use serde::Deserialize;
-use serde_json::json;
 #[cfg(test)]
 use serde_json::Value;
 use std::{net::SocketAddr, sync::Arc};
@@ -69,10 +68,17 @@ fn build_router(
         ));
     }
     let document = openapi_document(updates.is_some()).to_json().map_err(|_| {
-        ApiError::new("INVALID_CONFIG", "API documentation could not be generated", "Check schema derives.")
+        ApiError::new(
+            "INVALID_CONFIG",
+            "API documentation could not be generated",
+            "Check schema derives.",
+        )
     })?;
     let mut router = Router::new()
-        .route("/v1/openapi.json", get(openapi::document).layer(axum::Extension(openapi::Document(document))))
+        .route(
+            "/v1/openapi.json",
+            get(openapi::document).layer(axum::Extension(openapi::Document(document))),
+        )
         .route("/healthz", get(health))
         .route("/v1/games", get(games))
         .route("/v1/games/{game_id}", get(game))
@@ -132,18 +138,21 @@ fn id(path: Id) -> Result<String, HttpError> {
 
 #[utoipa::path(
     get, path = "/healthz", tag = "Health",
-    
-    
+
+
     responses((status = 200, description = "Successful health response", body = gfa_api_types::Health), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
 )]
 async fn health() -> Json<gfa_api_types::Health> {
-    Json(gfa_api_types::Health { status: "ok".into(), mode: "local".into() })
+    Json(gfa_api_types::Health {
+        status: "ok".into(),
+        mode: "local".into(),
+    })
 }
 
 #[utoipa::path(
     get, path = "/v1/games", tag = "Games",
-    
-    
+
+
     responses((status = 200, description = "Successful games response", body = Vec<GameSpec>), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
 )]
 async fn games(State(service): State<Arc<GameService>>) -> Json<Vec<GameSpec>> {
@@ -152,7 +161,7 @@ async fn games(State(service): State<Arc<GameService>>) -> Json<Vec<GameSpec>> {
 
 #[utoipa::path(
     get, path = "/v1/games/{game_id}", tag = "Games",
-    
+
     params(("game_id" = String, Path, description = "Registered game identifier")),
     responses((status = 200, description = "Successful game response", body = GameSpec), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
 )]
@@ -195,7 +204,7 @@ async fn create(
 
 #[utoipa::path(
     get, path = "/v1/matches/{id}/state", tag = "Matches",
-    
+
     params(("id" = String, Path, description = "Match identifier"),("seat" = Option<u8>, Query, description = "Zero-based seat; omit for spectator view. Creation and position validation default to seat 0.", minimum = 0, maximum = 255)),
     responses((status = 200, description = "Successful state response", body = MatchState), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
 )]
@@ -211,7 +220,7 @@ async fn state(
 
 #[utoipa::path(
     get, path = "/v1/matches/{id}/legal-actions", tag = "Matches",
-    
+
     params(("id" = String, Path, description = "Match identifier"),("seat" = Option<u8>, Query, description = "Zero-based seat; omit for spectator view. Creation and position validation default to seat 0.", minimum = 0, maximum = 255)),
     responses((status = 200, description = "Successful legal actions response", body = gfa_api_types::LegalActions), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
 )]
@@ -222,8 +231,10 @@ async fn legal_actions(
 ) -> Result<Json<gfa_api_types::LegalActions>, HttpError> {
     let state = service.get_state(&id(path)?, view(query)?.viewer()).await?;
     Ok(Json(gfa_api_types::LegalActions {
-        turn: state.turn, to_act: state.to_act,
-        legal_actions: state.legal_actions, action_mask: state.action_mask,
+        turn: state.turn,
+        to_act: state.to_act,
+        legal_actions: state.legal_actions,
+        action_mask: state.action_mask,
     }))
 }
 
@@ -259,7 +270,7 @@ async fn make_move(
 
 #[utoipa::path(
     get, path = "/v1/matches/{id}/replay", tag = "Matches",
-    
+
     params(("id" = String, Path, description = "Match identifier"),("seat" = Option<u8>, Query, description = "Zero-based seat; omit for spectator view. Creation and position validation default to seat 0.", minimum = 0, maximum = 255)),
     responses((status = 200, description = "Successful replay response", body = Replay), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
 )]
