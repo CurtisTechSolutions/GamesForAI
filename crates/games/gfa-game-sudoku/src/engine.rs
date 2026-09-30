@@ -100,13 +100,13 @@ impl Game for Sudoku {
 
     fn play_guide() -> Option<gfa_core::PlayGuide> {
         Some(gfa_core::PlayGuide {
-            objective: "Fill every cell so each row, column and box contains digits 1..size exactly once. Fixed givens cannot be edited. Only seat 0 acts; there is no opposing seat.".into(),
-            observation: "JSON grid is row-major with 0 empty; givens marks fixed cells; notes are digit bit masks. conflicts lists zero-based conflicting cells. The text grid includes row/column coordinates and box separators. No solution is included.".into(),
-            tensor: "Shape [size+1,size,size]: one plane per digit and one givens plane; empty cells have no active digit plane.".into(),
-            rewards: "Return +1 for solved, otherwise 0. max_moves counts placements and erasures; notes are free. Mistakes are hidden in silent mode until the grid is full or play ends.".into(),
-            config: "size=4,6,9 (default 9); difficulty=easy,medium,hard,expert; puzzle optional; mistake_policy=silent,rule_check,solution_check:n; allow_notes=true; max_moves defaults to 200. Generated 4x4 is easy; 6x6 is easy/medium/expert; 9x9 supports all grades. Imported puzzles are graded independently.".into(),
-            solved: "Each accepted puzzle has exactly one solution, verified by an exact-cover solver. Difficulty records the hardest logical technique needed.".into(),
-            common_mistakes: vec!["Givens cannot be changed. Coordinates and digits start at 1.".into(), "Notes do not place a digit. r3c5+7 adds a note; r3c5=7 places 7; r3c5=0 erases.".into(), "Silent mode permits conflicting placements; check the complete grid before assuming it is solved.".into()],
+            objective: "Complete every row, column and box with digits 1..size. Givens are fixed. Only seat 0 acts; no opponent.".into(),
+            observation: "JSON grid is row-major, 0 empty. givens marks fixed cells; notes are digit bit masks; conflicts lists cell indices. attempts counts public placements, not correctness. Text has coordinates and box separators.".into(),
+            tensor: "Shape [size+1,size,size]: digit one-hot planes plus givens; 0/1 values.".into(),
+            rewards: "Solved +1, otherwise 0. Placements/erasures consume max_moves; notes are free. Silent mistakes stay hidden until full or ended.".into(),
+            config: "size=4/6/9; default 9. puzzle optional. mistake_policy=silent/rule_check/solution_check:n; allow_notes=true; max_moves=200 by default. Generation: 4x4 easy; 6x6 easy/medium/expert; 9x9 all grades. Imports get their actual grade.".into(),
+            solved: "Exactly one solution. Difficulty is the hardest required technique, verified by the solver.".into(),
+            common_mistakes: vec!["Givens are fixed. Coordinates start at 1.".into(), "+7 adds a note; =7 places 7; =0 erases.".into(), "Silent placements may conflict; full does not mean solved.".into()],
             strategy_notes: vec!["Find cells with one candidate, then digits with one possible cell in a row, column or box.".into(), "Use candidate notes to track pairs and locked candidates.".into()],
         })
     }

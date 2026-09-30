@@ -232,9 +232,15 @@ impl MatchBrief<'_> {
         let public_position = if self.origin.start.is_none() {
             None
         } else if self.viewer == Viewer::Omniscient {
-            Some(self.game.state_to_notation(&self.initial.state).map_err(error::engine)?)
+            Some(
+                self.game
+                    .state_to_notation(&self.initial.state)
+                    .map_err(error::engine)?,
+            )
         } else {
-            self.game.public_position(&self.initial.state).map_err(error::engine)?
+            self.game
+                .public_position(&self.initial.state)
+                .map_err(error::engine)?
         };
         let start = if self.origin.start.is_none() {
             json!({"type":"standard"})

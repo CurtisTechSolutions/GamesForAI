@@ -20,7 +20,9 @@ type TestResult = Result<(), Box<dyn std::error::Error>>;
 // A tiny stochastic engine exercises the service without concrete game dependencies.
 struct Counter<const TERMINATES: bool, const PUBLIC_METADATA: bool = false>;
 
-impl<const TERMINATES: bool, const PUBLIC_METADATA: bool> Game for Counter<TERMINATES, PUBLIC_METADATA> {
+impl<const TERMINATES: bool, const PUBLIC_METADATA: bool> Game
+    for Counter<TERMINATES, PUBLIC_METADATA>
+{
     type State = [u64; 3]; // turn, random state, public total
     type Action = u8;
     type Config = Value;
@@ -35,7 +37,11 @@ impl<const TERMINATES: bool, const PUBLIC_METADATA: bool> Game for Counter<TERMI
             num_players: [2, 2],
             seat_names: vec!["A".into(), "B".into()],
             turn_structure: TurnStructure::Sequential,
-            information: if PUBLIC_METADATA { Information::Perfect } else { Information::Imperfect },
+            information: if PUBLIC_METADATA {
+                Information::Perfect
+            } else {
+                Information::Imperfect
+            },
             stochastic: !PUBLIC_METADATA,
             max_game_length: 4,
             reward_range: [-1.0, 1.0],
@@ -902,16 +908,37 @@ fn perfect_information_does_not_opt_in_to_raw_position_disclosure() -> TestResul
     let mut registry = GameRegistry::default();
     registry.register::<Counter<true, true>>()?;
     let host = Arc::new(Host::default());
-    let service = GameService::new(registry, Arc::new(MemoryStore::default()), host.clone(), host);
+    let service = GameService::new(
+        registry,
+        Arc::new(MemoryStore::default()),
+        host.clone(),
+        host,
+    );
     let created = run(service.create_match_with_info(
-        CreateMatch { start: Some(Start::State { state: json!([1,7,2]) }), ..create("counter") },
+        CreateMatch {
+            start: Some(Start::State {
+                state: json!([1, 7, 2]),
+            }),
+            ..create("counter")
+        },
         Viewer::Player(0),
     ))?;
     let info = created.info.ok_or("briefing")?;
-    let section = info.sections.iter().find(|section| section.id == "match").ok_or("match")?;
+    let section = info
+        .sections
+        .iter()
+        .find(|section| section.id == "match")
+        .ok_or("match")?;
     assert!(section.data["start"].get("position").is_none());
-    assert_eq!(section.data["start"]["view"], serde_json::to_value(&created.state.observation)?);
-    let admin = run(service.get_match_info(&created.state.match_id, Viewer::Omniscient, gfa_api_types::InfoDetail::Compact))?;
+    assert_eq!(
+        section.data["start"]["view"],
+        serde_json::to_value(&created.state.observation)?
+    );
+    let admin = run(service.get_match_info(
+        &created.state.match_id,
+        Viewer::Omniscient,
+        gfa_api_types::InfoDetail::Compact,
+    ))?;
     assert!(admin.sections[0].data["start"]["position"].is_string());
     Ok(())
 }
