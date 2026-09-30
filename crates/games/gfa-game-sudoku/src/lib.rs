@@ -4,8 +4,8 @@ mod generation;
 mod grading;
 mod grid;
 
-use gfa_core::{GameError, SeededRng};
 pub use generation::{generate_graded, supported_difficulties};
+use gfa_core::{GameError, SeededRng};
 pub use grading::{grade, hint, Candidate, Difficulty, Grade, Hint, Technique};
 pub use grid::Grid;
 
