@@ -364,3 +364,102 @@ async fn position_validation_accepts_finished_boards_and_round_trips_all_encodin
     app.store.close().await;
     Ok(())
 }
+
+#[tokio::test]
+async fn metadata_and_history_paginate_filter_and_survive_restart() -> TestResult {
+    let dir = tempfile::tempdir()?;
+    let settings = config(&dir);
+    let app = fixture(&settings).await?;
+    let mut ids = Vec::new();
+    for game_id in ["tictactoe", "connect4", "tictactoe"] {
+        let (_, created) = call(
+            &app.router,
+            "POST",
+            "/v1/matches",
+            json!({"game_id":game_id,"seed":42}),
+            None,
+        )
+        .await?;
+        ids.push(match_id(&created)?);
+    }
+    for (turn, action) in ["r1c1", "r2c1", "r1c2", "r2c2", "r1c3"].iter().enumerate() {
+        call(
+            &app.router,
+            "POST",
+            &format!("/v1/matches/{}/actions", ids[0]),
+            json!({"seat":turn%2,"turn":turn,"action":action}),
+            None,
+        )
+        .await?;
+    }
+    let (status, meta) = call(
+        &app.router,
+        "GET",
+        &format!("/v1/matches/{}", ids[0]),
+        Value::Null,
+        None,
+    )
+    .await?;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(meta["status"], "finished");
+    assert_eq!(meta["turn"], 5);
+    for private in ["seed", "start", "state", "reasoning"] {
+        assert!(meta.get(private).is_none());
+    }
+    app.store.close().await;
+    let app = fixture(&settings).await?;
+    let mut cursor = String::new();
+    let mut found = Vec::new();
+    loop {
+        let (_, page) = call(
+            &app.router,
+            "GET",
+            &format!("/v1/matches?limit=1{cursor}"),
+            Value::Null,
+            None,
+        )
+        .await?;
+        let records = page["matches"].as_array().ok_or("records")?;
+        assert_eq!(records.len(), 1);
+        found.push(records[0]["match_id"].as_str().ok_or("id")?.to_owned());
+        match page["next"].as_str() {
+            Some(next) => cursor = format!("&after={next}"),
+            None => break,
+        }
+        assert!(found.len() <= 3);
+    }
+    ids.sort();
+    assert_eq!(found, ids);
+    let (_, finished) = call(
+        &app.router,
+        "GET",
+        "/v1/matches?game_id=tictactoe&status=finished",
+        Value::Null,
+        None,
+    )
+    .await?;
+    assert_eq!(finished["matches"].as_array().ok_or("matches")?.len(), 1);
+    let (_, active) = call(
+        &app.router,
+        "GET",
+        "/v1/matches?status=active",
+        Value::Null,
+        None,
+    )
+    .await?;
+    assert_eq!(active["matches"].as_array().ok_or("matches")?.len(), 2);
+    for path in [
+        "/v1/matches?limit=0",
+        "/v1/matches?limit=101",
+        "/v1/matches?status=unknown",
+        "/v1/matches?typo=1",
+        "/v1/matches?limit=1&limit=2",
+        "/v1/matches?game_id=missing",
+    ] {
+        let (status, error) = call(&app.router, "GET", path, Value::Null, None).await?;
+        assert!(status.is_client_error(), "{path}");
+        assert!(error["error"]["code"].is_string());
+    }
+    app.store.close().await;
+    Ok(())
+}

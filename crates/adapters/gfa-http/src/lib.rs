@@ -87,7 +87,8 @@ fn build_router(
             "/v1/games/{game_id}/positions/validate",
             post(validate_position),
         )
-        .route("/v1/matches", post(create))
+        .route("/v1/matches", post(create).get(history))
+        .route("/v1/matches/{id}", get(metadata))
         .route("/v1/matches/{id}/info", get(info::match_info))
         .route("/v1/matches/{id}/state", get(state))
         .route("/v1/matches/{id}/legal-actions", get(legal_actions))
@@ -326,4 +327,31 @@ async fn validate_position(
         request,
         viewer,
     )?))
+}
+
+#[utoipa::path(
+    get, path = "/v1/matches", tag = "Matches",
+    params(gfa_api_types::MatchHistoryQuery),
+    responses((status = 200, description = "Bounded local history, ordered by match id. Follow next even when filters return an empty page.", body = gfa_api_types::MatchHistory),
+        (status = "default", description = "Query or service error", body = gfa_api_types::ErrorResponse))
+)]
+async fn history(
+    State(service): State<Arc<GameService>>,
+    query: Result<Query<gfa_api_types::MatchHistoryQuery>, QueryRejection>,
+) -> Result<Json<gfa_api_types::MatchHistory>, HttpError> {
+    let Query(query) = query.map_err(|error| HttpError::request(error.body_text()))?;
+    Ok(Json(service.list_matches(query).await?))
+}
+
+#[utoipa::path(
+    get, path = "/v1/matches/{id}", tag = "Matches",
+    params(("id" = String, Path, description = "Match identifier")),
+    responses((status = 200, description = "Public match metadata without hidden state or RNG", body = gfa_api_types::MatchMetadata),
+        (status = "default", description = "Match or service error", body = gfa_api_types::ErrorResponse))
+)]
+async fn metadata(
+    State(service): State<Arc<GameService>>,
+    path: Id,
+) -> Result<Json<gfa_api_types::MatchMetadata>, HttpError> {
+    Ok(Json(service.get_match(&id(path)?).await?))
 }
