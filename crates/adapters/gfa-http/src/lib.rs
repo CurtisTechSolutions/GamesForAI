@@ -419,5 +419,9 @@ async fn simulate(
         gfa_api_types::SimulationFrom::Match { seat, .. } => *seat,
         _ => 0,
     });
-    Ok(Json(service.simulate(&id(path)?, request, Viewer::Player(seat)).await?))
+    Ok(Json(
+        service
+            .simulate(&id(path)?, request, Viewer::Player(seat))
+            .await?,
+    ))
 }

@@ -50,12 +50,23 @@ pub trait MatchStore: Send + Sync {
         _seat: u8,
         _moves: u32,
     ) -> StoreFuture<'a, ()> {
-        Box::pin(async { Err(StoreError::Unavailable("Assist accounting is unsupported".into())) })
+        Box::pin(async {
+            Err(StoreError::Unavailable(
+                "Assist accounting is unsupported".into(),
+            ))
+        })
     }
 
     /// Read recorded counters in ascending seat order.
-    fn assist_usage<'a>(&'a self, _id: &'a str) -> StoreFuture<'a, Vec<gfa_api_types::AssistUsage>> {
-        Box::pin(async { Err(StoreError::Unavailable("Assist accounting is unsupported".into())) })
+    fn assist_usage<'a>(
+        &'a self,
+        _id: &'a str,
+    ) -> StoreFuture<'a, Vec<gfa_api_types::AssistUsage>> {
+        Box::pin(async {
+            Err(StoreError::Unavailable(
+                "Assist accounting is unsupported".into(),
+            ))
+        })
     }
 
     /// Compare-and-append using the current event count as the revision.
@@ -96,4 +107,3 @@ pub trait MatchObserver: Send + Sync {
     /// A creation or action batch has committed successfully.
     fn committed(&self, match_id: &str);
 }
-

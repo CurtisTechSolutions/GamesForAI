@@ -338,10 +338,21 @@ async fn simulation_counters_are_atomic_and_leave_events_unchanged() -> TestResu
     b?;
     store.record_simulation("planning", 1, 0).await?;
     assert_eq!(store.load("planning").await?, Some(record));
-    assert_eq!(store.assist_usage("planning").await?, vec![
-        gfa_api_types::AssistUsage { seat: 0, simulation_calls: 2, simulated_moves: 10 },
-        gfa_api_types::AssistUsage { seat: 1, simulation_calls: 1, simulated_moves: 0 },
-    ]);
+    assert_eq!(
+        store.assist_usage("planning").await?,
+        vec![
+            gfa_api_types::AssistUsage {
+                seat: 0,
+                simulation_calls: 2,
+                simulated_moves: 10
+            },
+            gfa_api_types::AssistUsage {
+                seat: 1,
+                simulation_calls: 1,
+                simulated_moves: 0
+            },
+        ]
+    );
     assert!(store.record_simulation("missing", 0, 1).await.is_err());
     store.close().await;
     Ok(())

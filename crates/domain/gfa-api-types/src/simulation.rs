@@ -4,7 +4,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-fn yes() -> bool { true }
+fn yes() -> bool {
+    true
+}
 
 /// Assistance permitted by a match, recorded for reproducible evaluation.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -21,7 +23,10 @@ pub struct Assists {
 
 impl Default for Assists {
     fn default() -> Self {
-        Self { allow_simulation: true, allow_analysis: false }
+        Self {
+            allow_simulation: true,
+            allow_analysis: false,
+        }
     }
 }
 

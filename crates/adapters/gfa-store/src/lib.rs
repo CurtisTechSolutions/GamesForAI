@@ -237,12 +237,7 @@ impl MatchStore for SqliteMatchStore {
         })
     }
 
-    fn record_simulation<'a>(
-        &'a self,
-        id: &'a str,
-        seat: u8,
-        moves: u32,
-    ) -> StoreFuture<'a, ()> {
+    fn record_simulation<'a>(&'a self, id: &'a str, seat: u8, moves: u32) -> StoreFuture<'a, ()> {
         Box::pin(async move {
             let seat = i64::from(seat);
             let moves = i64::from(moves);
@@ -262,11 +257,16 @@ impl MatchStore for SqliteMatchStore {
                 "SELECT seat, simulation_calls, simulated_moves FROM gfa_assist_usage WHERE match_id = ? ORDER BY seat",
                 id
             ).fetch_all(&self.pool).await.map_err(unavailable)?;
-            rows.into_iter().map(|row| Ok(gfa_api_types::AssistUsage {
-                seat: u8::try_from(row.seat).map_err(unavailable)?,
-                simulation_calls: u64::try_from(row.simulation_calls).map_err(unavailable)?,
-                simulated_moves: u64::try_from(row.simulated_moves).map_err(unavailable)?,
-            })).collect()
+            rows.into_iter()
+                .map(|row| {
+                    Ok(gfa_api_types::AssistUsage {
+                        seat: u8::try_from(row.seat).map_err(unavailable)?,
+                        simulation_calls: u64::try_from(row.simulation_calls)
+                            .map_err(unavailable)?,
+                        simulated_moves: u64::try_from(row.simulated_moves).map_err(unavailable)?,
+                    })
+                })
+                .collect()
         })
     }
 

@@ -213,9 +213,19 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
         ),
         &position
     ));
-    let (_, simulated) = call(&app.router, "POST", "/v1/games/tictactoe/simulate",
-        json!({"from":{"match_id":id,"seat":0},"lines":[["r1c1"]],"seed":42}), None).await?;
-    assert!(valid(&doc, response_schema(&doc, "/v1/games/{game_id}/simulate", "post", "200"), &simulated));
+    let (_, simulated) = call(
+        &app.router,
+        "POST",
+        "/v1/games/tictactoe/simulate",
+        json!({"from":{"match_id":id,"seat":0},"lines":[["r1c1"]],"seed":42}),
+        None,
+    )
+    .await?;
+    assert!(valid(
+        &doc,
+        response_schema(&doc, "/v1/games/{game_id}/simulate", "post", "200"),
+        &simulated
+    ));
     let state_schema = json!({"$ref":"#/components/schemas/StreamMessage"});
     assert!(valid(
         &doc,

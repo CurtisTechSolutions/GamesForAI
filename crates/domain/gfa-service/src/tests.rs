@@ -84,8 +84,12 @@ impl<const TERMINATES: bool> Game for Counter<TERMINATES> {
         seed: u64,
     ) -> Result<Self::State, GameError> {
         Self::new_initial_state(config, seed)?;
-        let turn = observation.json["turn"].as_u64().ok_or_else(|| GameError::position("turn"))?;
-        let total = observation.json["total"].as_u64().ok_or_else(|| GameError::position("total"))?;
+        let turn = observation.json["turn"]
+            .as_u64()
+            .ok_or_else(|| GameError::position("turn"))?;
+        let total = observation.json["total"]
+            .as_u64()
+            .ok_or_else(|| GameError::position("total"))?;
         let state = [turn, seed, total];
         Self::validate_state(&state)?;
         Ok(state)
@@ -226,13 +230,23 @@ impl MatchStore for MemoryStore {
     }
     fn list_ids<'a>(&'a self, after: &'a str, limit: u32) -> StoreFuture<'a, Vec<String>> {
         Box::pin(async move {
-            Ok(self.records.lock().map_err(|_| StoreError::Unavailable("poisoned".into()))?
-                .keys().filter(|id| id.as_str() > after).take(limit as usize).cloned().collect())
+            Ok(self
+                .records
+                .lock()
+                .map_err(|_| StoreError::Unavailable("poisoned".into()))?
+                .keys()
+                .filter(|id| id.as_str() > after)
+                .take(limit as usize)
+                .cloned()
+                .collect())
         })
     }
     fn record_simulation<'a>(&'a self, id: &'a str, seat: u8, moves: u32) -> StoreFuture<'a, ()> {
         Box::pin(async move {
-            let mut usage = self.usage.lock().map_err(|_| StoreError::Unavailable("poisoned".into()))?;
+            let mut usage = self
+                .usage
+                .lock()
+                .map_err(|_| StoreError::Unavailable("poisoned".into()))?;
             let entry = usage.entry(id.into()).or_default().entry(seat).or_default();
             entry.0 += 1;
             entry.1 += u64::from(moves);
@@ -241,9 +255,20 @@ impl MatchStore for MemoryStore {
     }
     fn assist_usage<'a>(&'a self, id: &'a str) -> StoreFuture<'a, Vec<gfa_api_types::AssistUsage>> {
         Box::pin(async move {
-            let usage = self.usage.lock().map_err(|_| StoreError::Unavailable("poisoned".into()))?;
-            Ok(usage.get(id).into_iter().flat_map(|seats| seats.iter()).map(|(seat, (calls, moves))|
-                gfa_api_types::AssistUsage { seat: *seat, simulation_calls: *calls, simulated_moves: *moves }).collect())
+            let usage = self
+                .usage
+                .lock()
+                .map_err(|_| StoreError::Unavailable("poisoned".into()))?;
+            Ok(usage
+                .get(id)
+                .into_iter()
+                .flat_map(|seats| seats.iter())
+                .map(|(seat, (calls, moves))| gfa_api_types::AssistUsage {
+                    seat: *seat,
+                    simulation_calls: *calls,
+                    simulated_moves: *moves,
+                })
+                .collect())
         })
     }
     fn append<'a>(
@@ -826,17 +851,37 @@ fn simulation_reseeds_hidden_chance_without_touching_the_live_record() -> TestRe
     let id = &initial.match_id;
     let before = record(&store, id)?;
     let request = SimulateRequest {
-        from: SimulationFrom::Match { match_id: id.clone(), seat: 0, turn: None },
-        config: json!({}), seed: Some(71), output: SimulationOutput::All,
+        from: SimulationFrom::Match {
+            match_id: id.clone(),
+            seat: 0,
+            turn: None,
+        },
+        config: json!({}),
+        seed: Some(71),
+        output: SimulationOutput::All,
         lines: vec![vec![json!("1"), json!("2")], vec![json!("1"), json!("2")]],
     };
     let simulated = run(service.simulate("counter", request.clone(), Viewer::Player(0)))?;
-    assert_eq!(serde_json::to_value(&simulated.lines[0])?, serde_json::to_value(&simulated.lines[1])?);
-    assert_eq!(serde_json::to_value(&simulated)?, serde_json::to_value(run(service.simulate("counter", request, Viewer::Player(0)))?)?);
+    assert_eq!(
+        serde_json::to_value(&simulated.lines[0])?,
+        serde_json::to_value(&simulated.lines[1])?
+    );
+    assert_eq!(
+        serde_json::to_value(&simulated)?,
+        serde_json::to_value(run(service.simulate(
+            "counter",
+            request,
+            Viewer::Player(0)
+        ))?)?
+    );
     assert_eq!(record(&store, id)?, before);
-    let clone = run(service.create_match(CreateMatch {
-        seed: Some(71), ..create("counter")
-    }, Viewer::Player(0)))?;
+    let clone = run(service.create_match(
+        CreateMatch {
+            seed: Some(71),
+            ..create("counter")
+        },
+        Viewer::Player(0),
+    ))?;
     for (turn, action_value) in [json!("1"), json!("2")].into_iter().enumerate() {
         run(service.make_move(&clone.match_id, action(turn as u64, action_value), None))?;
         let mut played = run(service.get_state(&clone.match_id, Viewer::Player(0)))?;

@@ -269,4 +269,7 @@ mod controls;
 pub use controls::{ControlRequest, MatchOutcome};
 
 mod simulation;
-pub use simulation::{AssistUsage, Assists, SimulateRequest, SimulatedLine, SimulationFailure, SimulationFrom, SimulationOutput, SimulationResult};
+pub use simulation::{
+    AssistUsage, Assists, SimulateRequest, SimulatedLine, SimulationFailure, SimulationFrom,
+    SimulationOutput, SimulationResult,
+};
