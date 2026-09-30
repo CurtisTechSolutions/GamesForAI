@@ -11,20 +11,22 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
-    env:
-      GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Prepare SQLite schema for query checking
         run: python3 .github/scripts/sqlite-query-check.py prepare
+        env:
+          GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
       - run: cargo test --workspace --all-features --locked
         env:
           DATABASE_URL: sqlite:${{ runner.temp }}/gfa-sqlx/schema.sqlite
           SQLX_OFFLINE_DIR: ${{ runner.temp }}/gfa-sqlx/queries
       - name: Verify offline query metadata
         run: python3 .github/scripts/sqlite-query-check.py verify
+        env:
+          GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
       - run: cargo xtask check-deps
       - run: cargo check -p gfa-games --no-default-features --locked
   lint:
