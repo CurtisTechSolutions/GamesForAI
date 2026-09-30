@@ -1,9 +1,17 @@
-//! Transport-independent match events and persistence ports.
+//! Transport-independent event-sourced match lifecycle.
 //!
-//! Hosts must authorize seats and viewers before accepting network requests.
-//! Storage adapters must honor the atomicity and idempotency contract in MatchStore.
+//! This library is a trusted-host boundary: callers select authorized viewers and
+//! seats. No public transport is exposed here. Authentication and visibility policy
+//! must be integrated before exposing these operations to untrusted network callers.
+mod error;
 mod model;
 mod ports;
+mod replay;
+mod service;
 
 pub use model::*;
 pub use ports::*;
+pub use service::GameService;
+
+#[cfg(test)]
+mod tests;
