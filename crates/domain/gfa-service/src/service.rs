@@ -1,6 +1,6 @@
 use crate::{
-    error, replay, AppendResult, AppliedAction, Clock, MatchEvent, MatchIds, MatchOrigin,
-    MatchRecord, MatchStore, StoreError, StoredCommand,
+    error, replay, AppendResult, AppliedAction, Clock, MatchEvent, MatchIds, MatchObserver,
+    MatchOrigin, MatchRecord, MatchStore, StoreError, StoredCommand,
 };
 use gfa_api_types::{ApiError, CreateMatch, MatchState, MoveRequest, MoveResult, Replay};
 use gfa_core::{GameRegistry, GameSpec, LegalAction, Viewer};
@@ -16,6 +16,12 @@ pub struct GameService {
     store: Arc<dyn MatchStore>,
     clock: Arc<dyn Clock>,
     ids: Arc<dyn MatchIds>,
+    observer: Arc<dyn MatchObserver>,
+}
+
+struct NoopObserver;
+impl MatchObserver for NoopObserver {
+    fn committed(&self, _: &str) {}
 }
 
 impl GameService {
@@ -31,7 +37,14 @@ impl GameService {
             store,
             clock,
             ids,
+            observer: Arc::new(NoopObserver),
         }
+    }
+
+    /// Install a best-effort observer before sharing the service with adapters.
+    pub fn with_observer(mut self, observer: Arc<dyn MatchObserver>) -> Self {
+        self.observer = observer;
+        self
     }
 
     /// Registered games in stable identifier order.
@@ -72,6 +85,7 @@ impl GameService {
             })
             .await
             .map_err(error::store)?;
+        self.observer.committed(&state.match_id);
         Ok(state)
     }
 
@@ -185,7 +199,10 @@ impl GameService {
             .append(id, record.events.len() as u64, events, command)
             .await
         {
-            Ok(AppendResult::Appended) => Ok(response),
+            Ok(AppendResult::Appended) => {
+                self.observer.committed(id);
+                Ok(response)
+            }
             Ok(AppendResult::AlreadyCommitted(original)) => Ok(*original),
             Err(StoreError::Conflict) => {
                 let mut error = error::store(StoreError::Conflict);

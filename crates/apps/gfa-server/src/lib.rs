@@ -57,20 +57,28 @@ impl MatchIds for Host {
 struct Application {
     router: axum::Router,
     store: Arc<SqliteMatchStore>,
+    updates: Arc<gfa_http::LiveUpdates>,
+    #[cfg(test)]
+    service: Arc<GameService>,
 }
 
 async fn application(config: &Config, address: SocketAddr) -> Result<Application, ServerError> {
     let registry = gfa_games::registry()?;
     let store = Arc::new(SqliteMatchStore::open(&config.sqlite).await?);
     let host = Arc::new(Host);
-    let service = Arc::new(GameService::new(
-        registry,
-        store.clone(),
-        host.clone(),
-        host,
-    ));
-    let router = gfa_http::local_router(service, address)?;
-    Ok(Application { router, store })
+    let updates = Arc::new(gfa_http::LiveUpdates::default());
+    let service = Arc::new(
+        GameService::new(registry, store.clone(), host.clone(), host)
+            .with_observer(updates.clone()),
+    );
+    let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
+    Ok(Application {
+        router,
+        store,
+        updates,
+        #[cfg(test)]
+        service,
+    })
 }
 
 /// Bind loopback, migrate the database, and serve until shutdown completes.
@@ -85,13 +93,26 @@ pub async fn serve(
     let address = listener.local_addr()?;
     let app = application(&config, address).await?;
     println!("GamesForAI listening on http://{address} (local mode)");
+    serve_application(listener, app, shutdown).await
+}
+
+async fn serve_application(
+    listener: TcpListener,
+    app: Application,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> Result<(), ServerError> {
+    let updates = app.updates.clone();
     let result = axum::serve(
         listener,
         app.router
             .into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .with_graceful_shutdown(shutdown)
+    .with_graceful_shutdown(async move {
+        shutdown.await;
+        updates.close();
+    })
     .await;
+    app.updates.wait_closed().await;
     app.store.close().await;
     result?;
     Ok(())
@@ -99,3 +120,6 @@ pub async fn serve(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod stream_tests;

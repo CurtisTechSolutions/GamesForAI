@@ -42,10 +42,13 @@ sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "sync", "net", "signal", "time"] }
 tempfile = "3"
 
-axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio"] }
+axum = { version = "0.8.9", default-features = false, features = ["http1", "json", "query", "tokio", "ws"] }
 tower = { version = "0.5", features = ["util"] }
 
 uuid = { version = "1", features = ["v4"] }
+
+tokio-tungstenite = { version = "0.28", default-features = false, features = ["connect", "handshake"] }
+futures-util = { version = "0.3", features = ["sink"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
