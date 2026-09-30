@@ -1115,7 +1115,11 @@ struct ImmediateOpponentExecutor;
 impl OpponentExecutor for ImmediateOpponentExecutor {
     fn execute(&self, job: OpponentJob) -> OpponentFuture<'_> {
         struct FixedClock;
-        impl gfa_opponents::Clock for FixedClock { fn now_ms(&self) -> u64 { 0 } }
+        impl gfa_opponents::Clock for FixedClock {
+            fn now_ms(&self) -> u64 {
+                0
+            }
+        }
         Box::pin(async move { job.run(&FixedClock) })
     }
 }
@@ -1126,21 +1130,35 @@ impl OpponentFactory for ObservingFactory {
         BuiltinOpponentFactory.catalog(game)
     }
     fn create(
-        &self, _: Arc<dyn gfa_core::DynGame>, _: Value,
-        _: &gfa_api_types::OpponentConfig, seed: u64,
-    ) -> Result<(Arc<dyn gfa_opponents::Opponent>, gfa_opponents::SearchLimits), ApiError> {
+        &self,
+        _: Arc<dyn gfa_core::DynGame>,
+        _: Value,
+        _: &gfa_api_types::OpponentConfig,
+        seed: u64,
+    ) -> Result<
+        (
+            Arc<dyn gfa_opponents::Opponent>,
+            gfa_opponents::SearchLimits,
+        ),
+        ApiError,
+    > {
         struct ObservingPlayer;
         impl gfa_opponents::Opponent for ObservingPlayer {
             fn choose_action(
-                &self, turn: &gfa_opponents::PlayerTurn<'_>,
-                limits: gfa_opponents::SearchLimits, clock: &dyn gfa_opponents::Clock,
+                &self,
+                turn: &gfa_opponents::PlayerTurn<'_>,
+                limits: gfa_opponents::SearchLimits,
+                clock: &dyn gfa_opponents::Clock,
             ) -> Result<gfa_opponents::ActionChoice, GameError> {
                 assert_eq!(turn.observation.json["private"], "seat-0");
                 assert!(turn.observation.json.get("seed").is_none());
                 gfa_opponents::Random.choose_action(turn, limits, clock)
             }
         }
-        Ok((Arc::new(ObservingPlayer), gfa_opponents::SearchLimits::for_level(1, seed).map_err(error::engine)?))
+        Ok((
+            Arc::new(ObservingPlayer),
+            gfa_opponents::SearchLimits::for_level(1, seed).map_err(error::engine)?,
+        ))
     }
 }
 
@@ -1148,7 +1166,10 @@ impl OpponentFactory for ObservingFactory {
 fn analysis_uses_only_the_authorized_observation_and_leaves_the_record_unchanged() -> TestResult {
     let (service, store) = fixture()?;
     assert!(service.list_opponents("counter")?.is_empty());
-    let service = service.with_opponents(Arc::new(ObservingFactory), Arc::new(ImmediateOpponentExecutor));
+    let service = service.with_opponents(
+        Arc::new(ObservingFactory),
+        Arc::new(ImmediateOpponentExecutor),
+    );
     let mut options = create("counter");
     options.assists.allow_analysis = true;
     let initial = run(service.create_match(options, Viewer::Player(0)))?;
@@ -1159,35 +1180,71 @@ fn analysis_uses_only_the_authorized_observation_and_leaves_the_record_unchanged
     }))?;
     let first = run(service.analyze(request.clone(), Viewer::Player(0)))?;
     assert!(initial.legal_actions.contains(&first.best_moves[0]));
-    assert_eq!(first, run(service.analyze(request.clone(), Viewer::Player(0)))?);
-    assert_eq!(before, serde_json::to_value(record(&store, &initial.match_id)?)?);
+    assert_eq!(
+        first,
+        run(service.analyze(request.clone(), Viewer::Player(0)))?
+    );
+    assert_eq!(
+        before,
+        serde_json::to_value(record(&store, &initial.match_id)?)?
+    );
     assert!(run(store.assist_usage(&initial.match_id))?.is_empty());
-    code(run(service.analyze(request.clone(), Viewer::Player(1))), "ASSIST_NOT_ALLOWED");
-    code(run(service.analyze(request, Viewer::Spectator)), "FORBIDDEN");
+    code(
+        run(service.analyze(request.clone(), Viewer::Player(1))),
+        "ASSIST_NOT_ALLOWED",
+    );
+    code(
+        run(service.analyze(request, Viewer::Spectator)),
+        "FORBIDDEN",
+    );
     Ok(())
 }
 
 #[test]
 fn analysis_assists_reject_match_and_standalone_bypasses_and_unsupported_search() -> TestResult {
     let (service, _) = fixture()?;
-    let service = service.with_opponents(Arc::new(BuiltinOpponentFactory), Arc::new(ImmediateOpponentExecutor));
-    assert_eq!(service.list_opponents("counter")?.iter().map(|p| p.id.as_str()).collect::<Vec<_>>(), vec!["random"]);
+    let service = service.with_opponents(
+        Arc::new(BuiltinOpponentFactory),
+        Arc::new(ImmediateOpponentExecutor),
+    );
+    assert_eq!(
+        service
+            .list_opponents("counter")?
+            .iter()
+            .map(|p| p.id.as_str())
+            .collect::<Vec<_>>(),
+        vec!["random"]
+    );
     let initial = run(service.create_match(create("counter"), Viewer::Player(0)))?;
     for from in [
         json!({"match_id":initial.match_id,"seat":0}),
         json!({"state":[0,42,0]}),
         json!({"position":"[0,42,0]"}),
     ] {
-        let request = serde_json::from_value(json!({"game_id":"counter","from":from,"opponent":{"id":"random"},"seed":7}))?;
-        code(run(service.analyze(request, Viewer::Player(0))), "ASSIST_NOT_ALLOWED");
+        let request = serde_json::from_value(
+            json!({"game_id":"counter","from":from,"opponent":{"id":"random"},"seed":7}),
+        )?;
+        code(
+            run(service.analyze(request, Viewer::Player(0))),
+            "ASSIST_NOT_ALLOWED",
+        );
     }
-    run(service.resign(&initial.match_id, gfa_api_types::ControlRequest { seat:0, turn:0 }))?;
+    run(service.resign(
+        &initial.match_id,
+        gfa_api_types::ControlRequest { seat: 0, turn: 0 },
+    ))?;
     let mut request: gfa_api_types::AnalysisRequest = serde_json::from_value(json!({
         "game_id":"counter","from":{"state":[0,42,0]},"opponent":{"id":"minimax"},"seed":7
     }))?;
-    code(run(service.analyze(request.clone(), Viewer::Player(0))), "OPPONENT_UNAVAILABLE");
+    code(
+        run(service.analyze(request.clone(), Viewer::Player(0))),
+        "OPPONENT_UNAVAILABLE",
+    );
     request.opponent.id = "random".into();
     request.opponent.limits.nodes = Some(0);
-    code(run(service.analyze(request, Viewer::Player(0))), "INVALID_CONFIG");
+    code(
+        run(service.analyze(request, Viewer::Player(0))),
+        "INVALID_CONFIG",
+    );
     Ok(())
 }

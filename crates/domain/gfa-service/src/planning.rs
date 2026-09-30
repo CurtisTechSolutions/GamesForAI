@@ -6,7 +6,10 @@ use serde_json::{json, Value};
 use std::sync::Arc;
 
 #[derive(Clone, Copy)]
-pub(crate) enum AssistKind { Simulation, Analysis }
+pub(crate) enum AssistKind {
+    Simulation,
+    Analysis,
+}
 
 impl AssistKind {
     fn allowed(self, assists: &Assists) -> bool {
@@ -42,9 +45,7 @@ impl GameService {
                 turn,
             } => {
                 if viewer != Viewer::Player(*seat) {
-                    return Err(denied(
-                        "Planning must use the authorized match seat",
-                    ));
+                    return Err(denied("Planning must use the authorized match seat"));
                 }
                 if config != &json!({}) {
                     return Err(ApiError::new(
@@ -91,12 +92,15 @@ impl GameService {
                 planning.truncated = frame.truncated;
                 planning.outcome = frame.outcome.clone();
                 planning.draw_offer = frame.draw_offer;
-                (planning, game.normalize_config(&origin.config).map_err(error::engine)?, Some((match_id.clone(), *seat)))
+                (
+                    planning,
+                    game.normalize_config(&origin.config)
+                        .map_err(error::engine)?,
+                    Some((match_id.clone(), *seat)),
+                )
             }
             SimulationFrom::Position { position } => {
-                let config = game
-                    .normalize_config(config)
-                    .map_err(error::engine)?;
+                let config = game.normalize_config(config).map_err(error::engine)?;
                 game.initial_state(&config, seed).map_err(error::engine)?;
                 let state = crate::position::import(
                     game.as_ref(),
@@ -108,12 +112,14 @@ impl GameService {
                 )?;
                 self.guard_standalone_assist(game_id, &config, &state, viewer, kind)
                     .await?;
-                (crate::simulation::initial(game.as_ref(), state, 0)?, config, None)
+                (
+                    crate::simulation::initial(game.as_ref(), state, 0)?,
+                    config,
+                    None,
+                )
             }
             SimulationFrom::State { state } => {
-                let config = game
-                    .normalize_config(config)
-                    .map_err(error::engine)?;
+                let config = game.normalize_config(config).map_err(error::engine)?;
                 game.initial_state(&config, seed).map_err(error::engine)?;
                 let state = crate::position::import(
                     game.as_ref(),
@@ -125,10 +131,19 @@ impl GameService {
                 )?;
                 self.guard_standalone_assist(game_id, &config, &state, viewer, kind)
                     .await?;
-                (crate::simulation::initial(game.as_ref(), state, 0)?, config, None)
+                (
+                    crate::simulation::initial(game.as_ref(), state, 0)?,
+                    config,
+                    None,
+                )
             }
         };
-        Ok(PlanningPosition { game, config, frame, accounting })
+        Ok(PlanningPosition {
+            game,
+            config,
+            frame,
+            accounting,
+        })
     }
 
     // Local mode has one owner. Public hosting must scope this index to the
@@ -189,9 +204,12 @@ impl GameService {
         }
         Ok(())
     }
-
 }
 
 fn denied(message: &str) -> ApiError {
-    ApiError::new("ASSIST_NOT_ALLOWED", message, "Use a match whose recorded assists allow this operation.")
+    ApiError::new(
+        "ASSIST_NOT_ALLOWED",
+        message,
+        "Use a match whose recorded assists allow this operation.",
+    )
 }

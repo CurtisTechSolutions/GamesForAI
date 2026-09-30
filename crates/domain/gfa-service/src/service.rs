@@ -17,7 +17,10 @@ pub struct GameService {
     pub(crate) clock: Arc<dyn Clock>,
     pub(crate) ids: Arc<dyn MatchIds>,
     pub(crate) observer: Arc<dyn MatchObserver>,
-    pub(crate) opponents: Option<(Arc<dyn crate::OpponentFactory>, Arc<dyn crate::OpponentExecutor>)>,
+    pub(crate) opponents: Option<(
+        Arc<dyn crate::OpponentFactory>,
+        Arc<dyn crate::OpponentExecutor>,
+    )>,
 }
 
 struct NoopObserver;
@@ -428,14 +431,29 @@ impl GameService {
     ) -> Result<gfa_api_types::SimulationResult, ApiError> {
         crate::simulation::validate(&request)?;
         let seed = request.seed.unwrap_or_else(|| self.ids.next_seed());
-        let planning = self.planning_source(
-            game_id, &request.from, &request.config, seed, viewer,
-            crate::planning::AssistKind::Simulation,
-        ).await?;
-        let result = crate::simulation::run(planning.game.as_ref(), &planning.frame, seed, &request, viewer)?;
+        let planning = self
+            .planning_source(
+                game_id,
+                &request.from,
+                &request.config,
+                seed,
+                viewer,
+                crate::planning::AssistKind::Simulation,
+            )
+            .await?;
+        let result = crate::simulation::run(
+            planning.game.as_ref(),
+            &planning.frame,
+            seed,
+            &request,
+            viewer,
+        )?;
         if let Some((id, seat)) = planning.accounting {
             let moves = result.lines.iter().map(|line| line.moves_applied).sum();
-            self.store.record_simulation(&id, seat, moves).await.map_err(error::store)?;
+            self.store
+                .record_simulation(&id, seat, moves)
+                .await
+                .map_err(error::store)?;
         }
         Ok(result)
     }
@@ -570,4 +588,3 @@ fn validate_command(request: &MoveRequest, key: Option<&str>) -> Result<(), ApiE
     }
     Ok(())
 }
-

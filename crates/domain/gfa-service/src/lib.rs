@@ -24,6 +24,8 @@ mod simulation;
 
 mod fork;
 
-mod planning;
 mod opponents;
-pub use opponents::{BuiltinOpponentFactory, OpponentExecutor, OpponentFactory, OpponentFuture, OpponentJob};
+mod planning;
+pub use opponents::{
+    BuiltinOpponentFactory, OpponentExecutor, OpponentFactory, OpponentFuture, OpponentJob,
+};

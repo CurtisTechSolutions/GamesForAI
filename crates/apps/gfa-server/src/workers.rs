@@ -16,13 +16,25 @@ impl OpponentExecutor for Workers {
         let capacity = self.0.clone();
         Box::pin(async move {
             let permit = capacity.try_acquire_owned().map_err(|_| {
-                gfa_api_types::ApiError::new("ENGINE_BUSY", "All opponent workers are busy", "Retry after a running search finishes.")
+                gfa_api_types::ApiError::new(
+                    "ENGINE_BUSY",
+                    "All opponent workers are busy",
+                    "Retry after a running search finishes.",
+                )
             })?;
             tokio::task::spawn_blocking(move || {
                 // A dropped HTTP request must not release capacity while CPU work continues.
                 let _permit = permit;
                 job.run(&gfa_opponents::SystemClock::default())
-            }).await.map_err(|_| gfa_api_types::ApiError::new("ENGINE_UNAVAILABLE", "Opponent worker failed", "Retry or select another opponent."))?
+            })
+            .await
+            .map_err(|_| {
+                gfa_api_types::ApiError::new(
+                    "ENGINE_UNAVAILABLE",
+                    "Opponent worker failed",
+                    "Retry or select another opponent.",
+                )
+            })?
         })
     }
 }

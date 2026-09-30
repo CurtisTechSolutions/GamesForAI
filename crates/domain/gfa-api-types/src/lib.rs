@@ -281,4 +281,6 @@ mod fork;
 pub use fork::{ForkMatch, ForkSource, ReplayAncestor};
 
 mod opponents;
-pub use opponents::{AnalysisRequest, AnalysisResult, OpponentConfig, OpponentLevel, OpponentSpec, SearchBudget};
+pub use opponents::{
+    AnalysisRequest, AnalysisResult, OpponentConfig, OpponentLevel, OpponentSpec, SearchBudget,
+};

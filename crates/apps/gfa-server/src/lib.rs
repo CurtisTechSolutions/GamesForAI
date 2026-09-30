@@ -126,8 +126,12 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
     let host = Arc::new(Host);
     let updates = Arc::new(gfa_http::LiveUpdates::default());
     let service = Arc::new(
-        GameService::new(registry, store.port(), host.clone(), host).with_observer(updates.clone())
-            .with_opponents(Arc::new(gfa_service::BuiltinOpponentFactory), Arc::new(workers::Workers::new(4))),
+        GameService::new(registry, store.port(), host.clone(), host)
+            .with_observer(updates.clone())
+            .with_opponents(
+                Arc::new(gfa_service::BuiltinOpponentFactory),
+                Arc::new(workers::Workers::new(4)),
+            ),
     );
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
     Ok(Application {
