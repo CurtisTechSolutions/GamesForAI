@@ -1,0 +1,22 @@
+[package]
+name = "gfa-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gfa-games.workspace = true
+gfa-service.workspace = true
+gfa-http.workspace = true
+gfa-store.workspace = true
+axum.workspace = true
+tokio.workspace = true
+uuid.workspace = true
+
+[dev-dependencies]
+serde_json.workspace = true
+tempfile.workspace = true
+tower.workspace = true
+
+[lints]
+workspace = true
