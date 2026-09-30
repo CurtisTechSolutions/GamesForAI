@@ -32,7 +32,7 @@ The main design principle: **learn the API once, play any game.** An agent that 
 
 ### Goals
 - **G1 – Standardized interface:** every game implements the same trait and is reachable through the same endpoints and MCP tools, with no game-specific client code.
-- **G2 – LLM/MCP friendly:** self-describing games (rules text, JSON Schemas, examples), text and JSON observations, legal-action listings, and error messages that tell the agent how to recover.
+- **G2 – LLM/MCP friendly:** self-describing games through a per-game info route (rules, notation, schemas, generated examples), text and JSON observations, legal-action listings, and error messages that tell the agent how to recover.
 - **G3 – Training friendly:** deterministic seeded engines, fast headless stepping, vectorized batch environments, self-play, and Gymnasium/PettingZoo-compatible wrappers.
 - **G4 – Strong baselines:** pluggable opponents at configurable strength for every game.
 - **G5 – Full history:** every match is persisted, reproducible from its seed and actions, and exportable (JSONL/Parquet).
@@ -55,7 +55,7 @@ The main design principle: **learn the API once, play any game.** An agent that 
 | **Game contributor** | Add a new game without touching the server or frontend core | Rust `Game` trait + Phaser scene plugin |
 
 **Key user stories**
-- As an LLM agent, I can call `list_games`, then `get_rules("chess")`, then `create_match` against Stockfish at level 5, and play to completion using only `get_state` and `make_move`.
+- As an LLM agent, I can call `list_games`, then `get_game_info("chess")`, then `create_match` against Stockfish at level 5, and play to completion using only `get_state` and `make_move`.
 - As an RL researcher, I can `pip install gamesforai`, create 1,024 parallel Connect Four environments in-process and train with any Gymnasium-compatible library.
 - As an evaluator, I can run a 200-game round robin between three agent endpoints and two baselines, then view a leaderboard and download every game as JSONL.
 - As a human, I can open a live match between two agents, watch the moves animate, see each agent's optional stated reasoning, and later scrub the replay move by move.
@@ -157,7 +157,7 @@ A type-erased `DynGame` wrapper (JSON in, JSON out) lets the server, MCP layer a
   - `json`: structured state that follows the game's published observation schema (the frontend renders from this too).
   - `tensor` (optional, feature `tensor`): fixed-shape `f32` planes plus declared `shape`, for neural networks.
 - **FR-E5 Three action encodings:** structured JSON (schema-validated), canonical string notation (UCI for chess, column number for Connect Four, etc.), and a fixed discrete index plus a **legal-action mask**, for RL.
-- **FR-E6 Rules as data:** `GameSpec.rules_markdown` holds complete, concise rules, win conditions, notation explanation and 1–3 worked examples. This is the text LLM agents receive from `get_rules`.
+- **FR-E6 Rules as data:** `GameSpec.rules_markdown` holds complete, concise rules, win conditions, notation explanation and 1–3 worked examples. It is the `rules` section of the game info route (§8.4).
 - **FR-E7 Termination:** games declare a max length. Draw rules (threefold repetition, 50-move rule, etc.) are enforced by the engine. Truncation is distinct from termination in the step result.
 - **FR-E8 Performance:** engines are allocation-light. Targets are listed in §12.
 - **FR-E9 Conformance test kit:** `gfa-core::testing::conformance::<G>()` runs random playouts to check determinism, serialization round-trips, legal-action/apply consistency, index/string encoding bijections, observation schema validity and hidden-info non-leakage. Every game must pass it in CI.
@@ -218,6 +218,7 @@ A type-erased `DynGame` wrapper (JSON in, JSON out) lets the server, MCP layer a
 |---|---|
 | `GET /v1/games` | List games with short descriptions and properties |
 | `GET /v1/games/{game_id}` | Full `GameSpec`: rules markdown, config/action/observation JSON Schemas, notation, examples, opponents |
+| `GET /v1/games/{game_id}/info` | **Model briefing:** everything a model needs to play the game, in one response (§8.4) |
 | `POST /v1/matches` | Create a match: `{game_id, config, seed?, seats: [{type: "self"|"opponent"|"agent"|"human"|"open", ...}], time_control?, visibility}` → match plus seat tokens |
 | `GET /v1/matches/{id}` | Match metadata and status |
 | `GET /v1/matches/{id}/state?seat=` | Current observation for a seat (or spectator) |
@@ -236,7 +237,52 @@ A type-erased `DynGame` wrapper (JSON in, JSON out) lets the server, MCP layer a
 
 An OpenAPI 3.1 spec is generated from the Rust types (`utoipa`) and published at `/v1/openapi.json`, with interactive docs at `/docs`.
 
-### 8.4 Step result (identical for every game)
+### 8.4 Game info route (`GET /v1/games/{game_id}/info`)
+
+Every game has an info route that returns, in one response, **everything a model needs to play that game correctly without any other documentation**. It is the first call an agent makes after choosing a game. `GameSpec` (`GET /v1/games/{game_id}`) is the machine-oriented contract for tooling. The info route is the model-oriented briefing: it is built from the same `GameSpec` plus live server data (opponents, ratings, defaults), so the two can never disagree.
+
+**Query parameters**
+
+| Parameter | Values | Default | Effect |
+|---|---|---|---|
+| `format` | `json` · `markdown` | `json` | `markdown` returns one document ready to paste into a prompt. `json` returns the same content as structured fields. |
+| `detail` | `compact` · `full` | `full` | `compact` drops schemas and long examples (target < 1.5k tokens). `full` includes everything (target < 6k tokens for chess). |
+| `config` | JSON (URL-encoded) | game defaults | Tailors the response to a specific configuration, e.g. board size 9 for Go or a chess variant. |
+| `seat` | seat id | — | Adds seat-specific notes, e.g. "You play Black and move second". |
+
+**Response contents** (sections are the same for every game and always appear in this order; a section that doesn't apply says so explicitly instead of being omitted):
+
+| Section | Contents | Chess example |
+|---|---|---|
+| `identity` | `game_id`, name, one-paragraph summary, `engine_version`, `info_version` | `chess`, "Standard chess (FIDE rules)…" |
+| `players` | Player count, seat ids and names, who moves first, turn structure | 2 seats: `0` = White (moves first), `1` = Black. Sequential. |
+| `properties` | Perfect/imperfect information, stochastic or not, simultaneous moves, max game length, whether the game is solved | Perfect info, deterministic, max 1,000 plies |
+| `objective` | How to win, lose and draw, stated plainly | Checkmate wins. Draws: stalemate, threefold repetition, 50-move rule, insufficient material, agreement. |
+| `rules` | Complete, concise rules (`rules_markdown`) | Piece movement, castling, en passant, promotion |
+| `action_format` | Canonical string notation with grammar and examples, the JSON action schema, discrete index scheme and `action_space_size`, and a list of common mistakes | UCI `<from><to>[promo]`: `e2e4`, `e7e8q`, castling as `e1g1`. Mistake: SAN like `Nf3` is not accepted. |
+| `observation_format` | How to read the text board (orientation, coordinates, symbols legend), the JSON observation schema, and tensor shape and plane meanings | Uppercase = White, lowercase = Black, `.` = empty, rank 8 at top. `json.fen` holds FEN. |
+| `initial_state` | The starting observation in text and JSON, with its legal actions | Starting position and its 20 legal moves |
+| `example_turns` | A short annotated sequence showing the request and response for several moves, including one illegal move and its error | `make_move("e2e4")` → reply `e7e5`; `make_move("e2e5")` → `ILLEGAL_ACTION` with hint |
+| `rewards` | Reward range, when rewards are given, default terminal returns, available shaped-reward options | +1 win, 0 draw, −1 loss, only at the end |
+| `config_options` | Every config field with type, default, allowed values and effect | `variant: standard \| chess960`, `start_fen?` |
+| `time_controls` | Supported time controls, defaults and timeout policy | `none`, per-move, Fischer. Default: none. |
+| `opponents` | Available opponents, level ladder with calibrated ratings, whether analysis is allowed | `stockfish` 1–10 (≈1350–2850 Elo), `mcts`, `random` |
+| `illegal_move_policy` | What happens after an invalid move and the configurable options | `reject` (default): state unchanged, retry allowed |
+| `how_to_play` | The exact API loop for this game with REST paths and MCP tool names | `create_match` → loop `make_move` until `terminated` |
+| `strategy_notes` | Optional short, neutral tips on basic principles (off in `detail=compact`; can be disabled per match for evaluations) | Control the centre, develop pieces, king safety |
+| `limits` | Rate limits, max tokens of an observation, max match length | — |
+
+**Requirements**
+- **FR-I1** Every registered game must serve a complete info response. The conformance kit (FR-E9) fails a game with any empty required section.
+- **FR-I2** Examples in `action_format`, `initial_state` and `example_turns` are **generated by running the engine**, not hand-written, so they are always correct for the current `engine_version`.
+- **FR-I3** The markdown and JSON formats are rendered from the same data and contain the same information.
+- **FR-I4** Responses are deterministic for a given `(game_id, engine_version, config, detail)`. They carry an `ETag` and `info_version` so agents and prompt caches can reuse them.
+- **FR-I5** The info route needs no authentication, so an agent can read it before registering.
+- **FR-I6** A token estimate (`approx_tokens`) is included so clients can choose between `compact` and `full`.
+- **FR-I7** Hidden-information games document what each seat can and cannot see, and never reveal anything about a specific match.
+- **FR-I8** An eval check confirms the info is enough: a baseline LLM given only the `compact` info response must finish 20 games against a random opponent with an illegal-move rate under 2%. This runs in CI for each game (M2 onward).
+
+### 8.5 Step result (identical for every game)
 
 ```json
 {
@@ -261,7 +307,7 @@ An OpenAPI 3.1 spec is generated from the Rust types (`utoipa`) and published at
 
 When finished: `terminated: true` and `outcome: {"winner": 0, "reason": "checkmate", "returns": [1, -1]}`.
 
-### 8.5 Error model
+### 8.6 Error model
 
 ```json
 {
@@ -276,7 +322,7 @@ When finished: `terminated: true` and `outcome: {"winner": 0, "reason": "checkma
 
 Stable codes: `UNKNOWN_GAME`, `INVALID_CONFIG`, `MATCH_NOT_FOUND`, `NOT_YOUR_TURN`, `STALE_TURN`, `ILLEGAL_ACTION`, `UNPARSEABLE_ACTION`, `MATCH_FINISHED`, `TIMEOUT`, `UNAUTHORIZED`, `RATE_LIMITED`, `ENGINE_UNAVAILABLE`. Invalid moves never change match state and are logged separately (useful for measuring LLM illegal-move rates). Each match has a configurable illegal-move policy: `reject` (default), `forfeit_after_n` or `random_legal_after_n`.
 
-### 8.6 MCP server (`gfa-mcp`)
+### 8.7 MCP server (`gfa-mcp`)
 
 Built with the official Rust MCP SDK (`rmcp`). It supports **stdio** (local, one command to launch) and **streamable HTTP** (hosted at `/mcp` on the same server).
 
@@ -285,7 +331,7 @@ Built with the official Rust MCP SDK (`rmcp`). It supports **stdio** (local, one
 | Tool | Parameters | Returns |
 |---|---|---|
 | `list_games` | — | ids, names, one-line descriptions, player counts |
-| `get_rules` | `game_id` | Rules markdown, notation guide, examples |
+| `get_game_info` | `game_id`, `detail?` (`compact`/`full`), `config?` | The game's info briefing (§8.4) as markdown text, with the JSON in `structuredContent` |
 | `list_opponents` | `game_id` | Opponents and levels |
 | `create_match` | `game_id`, `opponent` (e.g. `"stockfish"`), `level?`, `play_as?`, `seed?`, `config?` | `match_id`, your seat, first observation (opponent may already have moved) |
 | `get_state` | `match_id` | Text board, status, legal actions, turn |
@@ -296,8 +342,8 @@ Built with the official Rust MCP SDK (`rmcp`). It supports **stdio** (local, one
 | `get_replay` | `match_id` | Move list with annotations |
 | `analyze_position` | `match_id`, `turn?` | Engine evaluation (can be disabled per match to prevent cheating in evals) |
 
-**Resources:** `gfa://games/{game_id}/rules`, `gfa://matches/{match_id}/state`, `gfa://matches/{match_id}/replay` (with subscriptions for live state).
-**Prompts:** `play_game(game_id)` gives a ready-made system prompt that explains the game loop.
+**Resources:** `gfa://games/{game_id}/info`, `gfa://matches/{match_id}/state`, `gfa://matches/{match_id}/replay` (with subscriptions for live state).
+**Prompts:** `play_game(game_id)` gives a ready-made system prompt that embeds the game's `compact` info and explains the game loop.
 
 **LLM-friendliness requirements**
 - **FR-M1** Tool descriptions state when to use the tool and include one example call.
@@ -307,7 +353,7 @@ Built with the official Rust MCP SDK (`rmcp`). It supports **stdio** (local, one
 - **FR-M5** Optional `reasoning` is stored with the move and shown in the replay viewer.
 - **FR-M6** Tool results stay compact (target < 1.5k tokens for a chess state). Verbose fields are opt-in.
 
-### 8.7 Training interfaces
+### 8.8 Training interfaces
 
 - **FR-T1 Rust crate:** use `gfa-games` directly as a library with zero network overhead, e.g. `Env::<Connect4>::new(seed)`.
 - **FR-T2 Python SDK (`gamesforai`, PyO3 + maturin wheels):**
@@ -361,7 +407,7 @@ interface GameScenePlugin {
 Games without a custom scene fall back to a **generic text renderer** that shows `observation.text` with a legal-move picker, so a new game is playable in the UI the day its engine is added.
 
 **Pages**
-- **FR-F1 Game library:** catalog cards, rules viewer and opponent list per game.
+- **FR-F1 Game library:** catalog cards and a per-game info page rendered from the info route (rules, notation, opponents), with a "copy as prompt" button for the markdown version.
 - **FR-F2 Play:** human vs built-in opponent, human vs agent, or hot-seat. Legal-move highlighting, clocks, resign/draw, and optional engine hints (off by default).
 - **FR-F3 Live spectate:** list of active public matches. Live board over WebSocket with the move list, clocks, agent reasoning stream and engine eval bar (if enabled). Multiple matches can be shown in a grid ("arena view") to watch a tournament.
 - **FR-F4 Replay viewer:** timeline scrubber, step forward/back, autoplay speed, per-move reasoning and engine annotations (blunder/mistake/inaccuracy), eval graph, perspective toggle (player view vs omniscient for imperfect-information games), and shareable links to a specific move.
@@ -407,7 +453,7 @@ Games without a custom scene fall back to a **generic text renderer** that shows
 | Milestone | Scope | Exit criteria |
 |---|---|---|
 | **M0 – Foundations** | Cargo workspace, `gfa-core` trait + `DynGame`, conformance kit, CI (fmt, clippy, test), Tic-Tac-Toe | Tic-Tac-Toe passes conformance; benchmarks in CI |
-| **M1 – Playable API** | `gfa-server` REST + WS, SQLite/Postgres store, event log, Connect Four, built-in minimax/MCTS/random opponents, OpenAPI | Full match lifecycle via curl; replays rebuild exactly |
+| **M1 – Playable API** | `gfa-server` REST + WS, game info route, SQLite/Postgres store, event log, Connect Four, built-in minimax/MCTS/random opponents, OpenAPI | Full match lifecycle via curl; replays rebuild exactly |
 | **M2 – MCP + Chess** | `gfa-mcp` (stdio + HTTP), chess engine (shakmaty), UCI adapter + Stockfish, difficulty ladder | Claude completes chess games vs Stockfish levels 1–10 via MCP; illegal moves are recoverable |
 | **M3 – Frontend** | React+Phaser shell, library, play, live spectate, replay viewer, generic text renderer, chess/C4/TTT scenes | Human can play and replay all MVP games; live AI-vs-AI viewable |
 | **M4 – Training** | PyO3 SDK, Gymnasium/PettingZoo wrappers, VectorEnv, batch REST, exports, ratings, tournaments CLI | Throughput targets met; PPO example trains Connect Four agent that beats level 3 |
