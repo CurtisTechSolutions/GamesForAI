@@ -69,6 +69,7 @@ impl SandboxConfig {
         ]);
         command.arg(bubblewrap).args([
             "--unshare-all",
+            "--unshare-user",
             "--disable-userns",
             "--die-with-parent",
             "--new-session",

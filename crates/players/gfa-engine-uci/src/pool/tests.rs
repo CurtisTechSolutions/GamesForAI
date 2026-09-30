@@ -230,12 +230,16 @@ fn invalid_host_policy_and_missing_sandbox_fail_closed() -> Result<(), Box<dyn s
     Ok(())
 }
 
-
 #[test]
 #[ignore = "requires Linux isolation tools and Stockfish"]
 fn diagnose_sandbox() -> Result<(), Box<dyn std::error::Error>> {
-    let output = SandboxConfig::linux("/usr/games/stockfish").command()?.output()?;
-    eprintln!("Sandbox startup: {}", String::from_utf8_lossy(&output.stderr));
+    let output = SandboxConfig::linux("/usr/games/stockfish")
+        .command()?
+        .output()?;
+    eprintln!(
+        "Sandbox startup: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
     assert!(output.status.success(), "sandbox exited: {}", output.status);
     Ok(())
 }
