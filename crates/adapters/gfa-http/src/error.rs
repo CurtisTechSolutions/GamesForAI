@@ -4,8 +4,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use gfa_api_types::ApiError;
-use serde_json::json;
+use gfa_api_types::{ApiError, ErrorResponse};
 
 pub(crate) struct HttpError {
     pub status: StatusCode,
@@ -54,6 +53,6 @@ impl From<JsonRejection> for HttpError {
 
 impl IntoResponse for HttpError {
     fn into_response(self) -> Response {
-        (self.status, Json(json!({ "error": self.error }))).into_response()
+        (self.status, Json(ErrorResponse { error: self.error })).into_response()
     }
 }

@@ -15,6 +15,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Resolve OpenAPI dependencies
+        run: |
+          cargo update --workspace
+          python3 -c 'import json,pathlib; print("GFA_LOCK_JSON:"+json.dumps({"path":"Cargo.lock","content":pathlib.Path("Cargo.lock").read_text()}))'
       - name: Prepare SQLite schema for query checking
         run: python3 .github/scripts/sqlite-query-check.py prepare
         env:
@@ -29,6 +33,12 @@ jobs:
           GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
       - run: cargo build -p gfa-cli --locked
       - run: python3 .github/scripts/local-server-smoke.py
+      - name: Export generated OpenAPI
+        run: cargo run -p gfa-http --example export-openapi --locked > target/openapi.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: target/openapi.json
       - run: cargo xtask check-deps
       - run: cargo check -p gfa-games --no-default-features --locked
   lint:

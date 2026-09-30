@@ -135,3 +135,11 @@ are valid for analysis but cannot start a match. Imported states receive a new
 seed for future randomness; supply one to reproduce a validation, or reuse the
 returned seed. This endpoint accepts caller-supplied positions and never loads
 private state from an existing match.
+
+ 
+## API contract
+
+`GET /v1/openapi.json` serves OpenAPI 3.1 generated from the Rust request and
+response types. It lists installed routes, query/header parameters, JSON and
+Markdown briefing formats, and error envelopes. Routers without live updates
+omit the WebSocket path. Export instructions are in `schemas/README.md`.

@@ -10,10 +10,9 @@ use axum::{
     response::Response,
     Extension,
 };
-use gfa_api_types::MatchState;
+use gfa_api_types::{MatchState, StreamMessage};
 use gfa_core::Viewer;
 use gfa_service::{GameService, MatchObserver};
-use serde_json::json;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::{broadcast, watch, OwnedSemaphorePermit, Semaphore};
 
@@ -67,6 +66,12 @@ struct Subscription {
     _permit: OwnedSemaphorePermit,
 }
 
+#[utoipa::path(
+    get, path = "/v1/matches/{id}/stream", tag = "Streaming",
+    
+    params(("id" = String, Path, description = "Match identifier"),("seat" = Option<u8>, Query, description = "Zero-based seat; omit for spectator view. Creation and position validation default to seat 0.", minimum = 0, maximum = 255)),
+    responses((status = 101, description = "WebSocket state frames: current state then each committed turn; terminal frame before close. Submit moves through REST. Reconnect begins at the current state."), (status = 429, description = "At most 64 streams", body = gfa_api_types::ErrorResponse), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
+)]
 pub(crate) async fn upgrade(
     State(service): State<Arc<GameService>>,
     Extension(updates): Extension<Arc<LiveUpdates>>,
@@ -127,7 +132,7 @@ async fn send(socket: &mut WebSocket, message: Message) -> bool {
 }
 
 async fn send_state(socket: &mut WebSocket, state: &MatchState) -> bool {
-    match serde_json::to_string(&json!({ "type": "state", "state": state })) {
+    match serde_json::to_string(&StreamMessage::State { state: state.clone() }) {
         Ok(text) if text.len() <= 1024 * 1024 => send(socket, Message::Text(text.into())).await,
         _ => false,
     }
@@ -196,7 +201,7 @@ impl Subscription {
                     }
                 }
                 Err(error) => {
-                    let message = json!({ "type": "error", "error": error }).to_string();
+                    let Ok(message) = serde_json::to_string(&StreamMessage::Error { error }) else { break; };
                     let _ = send(&mut socket, Message::Text(message.into())).await;
                     break;
                 }
