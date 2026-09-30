@@ -137,9 +137,20 @@ mod tests {
         assert!(request.seed.is_none());
         assert!(request.start.is_none());
         assert!(serde_json::from_value::<Start>(json!({"position":"x","state":{}})).is_err());
-        assert!(serde_json::from_value::<CreateMatch>(json!({"game_id":"tictactoe","typo":true})).is_err());
-        let custom = CreateMatch { start: Some(Start::State { state: json!([1,2,3]) }), ..request };
-        assert_eq!(serde_json::from_value::<CreateMatch>(serde_json::to_value(&custom)?)?, custom);
+        assert!(
+            serde_json::from_value::<CreateMatch>(json!({"game_id":"tictactoe","typo":true}))
+                .is_err()
+        );
+        let custom = CreateMatch {
+            start: Some(Start::State {
+                state: json!([1, 2, 3]),
+            }),
+            ..request
+        };
+        assert_eq!(
+            serde_json::from_value::<CreateMatch>(serde_json::to_value(&custom)?)?,
+            custom
+        );
         Ok(())
     }
 
