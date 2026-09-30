@@ -19,7 +19,7 @@ jobs:
         run: python3 .github/scripts/sqlite-query-check.py prepare
         env:
           GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
-      - run: cargo test --workspace --all-features --locked
+      - run: cargo check -p gfa-store --no-default-features --features sqlite --locked
         env:
           DATABASE_URL: sqlite:${{ runner.temp }}/gfa-sqlx/schema.sqlite
           SQLX_OFFLINE_DIR: ${{ runner.temp }}/gfa-sqlx/queries
@@ -27,6 +27,9 @@ jobs:
         run: python3 .github/scripts/sqlite-query-check.py verify
         env:
           GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
+      - run: cargo test --workspace --all-features --locked
+        env:
+          SQLX_OFFLINE: "true"
       - run: cargo build -p gfa-cli --locked
       - run: python3 .github/scripts/local-server-smoke.py
       - name: Export generated OpenAPI
