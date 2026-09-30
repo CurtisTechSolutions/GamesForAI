@@ -93,7 +93,8 @@ impl<'a> Deadline<'a> {
         if now.saturating_sub(self.clock_start) >= self.budget_ms {
             return Err(UciError::Timeout);
         }
-        self.end.checked_duration_since(Instant::now())
+        self.end
+            .checked_duration_since(Instant::now())
             .filter(|remaining| !remaining.is_zero())
             .ok_or(UciError::Timeout)
     }
@@ -102,7 +103,9 @@ impl<'a> Deadline<'a> {
     }
     fn startup(&self, milliseconds: u64) -> Self {
         Self {
-            end: self.end.min(Instant::now() + Duration::from_millis(milliseconds)),
+            end: self
+                .end
+                .min(Instant::now() + Duration::from_millis(milliseconds)),
             started: self.started,
             clock: self.clock,
             clock_start: self.clock_start,
@@ -164,8 +167,13 @@ impl EnginePool {
                     worker.handshake(&deadline.startup(self.config.startup_ms))?;
                     *lease = Some(worker);
                 }
-                lease.as_mut().ok_or(UciError::Unavailable)?
-                    .search(&position_text, position.chess960, settings, limits, &deadline)
+                lease.as_mut().ok_or(UciError::Unavailable)?.search(
+                    &position_text,
+                    position.chess960,
+                    settings,
+                    limits,
+                    &deadline,
+                )
             })();
             if outcome.is_err() {
                 // Dropping a worker kills and reaps its process before another request gets the slot.
@@ -184,7 +192,11 @@ struct Worker {
 }
 impl Worker {
     fn spawn(command: Command) -> Result<Self, UciError> {
-        Ok(Self { io: process::Process::spawn(command)?, name: String::new(), options: vec![] })
+        Ok(Self {
+            io: process::Process::spawn(command)?,
+            name: String::new(),
+            options: vec![],
+        })
     }
     fn handshake(&mut self, deadline: &Deadline<'_>) -> Result<(), UciError> {
         self.io.send("uci", deadline)?;
@@ -208,7 +220,11 @@ impl Worker {
         }
         self.ready(deadline, &mut budget)
     }
-    fn line(&mut self, deadline: &Deadline<'_>, budget: &mut OutputBudget) -> Result<EngineLine, UciError> {
+    fn line(
+        &mut self,
+        deadline: &Deadline<'_>,
+        budget: &mut OutputBudget,
+    ) -> Result<EngineLine, UciError> {
         let line = self.io.receive(deadline)?;
         budget.lines += 1;
         budget.bytes += line.len();
@@ -217,7 +233,11 @@ impl Worker {
         }
         parse_line(&line).map_err(|_| UciError::Protocol)
     }
-    fn ready(&mut self, deadline: &Deadline<'_>, budget: &mut OutputBudget) -> Result<(), UciError> {
+    fn ready(
+        &mut self,
+        deadline: &Deadline<'_>,
+        budget: &mut OutputBudget,
+    ) -> Result<(), UciError> {
         self.io.send("isready", deadline)?;
         loop {
             match self.line(deadline, budget)? {
@@ -236,27 +256,45 @@ impl Worker {
         deadline: &Deadline<'_>,
     ) -> Result<SearchResult, UciError> {
         let mut budget = OutputBudget::default();
-        for command in settings.commands(&self.options, chess960).map_err(|_| UciError::InvalidInput)? {
+        for command in settings
+            .commands(&self.options, chess960)
+            .map_err(|_| UciError::InvalidInput)?
+        {
             self.io.send(&command, deadline)?;
         }
         // Reset transposition state between independent decisions, while reusing the OS process.
         self.io.send("ucinewgame", deadline)?;
         self.ready(deadline, &mut budget)?;
         self.io.send(position, deadline)?;
-        limits.time_ms = u64::try_from(deadline.check()?.as_millis()).unwrap_or(60_000)
-            .saturating_sub(10).max(1).min(limits.time_ms);
-        self.io.send(&go_command(limits).map_err(|_| UciError::InvalidInput)?, deadline)?;
+        limits.time_ms = u64::try_from(deadline.check()?.as_millis())
+            .unwrap_or(60_000)
+            .saturating_sub(10)
+            .max(1)
+            .min(limits.time_ms);
+        self.io.send(
+            &go_command(limits).map_err(|_| UciError::InvalidInput)?,
+            deadline,
+        )?;
         let mut variations = BTreeMap::new();
         let mut nodes = 0;
         loop {
             match self.line(deadline, &mut budget)? {
                 EngineLine::Info(info) => {
-                    if let Some(count) = info.nodes { nodes = nodes.max(count); }
+                    if let Some(count) = info.nodes {
+                        nodes = nodes.max(count);
+                    }
                     let rank = info.multipv.unwrap_or(1);
-                    if rank > settings.multipv { return Err(UciError::Protocol); }
-                    if !info.pv.is_empty() { variations.insert(rank, info); }
+                    if rank > settings.multipv {
+                        return Err(UciError::Protocol);
+                    }
+                    if !info.pv.is_empty() {
+                        variations.insert(rank, info);
+                    }
                 }
-                EngineLine::BestMove { action: Some(best_move), ponder } => {
+                EngineLine::BestMove {
+                    action: Some(best_move),
+                    ponder,
+                } => {
                     // Reject an already expired response even if it was buffered before the deadline.
                     deadline.check()?;
                     return Ok(SearchResult {
@@ -265,7 +303,8 @@ impl Worker {
                         ponder,
                         variations: variations.into_values().collect(),
                         nodes,
-                        elapsed_ms: u64::try_from(deadline.started.elapsed().as_millis()).unwrap_or(u64::MAX),
+                        elapsed_ms: u64::try_from(deadline.started.elapsed().as_millis())
+                            .unwrap_or(u64::MAX),
                     });
                 }
                 EngineLine::Ignored => {}
@@ -275,7 +314,10 @@ impl Worker {
     }
 }
 #[derive(Default)]
-struct OutputBudget { lines: usize, bytes: usize }
+struct OutputBudget {
+    lines: usize,
+    bytes: usize,
+}
 
 #[cfg(all(test, unix))]
 mod tests;

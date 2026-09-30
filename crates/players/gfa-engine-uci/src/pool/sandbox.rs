@@ -1,5 +1,8 @@
 use super::UciError;
-use std::{path::{Path, PathBuf}, process::Command};
+use std::{
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 /// Trusted host policy; none of these paths or limits are accepted from a game action.
 #[derive(Clone, Debug)]
@@ -27,13 +30,20 @@ impl SandboxConfig {
             engine: engine.into(),
             bubblewrap: "/usr/bin/bwrap".into(),
             prlimit: "/usr/bin/prlimit".into(),
-            workers: 2, memory_mb: 2048, cpu_seconds: 120, startup_ms: 3000,
+            workers: 2,
+            memory_mb: 2048,
+            cpu_seconds: 120,
+            startup_ms: 3000,
         }
     }
     pub(super) fn validate(&self) -> Result<(), UciError> {
-        if !self.engine.is_absolute() || !self.bubblewrap.is_absolute() || !self.prlimit.is_absolute()
-            || !(1..=4).contains(&self.workers) || !(128..=4096).contains(&self.memory_mb)
-            || !(10..=600).contains(&self.cpu_seconds) || !(1..=5000).contains(&self.startup_ms)
+        if !self.engine.is_absolute()
+            || !self.bubblewrap.is_absolute()
+            || !self.prlimit.is_absolute()
+            || !(1..=4).contains(&self.workers)
+            || !(128..=4096).contains(&self.memory_mb)
+            || !(10..=600).contains(&self.cpu_seconds)
+            || !(1..=5000).contains(&self.startup_ms)
         {
             return Err(UciError::InvalidInput);
         }
@@ -41,7 +51,9 @@ impl SandboxConfig {
     }
     pub(super) fn command(&self) -> Result<Command, UciError> {
         self.validate()?;
-        if !cfg!(target_os = "linux") { return Err(UciError::Unavailable); }
+        if !cfg!(target_os = "linux") {
+            return Err(UciError::Unavailable);
+        }
         let engine = canonical_file(&self.engine)?;
         let bubblewrap = canonical_file(&self.bubblewrap)?;
         let prlimit = canonical_file(&self.prlimit)?;
@@ -50,28 +62,51 @@ impl SandboxConfig {
         command.args([
             format!("--as={}", u64::from(self.memory_mb) * 1024 * 1024),
             format!("--cpu={}", self.cpu_seconds),
-            "--nofile=64".into(), "--core=0".into(), "--fsize=0".into(), "--".into(),
+            "--nofile=64".into(),
+            "--core=0".into(),
+            "--fsize=0".into(),
+            "--".into(),
         ]);
         command.arg(bubblewrap).args([
-            "--unshare-all", "--disable-userns", "--die-with-parent", "--new-session",
-            "--cap-drop", "ALL", "--clearenv",
+            "--unshare-all",
+            "--disable-userns",
+            "--die-with-parent",
+            "--new-session",
+            "--cap-drop",
+            "ALL",
+            "--clearenv",
         ]);
         // Mount only system runtime files. Never mount home, the match store, host sockets or /etc.
         // Stockfish packages embed NNUE data; engines needing other files require an explicit future policy.
         for path in ["/usr", "/bin", "/lib", "/lib64"] {
-            if Path::new(path).exists() { command.args(["--ro-bind", path, path]); }
+            if Path::new(path).exists() {
+                command.args(["--ro-bind", path, path]);
+            }
         }
         command.arg("--ro-bind").arg(engine).arg("/engine");
         command.args([
-            "--proc", "/proc", "--dev", "/dev", "--chdir", "/",
-            "--remount-ro", "/proc", "--remount-ro", "/dev", "--remount-ro", "/",
-            "--", "/engine",
+            "--proc",
+            "/proc",
+            "--dev",
+            "/dev",
+            "--chdir",
+            "/",
+            "--remount-ro",
+            "/proc",
+            "--remount-ro",
+            "/dev",
+            "--remount-ro",
+            "/",
+            "--",
+            "/engine",
         ]);
         Ok(command)
     }
 }
 fn canonical_file(path: &Path) -> Result<PathBuf, UciError> {
     let path = path.canonicalize().map_err(|_| UciError::Unavailable)?;
-    if !path.is_file() { return Err(UciError::Unavailable); }
+    if !path.is_file() {
+        return Err(UciError::Unavailable);
+    }
     Ok(path)
 }

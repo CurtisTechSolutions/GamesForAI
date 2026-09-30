@@ -17,5 +17,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y stockfish bubblewrap
       - name: Build real engine integration test
         run: cargo test -p gfa-engine-uci --test stockfish --no-run --locked
+      - name: Check sandbox startup
+        run: cargo test -p gfa-engine-uci --lib diagnose_sandbox --locked -- --ignored --nocapture
       - name: Search inside the production sandbox
         run: cargo test -p gfa-engine-uci --test stockfish --locked -- --ignored --nocapture

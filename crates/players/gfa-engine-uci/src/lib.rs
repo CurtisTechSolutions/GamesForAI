@@ -1,9 +1,9 @@
-//! Bounded UCI command and response types. Process isolation is supplied by the host.
-mod protocol;
+//! Bounded UCI protocol and reusable Linux sandboxed engine workers.
 mod pool;
-pub use pool::{EnginePool, SandboxConfig, SearchResult, UciError};
+mod protocol;
 use gfa_core::serde_json::Value;
 use gfa_core::{DynGame, ErrorCode, GameError, PlayerTurn, SearchLimits, UciPosition, Viewer};
+pub use pool::{EnginePool, SandboxConfig, SearchResult, UciError};
 pub use protocol::{parse_line, Bound, EngineLine, EngineOption, Info, OptionKind, Score};
 
 /// Maximum bytes accepted in an engine output line or command.

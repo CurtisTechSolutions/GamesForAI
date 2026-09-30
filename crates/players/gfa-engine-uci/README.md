@@ -12,10 +12,6 @@ allowlisted numeric/boolean options; no arbitrary commands, paths or file option
 are accepted. Pooled-engine strength options are reset between requests.
 
 Protocol reference: [Stockfish UCI documentation](https://official-stockfish.github.io/docs/stockfish-wiki/UCI-Protocol-and-Stockfish-Commands.html).
-Process pooling, hard limits and sandboxing are a separate implementation unit;
-this crate currently performs no I/O and does not launch a binary.
-
-
 The process pool has 1–4 lazy workers. Each request includes startup in its wall
 budget, polls host cancellation at least every 10 ms, and rejects work when all
 slots are busy. A failure kills and reaps the worker; the next request starts a
