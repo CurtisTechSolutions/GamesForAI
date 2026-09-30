@@ -177,6 +177,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "gfa-api-types"
+version = "0.1.0"
+dependencies = [
+ "gfa-core",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "gfa-core"
 version = "0.1.0"
 dependencies = [
@@ -209,6 +220,17 @@ dependencies = [
  "gfa-core",
  "gfa-game-connect4",
  "gfa-game-tictactoe",
+]
+
+[[package]]
+name = "gfa-service"
+version = "0.1.0"
+dependencies = [
+ "gfa-api-types",
+ "gfa-core",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
