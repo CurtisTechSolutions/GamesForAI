@@ -94,7 +94,7 @@ impl Game for Sudoku {
     fn spec() -> GameSpec {
         GameSpec {
             id: "sudoku".into(), name: "Sudoku".into(),
-            summary: "Fill a unique-solution puzzle using row, column and box constraints.".into(),
+            summary: "A one-seat constraint puzzle with one verified solution.".into(),
             engine_version: env!("CARGO_PKG_VERSION").into(), info_version: "1.0.0".into(),
             num_players: [1, 1], seat_names: vec!["Solver".into()],
             turn_structure: TurnStructure::Sequential, information: Information::Perfect,
@@ -111,8 +111,8 @@ impl Game for Sudoku {
             objective: "Complete every row, column and box with digits 1..size. Givens are fixed. Only seat 0 acts; no opponent.".into(),
             observation: "JSON grid is row-major, 0 empty. givens marks fixed cells; notes are digit bit masks; conflicts lists cell indices. attempts counts public placements, not correctness. Text has coordinates and box separators.".into(),
             tensor: "Shape [size+1,size,size]: digit one-hot planes plus givens; 0/1 values.".into(),
-            rewards: "Solved +1, otherwise 0. Placements/erasures consume max_moves; notes are free. Silent mistakes stay hidden until full or ended.".into(),
-            config: "size=4/6/9; default 9. puzzle optional. mistake_policy=silent/rule_check/solution_check:n; allow_notes=true; max_moves=200 by default. Generation: 4x4 easy; 6x6 easy/medium/expert; 9x9 all grades. Imports get their actual grade.".into(),
+            rewards: "Solve: +1; fail or truncate: 0. Notes cost no moves.".into(),
+            config: "Generation: 4x4 easy; 6x6 easy/medium/expert; 9x9 all grades. Imports get their actual grade. Active options and defaults are listed below.".into(),
             solved: "Exactly one solution. Difficulty is the hardest required technique, verified by the solver.".into(),
             common_mistakes: vec!["Givens are fixed. Coordinates start at 1.".into(), "+7 adds a note; =7 places 7; =0 erases.".into(), "Silent placements may conflict; full does not mean solved.".into()],
             strategy_notes: vec!["Find cells with one candidate, then digits with one possible cell in a row, column or box.".into(), "Use candidate notes to track pairs and locked candidates.".into()],

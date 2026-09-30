@@ -171,3 +171,21 @@ Controls use the same expected-turn and atomic event-append checks as moves. The
 Each line begins with a separate copy and the caller's RNG seed. Match sources reconstruct a planning state exclusively from the authorized seat's observation; unsupported reconstruction fails without exposing full match state. `return: "final"` returns the final legal prefix (including an empty line's starting state); `"all"` returns every accepted transition. A line stops at its first invalid action while other lines continue.
 
 Set `assists: {"allow_simulation": false}` at creation to disable simulation. The policy also blocks equivalent standalone positions from active local matches, using a hash of normalized config and the viewer's observation. Local mode treats all matches as belonging to one owner. Matching finished positions can be explored independently. Game events, clocks, and command receipts remain unchanged; completed match-source requests update separate per-seat usage counters, visible in match metadata and history.
+
+### Fork a variation
+
+POST `/v1/matches/{id}/fork?seat=0` with `{"turn":3,"seed":42}` starts a
+new match at the parent's local turn. The new match's turns start at zero.
+`keep_rng:true` preserves the original future randomness and excludes `seed`.
+Hidden-information forks require full-state permission to preserve RNG; otherwise
+they resample hidden state from the authorized observation.
+
+The event log starts with a parent reference followed by immutable creation inputs.
+Metadata exposes `forked_from`. Replays include root-first `ancestors` through
+each fork point, projected as a spectator, followed by the child's `states`.
+Later parent moves do not extend that history. Depth is bounded to 32 ancestors.
+
+The loopback router treats its caller as the single local owner. Service hosts
+must supply ownership and full-state permissions independently of request JSON.
+Only an owner may fork an active match, and active benchmark matches cannot be
+forked. Finished matches may be forked from an earlier playable turn.

@@ -137,4 +137,7 @@ mod opponent_tests;
 mod simulation_tests;
 
 #[cfg(test)]
+mod fork_tests;
+
+#[cfg(test)]
 mod sudoku_tests;

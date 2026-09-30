@@ -12,11 +12,11 @@ use std::sync::Arc;
 /// This in-process API trusts its host to authorize the selected seat and viewer.
 /// Adapters must enforce that policy before accepting requests from the network.
 pub struct GameService {
-    registry: GameRegistry,
-    store: Arc<dyn MatchStore>,
-    clock: Arc<dyn Clock>,
-    ids: Arc<dyn MatchIds>,
-    observer: Arc<dyn MatchObserver>,
+    pub(crate) registry: GameRegistry,
+    pub(crate) store: Arc<dyn MatchStore>,
+    pub(crate) clock: Arc<dyn Clock>,
+    pub(crate) ids: Arc<dyn MatchIds>,
+    pub(crate) observer: Arc<dyn MatchObserver>,
 }
 
 struct NoopObserver;
@@ -143,6 +143,8 @@ impl GameService {
             seed: request.seed.unwrap_or_else(|| self.ids.next_seed()),
             start: request.start,
             created_at_ms: self.clock.now_ms(),
+            preserve_start_rng: false,
+            benchmark_run: None,
             assists: request.assists,
         };
         let frame = replay::initial(game.as_ref(), &origin)?;
@@ -191,7 +193,7 @@ impl GameService {
     ) -> Result<gfa_api_types::Briefing, ApiError> {
         let record = self.record(id).await?;
         let replay = replay::reconstruct(&self.registry, &record)?;
-        let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+        let Some(origin) = record.origin() else {
             return Err(error::corrupt());
         };
         crate::briefing::MatchBrief {
@@ -209,7 +211,7 @@ impl GameService {
     pub async fn get_match(&self, id: &str) -> Result<gfa_api_types::MatchMetadata, ApiError> {
         let record = self.record(id).await?;
         let reconstructed = replay::reconstruct(&self.registry, &record)?;
-        let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+        let Some(origin) = record.origin() else {
             return Err(error::corrupt());
         };
         let state =
@@ -218,6 +220,7 @@ impl GameService {
                 .project(id, reconstructed.game.as_ref(), Viewer::Spectator)?;
         Ok(gfa_api_types::MatchMetadata {
             match_id: id.into(),
+            forked_from: record.fork_source().cloned(),
             game_id: origin.game_id.clone(),
             engine_version: origin.engine_version.clone(),
             status: if state.terminated || state.truncated {
@@ -307,6 +310,7 @@ impl GameService {
             match_id: id.into(),
             engine_version: replay.game.spec().engine_version,
             states,
+            ancestors: self.fork_ancestors(&record).await?,
         })
     }
 
@@ -444,7 +448,7 @@ impl GameService {
                     ));
                 }
                 let record = self.record(match_id).await?;
-                let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+                let Some(origin) = record.origin() else {
                     return Err(error::corrupt());
                 };
                 if origin.game_id != game_id {
@@ -556,7 +560,7 @@ impl GameService {
             }
             for id in &ids {
                 let record = self.record(id).await?;
-                let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+                let Some(origin) = record.origin() else {
                     return Err(error::corrupt());
                 };
                 if origin.game_id != game_id || origin.assists.allow_simulation {
@@ -671,7 +675,7 @@ impl GameService {
         Ok(response)
     }
 
-    async fn record(&self, id: &str) -> Result<MatchRecord, ApiError> {
+    pub(crate) async fn record(&self, id: &str) -> Result<MatchRecord, ApiError> {
         let record = self
             .store
             .load(id)
