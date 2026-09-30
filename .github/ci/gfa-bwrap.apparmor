@@ -1,0 +1,8 @@
+# CI runner policy: only the installed bubblewrap launcher may create user namespaces.
+# Isolation and nested-namespace prevention are verified by uci-sandbox-probe.c.
+# This is not installed or applied by the application.
+abi <abi/4.0>,
+include <tunables/global>
+profile gfa-ci-bwrap /usr/bin/bwrap flags=(unconfined) {
+  userns,
+}

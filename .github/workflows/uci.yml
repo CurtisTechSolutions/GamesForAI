@@ -1,0 +1,30 @@
+name: UCI sandbox CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  stockfish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GFA_UCI_SANDBOX_PROBE: /tmp/gfa-uci-sandbox-probe
+      GFA_SANDBOX_CANARY: must-not-reach-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install engine isolation tools
+        run: sudo apt-get update && sudo apt-get install -y stockfish bubblewrap
+      - name: Permit namespace setup for bubblewrap on the CI runner
+        run: sudo apparmor_parser -r .github/ci/gfa-bwrap.apparmor
+      - name: Build isolation probe
+        run: cc -Wall -Wextra -Werror -O2 .github/scripts/uci-sandbox-probe.c -o "$GFA_UCI_SANDBOX_PROBE"
+      - name: Build real engine integration test
+        run: cargo test -p gfa-engine-uci --test stockfish --no-run --locked
+      - name: Check sandbox startup
+        run: cargo test -p gfa-engine-uci --lib diagnose_sandbox --locked -- --ignored --nocapture
+      - name: Search inside the production sandbox
+        run: cargo test -p gfa-engine-uci --test stockfish --locked -- --ignored --nocapture
