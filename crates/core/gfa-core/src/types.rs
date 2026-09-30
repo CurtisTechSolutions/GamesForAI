@@ -226,3 +226,16 @@ pub struct Advice<A> {
     /// Explanation derived from the supplied planning state.
     pub info: AdviceInfo,
 }
+
+
+/// A validated chess position exported by a rules engine for a UCI adapter.
+/// This is public information, reconstructed from the acting player's observation.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct UciPosition {
+    /// Canonical six-field starting FEN.
+    pub initial_fen: String,
+    /// Canonical UCI moves since the starting position, preserving repetition history.
+    pub moves: Vec<String>,
+    /// Whether castling uses Chess960's king-to-rook UCI encoding.
+    pub chess960: bool,
+}

@@ -368,6 +368,22 @@ impl Game for ChessGame {
         Ok(state)
     }
 
+    fn supports_uci() -> bool {
+        true
+    }
+
+    fn uci_position(state: &State) -> Result<Option<gfa_core::UciPosition>, GameError> {
+        Self::validate_state(state)?;
+        Ok(Some(gfa_core::UciPosition {
+            initial_fen: state.initial_fen.clone(),
+            moves: state.actions.iter().filter_map(|action| match action {
+                Action::Move { uci } => Some(uci.clone()),
+                Action::ClaimDraw { .. } => None,
+            }).collect(),
+            chess960: false,
+        }))
+    }
+
     fn validate_state(state: &State) -> Result<(), GameError> {
         state.derived().map(|_| ())
     }

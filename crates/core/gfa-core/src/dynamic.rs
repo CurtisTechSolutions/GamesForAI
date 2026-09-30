@@ -47,6 +47,14 @@ pub trait DynGame: Send + Sync {
             "This engine cannot reconstruct planning states",
         ))
     }
+    /// Whether the engine supports UCI position export.
+    fn supports_uci(&self) -> bool {
+        false
+    }
+    /// Export a validated planning state to a UCI adapter.
+    fn uci_position(&self, _state: &Value) -> Result<Option<crate::UciPosition>, GameError> {
+        Ok(None)
+    }
     /// Whether the engine exposes a reference solver through the generic hook.
     fn supports_reference_advice(&self) -> bool {
         false
@@ -199,6 +207,14 @@ impl<G: Game> DynGame for GameAdapter<G> {
             ));
         }
         Ok(serde_json::to_value(state)?)
+    }
+
+    fn supports_uci(&self) -> bool {
+        G::supports_uci()
+    }
+
+    fn uci_position(&self, state: &Value) -> Result<Option<crate::UciPosition>, GameError> {
+        G::uci_position(&Self::state(state)?)
     }
 
     fn supports_reference_advice(&self) -> bool {

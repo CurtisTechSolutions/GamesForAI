@@ -700,6 +700,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gfa-engine-uci"
+version = "0.1.0"
+dependencies = [
+ "gfa-core",
+]
+
+[[package]]
 name = "gfa-game-chess"
 version = "0.1.0"
 dependencies = [
