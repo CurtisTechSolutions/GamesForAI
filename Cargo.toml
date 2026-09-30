@@ -5,6 +5,7 @@ members = [
     "crates/core/gfa-testkit",
     "crates/games/gfa-game-tictactoe",
     "crates/games/gfa-game-connect4",
+    "crates/games/gfa-game-sudoku",
     "crates/games/gfa-games",
     "crates/adapters/gfa-store",
     "crates/adapters/gfa-http",
