@@ -196,10 +196,12 @@ impl<const TERMINATES: bool> Game for Counter<TERMINATES> {
     }
 }
 
+type SimulationUsage = BTreeMap<String, BTreeMap<u8, (u64, u64)>>;
+
 #[derive(Default)]
 struct MemoryStore {
     records: Mutex<BTreeMap<String, MatchRecord>>,
-    usage: Mutex<BTreeMap<String, BTreeMap<u8, (u64, u64)>>>,
+    usage: Mutex<SimulationUsage>,
     // Inject a failure (1), identical command race (2), or unkeyed move race (3).
     append_mode: AtomicU8,
 }
