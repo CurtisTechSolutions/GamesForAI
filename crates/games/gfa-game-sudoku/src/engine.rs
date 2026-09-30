@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 pub struct Sudoku;
 
 pub(super) fn outcome(state: &State) -> Option<Outcome> {
-    if state.grid == state.solution {
+    if puzzle_solution(state).is_ok_and(|solution| state.grid.as_slice() == solution) {
         Some(Outcome::Solved)
     } else if matches!(state.config.policy(), Ok(Policy::SolutionCheck(limit)) if state.wrong >= limit)
     {
@@ -44,7 +44,6 @@ pub(super) fn from_grid(config: &Config, puzzle: Grid) -> Result<State, GameErro
     let state = State {
         config: config.clone(),
         puzzle: puzzle.cells().to_vec(),
-        solution: solution.cells().to_vec(),
         grid: puzzle.cells().to_vec(),
         notes: vec![0; puzzle.cells().len()],
         grade: assessment,
@@ -55,8 +54,28 @@ pub(super) fn from_grid(config: &Config, puzzle: Grid) -> Result<State, GameErro
         actions: 0,
         validated_puzzle: OnceLock::new(),
     };
-    let _ = state.validated_puzzle.set(());
+    let _ = state.validated_puzzle.set(solution.cells().to_vec());
     Ok(state)
+}
+
+
+pub(super) fn puzzle_solution(state: &State) -> Result<&[u8], GameError> {
+    if state.validated_puzzle.get().is_none() {
+        let puzzle = Grid::from_cells(state.config.size, state.puzzle.clone())?;
+        let solved = solve(&puzzle);
+        if solved.count != 1 || grade(&puzzle)? != state.grade {
+            return Err(GameError::position("Puzzle uniqueness or difficulty metadata is inconsistent"));
+        }
+        if let Some(notation) = &state.config.puzzle {
+            if Grid::parse(state.config.size, notation)? != puzzle {
+                return Err(GameError::position("Configured puzzle disagrees with the givens"));
+            }
+        }
+        let solution = solved.first.ok_or_else(|| GameError::position("Puzzle has no solution"))?;
+        let _ = state.validated_puzzle.set(solution.cells().to_vec());
+    }
+    state.validated_puzzle.get().map(Vec::as_slice)
+        .ok_or_else(|| GameError::position("Puzzle solution is unavailable"))
 }
 
 impl Game for Sudoku {
@@ -119,7 +138,6 @@ impl Game for Sudoku {
         let len = n * n;
         if state.grid.len() != len
             || state.puzzle.len() != len
-            || state.solution.len() != len
             || state.notes.len() != len
             || state.grid.iter().any(|&d| d > state.config.size)
             || state.moves > state.config.max_moves.unwrap_or(200)
@@ -132,6 +150,7 @@ impl Game for Sudoku {
                 "Grid dimensions, digits or move counters are invalid",
             ));
         }
+        let solution = puzzle_solution(state)?;
         let mut placements = 0_u64;
         let mut wrong = 0_u64;
         for (&index, &count) in &state.attempts {
@@ -145,7 +164,7 @@ impl Game for Sudoku {
             }
             placements += u64::from(count);
             let cell = usize::from(row - 1) * n + usize::from(col - 1);
-            if state.solution[cell] != digit {
+            if solution[cell] != digit {
                 wrong += u64::from(count);
             }
         }
@@ -166,26 +185,6 @@ impl Game for Sudoku {
                     "Givens or candidate notes are inconsistent",
                 ));
             }
-        }
-        if state.validated_puzzle.get().is_none() {
-            let puzzle = Grid::from_cells(state.config.size, state.puzzle.clone())?;
-            let solution = solve(&puzzle);
-            if solution.count != 1
-                || solution.first.as_ref().map(Grid::cells) != Some(state.solution.as_slice())
-                || grade(&puzzle)? != state.grade
-            {
-                return Err(GameError::position(
-                    "Puzzle solution or difficulty metadata is inconsistent",
-                ));
-            }
-            if let Some(notation) = &state.config.puzzle {
-                if Grid::parse(state.config.size, notation)? != puzzle {
-                    return Err(GameError::position(
-                        "Configured puzzle disagrees with the givens",
-                    ));
-                }
-            }
-            let _ = state.validated_puzzle.set(());
         }
         Ok(())
     }

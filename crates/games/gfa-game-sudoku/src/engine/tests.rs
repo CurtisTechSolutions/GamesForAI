@@ -199,6 +199,8 @@ fn untrusted_positions_configs_and_action_encodings_are_validated() -> TestResul
         assert!(Sudoku::new_initial_state(&cfg, 0).is_err());
     }
     let state = Sudoku::new_initial_state(&config(), 0)?;
+    assert!(serde_json::to_value(&state)?.get("solution").is_none());
+    assert!(serde_json::to_value(&state)?.get("validated_puzzle").is_none());
     for text in ["r0c1=2", "r1c1+0", "r1c1=10", "r1c1=2 ", "réc1=2", "r1c1*2"] {
         assert!(Sudoku::action_from_string(&state, text).is_err());
     }
@@ -220,7 +222,6 @@ fn untrusted_positions_configs_and_action_encodings_are_validated() -> TestResul
         u32::MAX
     );
     for (key, value) in [
-        ("solution", json!(vec![1; 81])),
         ("wrong", json!(1)),
         ("notes", json!([1])),
         ("attempts", json!({"99999":1})),

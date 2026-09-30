@@ -96,10 +96,11 @@ pub(super) fn apply(
                     )));
                 }
             }
+            let wrong = super::puzzle_solution(state)?[cell] != digit;
             state.grid[cell] = digit;
             state.notes[cell] = 0;
             state.moves += 1;
-            state.wrong += u32::from(state.solution[cell] != digit);
+            state.wrong += u32::from(wrong);
             *state.attempts.entry(index(action)).or_default() += 1;
         }
         Action::Erase { .. } => {
@@ -163,7 +164,7 @@ pub(super) fn parse(state: &State, text: &str) -> Result<Action, GameError> {
         || bytes[2] != b'c'
         || !(b'1'..=b'9').contains(&bytes[1])
         || !(b'1'..=b'9').contains(&bytes[3])
-        || !(b'0'..=b'9').contains(&bytes[5])
+        || !bytes[5].is_ascii_digit()
     {
         return Err(bad_action());
     }
@@ -230,7 +231,7 @@ pub(super) fn from_index(state: &State, index: u32) -> Result<Action, GameError>
             row,
             col,
             digit: digit as u8,
-            add: index % 2 == 0,
+            add: index.is_multiple_of(2),
         }
     })
 }

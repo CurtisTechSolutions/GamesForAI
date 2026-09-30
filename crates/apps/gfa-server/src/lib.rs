@@ -135,3 +135,6 @@ mod opponent_tests;
 
 #[cfg(test)]
 mod simulation_tests;
+
+#[cfg(test)]
+mod sudoku_tests;

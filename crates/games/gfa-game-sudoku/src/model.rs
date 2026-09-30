@@ -144,7 +144,6 @@ pub enum Outcome {
 pub struct State {
     pub(crate) config: Config,
     pub(crate) puzzle: Vec<u8>,
-    pub(crate) solution: Vec<u8>,
     pub(crate) grid: Vec<u8>,
     pub(crate) notes: Vec<u16>,
     pub(crate) grade: Grade,
@@ -155,7 +154,7 @@ pub struct State {
     pub(crate) actions: u32,
     // Pure per-value memoization; deserialization always starts unvalidated.
     #[serde(skip)]
-    pub(crate) validated_puzzle: OnceLock<()>,
+    pub(crate) validated_puzzle: OnceLock<Vec<u8>>,
 }
 
 /// Public board; the same view is available to players and spectators.
