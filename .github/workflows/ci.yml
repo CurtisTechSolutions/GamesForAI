@@ -15,6 +15,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Resolve new storage dependencies
+        run: |
+          cargo generate-lockfile
+          python3 -c 'import json,pathlib; print("GFA_LOCK_JSON:"+json.dumps({"path":"Cargo.lock","content":pathlib.Path("Cargo.lock").read_text()}))'
       - run: cargo test --workspace --all-features --locked
       - run: cargo xtask check-deps
       - run: cargo check -p gfa-games --no-default-features --locked
