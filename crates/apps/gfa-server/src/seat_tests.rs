@@ -49,8 +49,8 @@ async fn human_match_returns_bot_replies_deduplicates_concurrent_requests_and_re
     assert_eq!(status, StatusCode::OK, "{first}");
     assert_eq!(right?.1, first);
     assert_eq!(first["state"]["turn"], 2);
-    assert_eq!(first["opponent_replies"][0]["seat"], 1);
-    assert!(first["opponent_replies"][0]["action"]["string"].is_string());
+    assert_eq!(first["opponent_actions"][0]["seat"], 1);
+    assert!(first["opponent_actions"][0]["action"]["string"].is_string());
     let mut state = first["state"].clone();
     for _ in 0..5 {
         if state["terminated"] == true {

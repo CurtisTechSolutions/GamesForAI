@@ -112,7 +112,7 @@ pub struct MatchState {
 pub struct MoveResult {
     /// Automatic replies committed with this move; absent when no opponent acted.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub opponent_replies: Vec<OpponentReply>,
+    pub opponent_actions: Vec<OpponentReply>,
     /// Canonical encoding selected from the engine's legal actions.
     pub accepted_action: LegalAction,
     /// Final state for the acting player, after any automatic replies.
