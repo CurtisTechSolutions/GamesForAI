@@ -677,6 +677,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gfa-game-sudoku"
+version = "0.1.0"
+dependencies = [
+ "gfa-core",
+]
+
+[[package]]
 name = "gfa-game-tictactoe"
 version = "0.1.0"
 dependencies = [
