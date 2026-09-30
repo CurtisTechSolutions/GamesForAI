@@ -1,3 +1,4 @@
+//! Release-mode latency benchmark over seeded unique puzzles.
 use gfa_game_sudoku::{generate, solve};
 use std::{error::Error, hint::black_box, time::Instant};
 
