@@ -2,10 +2,16 @@
 mod patterns;
 
 use crate::{grid::boxes, solve, Grid};
-use gfa_core::{schemars::JsonSchema, serde::{Deserialize, Serialize}, GameError};
+use gfa_core::{
+    schemars::JsonSchema,
+    serde::{Deserialize, Serialize},
+    GameError,
+};
 
 /// The hardest technique required by the deterministic logical solver.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(crate = "gfa_core::serde", rename_all = "snake_case")]
 #[schemars(crate = "gfa_core::schemars")]
 pub enum Difficulty {
@@ -21,7 +27,9 @@ pub enum Difficulty {
 }
 
 /// A reproducible explanation of a solving step.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema)]
+#[derive(
+    Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, JsonSchema,
+)]
 #[serde(crate = "gfa_core::serde", rename_all = "snake_case")]
 #[schemars(crate = "gfa_core::schemars")]
 pub enum Technique {
@@ -51,7 +59,9 @@ impl Technique {
     fn difficulty(self) -> Difficulty {
         match self {
             Self::NakedSingle | Self::HiddenSingle => Difficulty::Easy,
-            Self::NakedPair | Self::HiddenPair | Self::Pointing | Self::Claiming => Difficulty::Medium,
+            Self::NakedPair | Self::HiddenPair | Self::Pointing | Self::Claiming => {
+                Difficulty::Medium
+            }
             Self::NakedTriple | Self::HiddenTriple | Self::XWing => Difficulty::Hard,
             Self::Guess => Difficulty::Expert,
         }
@@ -110,27 +120,42 @@ pub fn grade(grid: &Grid) -> Result<Grade, GameError> {
         logical_steps += 1;
         logic.apply(&step);
     }
-    let difficulty = techniques.iter().map(|t| t.difficulty()).max().unwrap_or_default();
-    Ok(Grade { difficulty, techniques: techniques.into_iter().collect(), logical_steps })
+    let difficulty = techniques
+        .iter()
+        .map(|t| t.difficulty())
+        .max()
+        .unwrap_or_default();
+    Ok(Grade {
+        difficulty,
+        techniques: techniques.into_iter().collect(),
+        logical_steps,
+    })
 }
 
 /// Find the next logical placement, including prerequisite eliminations.
 /// When logic is exhausted, the returned step explicitly identifies search.
 pub fn hint(grid: &Grid) -> Result<Option<Vec<Hint>>, GameError> {
     let solution = unique(grid)?;
-    if !grid.cells.contains(&0) { return Ok(None); }
+    if !grid.cells.contains(&0) {
+        return Ok(None);
+    }
     let mut logic = Logic::new(grid)?;
     let mut steps = Vec::new();
     while let Some(step) = logic.next() {
         let placed = !step.placements.is_empty();
         logic.apply(&step);
         steps.push(step);
-        if placed { return Ok(Some(steps)); }
+        if placed {
+            return Ok(Some(steps));
+        }
     }
     if let Some(cell) = grid.cells.iter().position(|&digit| digit == 0) {
         steps.push(Hint {
             technique: Technique::Guess,
-            placements: vec![Candidate { cell, digit: solution.cells[cell] }],
+            placements: vec![Candidate {
+                cell,
+                digit: solution.cells[cell],
+            }],
             eliminations: vec![],
         });
     }
@@ -142,7 +167,9 @@ fn unique(grid: &Grid) -> Result<Grid, GameError> {
     if result.count != 1 {
         return Err(GameError::position("Puzzle must have exactly one solution"));
     }
-    result.first.ok_or_else(|| GameError::position("Puzzle has no solution"))
+    result
+        .first
+        .ok_or_else(|| GameError::position("Puzzle has no solution"))
 }
 
 struct Logic {
@@ -156,17 +183,31 @@ impl Logic {
         let n = usize::from(grid.size);
         let (height, width) = boxes(grid.size)?;
         let mut units = Vec::with_capacity(3 * n);
-        for row in 0..n { units.push((0..n).map(|col| row * n + col).collect()); }
-        for col in 0..n { units.push((0..n).map(|row| row * n + col).collect()); }
+        for row in 0..n {
+            units.push((0..n).map(|col| row * n + col).collect());
+        }
+        for col in 0..n {
+            units.push((0..n).map(|row| row * n + col).collect());
+        }
         for band in 0..n / height {
             for stack in 0..n / width {
-                units.push((0..height).flat_map(|r| (0..width).map(move |c|
-                    (band * height + r) * n + stack * width + c)).collect());
+                units.push(
+                    (0..height)
+                        .flat_map(|r| {
+                            (0..width).map(move |c| (band * height + r) * n + stack * width + c)
+                        })
+                        .collect(),
+                );
             }
         }
         Ok(Self {
             grid: grid.clone(),
-            masks: grid.cells.iter().enumerate().map(|(i, &v)| if v == 0 { grid.candidates(i) } else { 0 }).collect(),
+            masks: grid
+                .cells
+                .iter()
+                .enumerate()
+                .map(|(i, &v)| if v == 0 { grid.candidates(i) } else { 0 })
+                .collect(),
             units,
         })
     }
@@ -184,13 +225,23 @@ impl Logic {
     fn singles(&self) -> Option<Hint> {
         for (cell, &mask) in self.masks.iter().enumerate() {
             if mask.count_ones() == 1 {
-                return Some(placement(Technique::NakedSingle, cell, mask.trailing_zeros() as u8 + 1));
+                return Some(placement(
+                    Technique::NakedSingle,
+                    cell,
+                    mask.trailing_zeros() as u8 + 1,
+                ));
             }
         }
         for unit in &self.units {
             for digit in 1..=self.grid.size {
-                let cells: Vec<_> = unit.iter().copied().filter(|&i| self.masks[i] & (1 << (digit - 1)) != 0).collect();
-                if cells.len() == 1 { return Some(placement(Technique::HiddenSingle, cells[0], digit)); }
+                let cells: Vec<_> = unit
+                    .iter()
+                    .copied()
+                    .filter(|&i| self.masks[i] & (1 << (digit - 1)) != 0)
+                    .collect();
+                if cells.len() == 1 {
+                    return Some(placement(Technique::HiddenSingle, cells[0], digit));
+                }
             }
         }
         None
@@ -205,7 +256,9 @@ impl Logic {
             self.masks[candidate.cell] = 0;
             for unit in &self.units {
                 if unit.contains(&candidate.cell) {
-                    for &cell in unit { self.masks[cell] &= !(1 << (candidate.digit - 1)); }
+                    for &cell in unit {
+                        self.masks[cell] &= !(1 << (candidate.digit - 1));
+                    }
                 }
             }
         }
@@ -213,10 +266,19 @@ impl Logic {
 }
 
 fn placement(technique: Technique, cell: usize, digit: u8) -> Hint {
-    Hint { technique, placements: vec![Candidate { cell, digit }], eliminations: vec![] }
+    Hint {
+        technique,
+        placements: vec![Candidate { cell, digit }],
+        eliminations: vec![],
+    }
 }
 
-fn elimination(technique: Technique, masks: &[u16], cells: impl Iterator<Item=usize>, remove: u16) -> Option<Hint> {
+fn elimination(
+    technique: Technique,
+    masks: &[u16],
+    cells: impl Iterator<Item = usize>,
+    remove: u16,
+) -> Option<Hint> {
     let mut eliminations = Vec::new();
     for cell in cells {
         let mut bits = masks[cell] & remove;
@@ -226,7 +288,11 @@ fn elimination(technique: Technique, masks: &[u16], cells: impl Iterator<Item=us
             bits &= bits - 1;
         }
     }
-    (!eliminations.is_empty()).then_some(Hint { technique, placements: vec![], eliminations })
+    (!eliminations.is_empty()).then_some(Hint {
+        technique,
+        placements: vec![],
+        eliminations,
+    })
 }
 
 #[cfg(test)]
