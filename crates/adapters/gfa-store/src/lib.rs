@@ -4,7 +4,7 @@ use gfa_service::{
 };
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous},
-    Sqlite, SqlitePool, Transaction,
+    Connection, Sqlite, SqliteConnection, SqlitePool, Transaction,
 };
 use std::{path::Path, time::Duration};
 
@@ -33,22 +33,33 @@ impl SqliteMatchStore {
     }
 
     async fn connect(options: SqliteConnectOptions, connections: u32) -> Result<Self, StoreError> {
+        let options = options.foreign_keys(true).busy_timeout(Duration::from_secs(5));
+        if connections > 1 {
+            // Configure WAL and migrate before the pool can open other connections.
+            // A checkout during migrations otherwise lets pool maintenance race
+            // PRAGMA journal_mode against SQLite's schema write lock.
+            let mut connection = SqliteConnection::connect_with(&options)
+                .await
+                .map_err(unavailable)?;
+            let migrated = MIGRATOR.run(&mut connection).await;
+            connection.close().await.map_err(unavailable)?;
+            migrated.map_err(unavailable)?;
+        }
         let pool = SqlitePoolOptions::new()
             .max_connections(connections)
             .min_connections(1)
             .idle_timeout(None)
             .max_lifetime(None)
             .test_before_acquire(false)
-            .connect_with(
-                options
-                    .foreign_keys(true)
-                    .busy_timeout(Duration::from_secs(5)),
-            )
+            .connect_with(options)
             .await
             .map_err(unavailable)?;
-        if let Err(error) = MIGRATOR.run(&pool).await {
-            pool.close().await;
-            return Err(unavailable(error));
+        // In-memory databases must keep their sole connection alive.
+        if connections == 1 {
+            if let Err(error) = MIGRATOR.run(&pool).await {
+                pool.close().await;
+                return Err(unavailable(error));
+            }
         }
         Ok(Self { pool })
     }
