@@ -132,7 +132,11 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
         (format!("/v1/matches/{id}"), "/v1/matches/{id}"),
     ] {
         let (_, value) = call(&app.router, "GET", &path, Value::Null, None).await?;
-        assert!(valid(&doc, response_schema(&doc, template, "get", "200"), &value));
+        assert!(valid(
+            &doc,
+            response_schema(&doc, template, "get", "200"),
+            &value
+        ));
     }
     let (_, moved) = call(
         &app.router,

@@ -39,7 +39,9 @@ pub struct MatchMetadata {
     pub created_at_ms: u64,
 }
 
-fn default_limit() -> u32 { 50 }
+fn default_limit() -> u32 {
+    50
+}
 
 /// Cursor query for local match history.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
@@ -60,7 +62,12 @@ pub struct MatchHistoryQuery {
 
 impl Default for MatchHistoryQuery {
     fn default() -> Self {
-        Self { after: None, game_id: None, status: None, limit: default_limit() }
+        Self {
+            after: None,
+            game_id: None,
+            status: None,
+            limit: default_limit(),
+        }
     }
 }
 

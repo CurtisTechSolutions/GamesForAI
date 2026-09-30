@@ -23,12 +23,6 @@ jobs:
         env:
           DATABASE_URL: sqlite:${{ runner.temp }}/gfa-sqlx/schema.sqlite
           SQLX_OFFLINE_DIR: ${{ runner.temp }}/gfa-sqlx/queries
-      - name: Capture query metadata
-        if: always()
-        run: |
-          python3 -c 'import json,pathlib,os; p=pathlib.Path(os.environ["GFA_SQLX_WORK_DIR"])/"queries"; print("GFA_SQLX_JSON:"+json.dumps({x.name:x.read_text() for x in p.glob("*.json")}))'
-        env:
-          GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
       - name: Verify offline query metadata
         run: python3 .github/scripts/sqlite-query-check.py verify
         env:

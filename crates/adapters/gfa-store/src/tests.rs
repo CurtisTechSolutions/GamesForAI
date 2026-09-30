@@ -289,7 +289,9 @@ async fn corrupt_event_sequences_fail_instead_of_returning_partial_history() -> 
 #[tokio::test]
 async fn history_cursor_is_ordered_bounded_and_parameterized() -> TestResult {
     let store = SqliteMatchStore::in_memory().await?;
-    for id in ["c", "a", "b"] { store.create(new_record(id)).await?; }
+    for id in ["c", "a", "b"] {
+        store.create(new_record(id)).await?;
+    }
     assert_eq!(store.list_ids("", 2).await?, vec!["a", "b"]);
     assert_eq!(store.list_ids("b", 2).await?, vec!["c"]);
     assert!(store.list_ids("c", 2).await?.is_empty());
