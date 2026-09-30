@@ -16,6 +16,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --all-features
+      - name: Capture initial Rust dependency lock
+        run: python3 -c 'import json,pathlib; print("GFA_LOCK_JSON:"+json.dumps({"path":"Cargo.lock","content":pathlib.Path("Cargo.lock").read_text()}))'
       - run: cargo xtask check-deps
       - run: cargo check -p gfa-games --no-default-features
   lint:
@@ -38,10 +40,14 @@ jobs:
         with:
           node-version: 22
       - run: pnpm install --no-frozen-lockfile
+      - name: Capture initial web dependency lock
+        run: python3 -c 'import json,pathlib; print("GFA_LOCK_JSON:"+json.dumps({"path":"pnpm-lock.yaml","content":pathlib.Path("pnpm-lock.yaml").read_text()}))'
       - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm build
+      - if: success() || failure()
+        run: pnpm build
       - name: Check formatting with diagnostic diff
+        if: success() || failure()
         run: |
           pnpm format
           git diff --exit-code -- web

@@ -5,8 +5,9 @@ Target: the full M0–M7 roadmap in PRD v0.4. This document records implemented 
 ## Current build
 
 - M0: typed pure engine contract, JSON type erasure, explicit viewer scope, serializable seeded RNG, feature-gated registry, Tic-Tac-Toe, conformance suite, exhaustive reachable-board validation, and dependency-direction checker implemented. Eight tests, Clippy, dependency direction, and the no-games feature build passed in GitHub Actions.
-- M0: frontend workspace and boundaries, dependency/license checks, release throughput measurements, and core API compatibility checks implemented; expanded CI validation pending.
-- M1–M7: not implemented yet.
+- M0: frontend workspace and boundaries, dependency/license checks, release throughput measurements, and core API compatibility checks implemented; expanded CI validation in progress. The first release-mode benchmark measured 9,857,331 Tic-Tac-Toe steps/s on GitHub's Ubuntu runner (761,931 steps, one sample; not a portable guarantee).
+- M1: Connect Four implemented; conformance validation pending. Service/API work has not started.
+- M2–M7: not implemented yet.
 
 The implementation starts from the repository's documentation-only main branch. No milestone is considered complete until its PRD exit criteria are met.
 

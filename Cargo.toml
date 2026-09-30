@@ -4,6 +4,7 @@ members = [
     "crates/core/gfa-core",
     "crates/core/gfa-testkit",
     "crates/games/gfa-game-tictactoe",
+    "crates/games/gfa-game-connect4",
     "crates/games/gfa-games",
     "xtask",
 ]
@@ -15,10 +16,11 @@ license = "GPL-3.0-only"
 repository = "https://github.com/CurtisTechSolutions/GamesForAI"
 
 [workspace.dependencies]
-gfa-core = { path = "crates/core/gfa-core" }
-gfa-testkit = { path = "crates/core/gfa-testkit" }
-gfa-game-tictactoe = { path = "crates/games/gfa-game-tictactoe" }
-gfa-games = { path = "crates/games/gfa-games" }
+gfa-core = { version = "0.1.0", path = "crates/core/gfa-core" }
+gfa-testkit = { version = "0.1.0", path = "crates/core/gfa-testkit" }
+gfa-game-tictactoe = { version = "0.1.0", path = "crates/games/gfa-game-tictactoe" }
+gfa-games = { version = "0.1.0", path = "crates/games/gfa-games" }
+gfa-game-connect4 = { version = "0.1.0", path = "crates/games/gfa-game-connect4" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 schemars = "0.8.22"
