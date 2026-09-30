@@ -70,6 +70,8 @@ fn game_info_with_viewer(
         turn: 0,
         terminated: false,
         truncated: false,
+        outcome: None,
+        draw_offer: None,
     };
     let full = detail == InfoDetail::Full;
     let initial_view = preview(&initial, game, viewer, full)?;
@@ -88,6 +90,8 @@ fn game_info_with_viewer(
         turn: 0,
         terminated: false,
         truncated: false,
+        outcome: None,
+        draw_offer: None,
     };
     for _ in 0..if full { 2 } else { 1 } {
         let player = game

@@ -35,6 +35,12 @@ pub struct MatchMetadata {
     pub terminated: bool,
     /// A length or external cap ended play.
     pub truncated: bool,
+    /// Explicit control ending, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<crate::MatchOutcome>,
+    /// Seat with a pending draw offer.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub draw_offer: Option<u8>,
     /// Creation timestamp in Unix milliseconds.
     pub created_at_ms: u64,
 }

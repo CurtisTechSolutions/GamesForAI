@@ -9,6 +9,8 @@ pub(crate) struct Frame {
     pub turn: u64,
     pub terminated: bool,
     pub truncated: bool,
+    pub outcome: Option<gfa_api_types::MatchOutcome>,
+    pub draw_offer: Option<u8>,
 }
 
 impl Frame {
@@ -42,9 +44,30 @@ impl Frame {
             observation: game.observe(&self.state, viewer).map_err(error::engine)?,
             legal_actions,
             action_mask,
-            returns: game.returns(&self.state).map_err(error::engine)?,
+            returns: match &self.outcome {
+                Some(gfa_api_types::MatchOutcome::Resigned { seat }) => {
+                    let count = game.returns(&self.state).map_err(error::engine)?.len();
+                    if count == 1 {
+                        vec![0.0]
+                    } else {
+                        (0..count)
+                            .map(|index| {
+                                if index == usize::from(*seat) {
+                                    -1.0
+                                } else {
+                                    1.0
+                                }
+                            })
+                            .collect()
+                    }
+                }
+                Some(gfa_api_types::MatchOutcome::AgreedDraw) => vec![0.0; 2],
+                None => game.returns(&self.state).map_err(error::engine)?,
+            },
             terminated: self.terminated,
             truncated: self.truncated,
+            outcome: self.outcome.clone(),
+            draw_offer: self.draw_offer,
         })
     }
 }
@@ -93,6 +116,8 @@ pub(crate) fn initial(game: &dyn DynGame, origin: &MatchOrigin) -> Result<Frame,
         turn: 0,
         terminated: false,
         truncated: false,
+        outcome: None,
+        draw_offer: None,
     })
 }
 
@@ -110,6 +135,8 @@ pub(crate) fn advance(
         turn,
         terminated,
         truncated,
+        outcome: None,
+        draw_offer: None,
     })
 }
 
@@ -134,7 +161,7 @@ pub(crate) fn reconstruct(
             "Replay with the original engine version.",
         ));
     }
-    if record.events.len() as u64 > u64::from(game.spec().max_game_length) + 2 {
+    if record.events.len() as u64 > u64::from(game.spec().max_game_length) * 2 + 4 {
         return Err(error::corrupt());
     }
     let mut result = Reconstructed {
@@ -170,6 +197,38 @@ pub(crate) fn reconstruct(
                 let frame = advance(result.game.as_ref(), state, current.turn + 1, &events)
                     .map_err(|_| error::corrupt())?;
                 result.frames.push(frame);
+            }
+            MatchEvent::Resigned { turn, seat, .. }
+            | MatchEvent::DrawOffered { turn, seat, .. } => {
+                let count = result
+                    .game
+                    .returns(&current.state)
+                    .map_err(|_| error::corrupt())?
+                    .len();
+                if current.ended()
+                    || *turn != current.turn
+                    || usize::from(*seat) >= count
+                    || count > 2
+                {
+                    return Err(error::corrupt());
+                }
+                let frame = result.frames.last_mut().ok_or_else(error::corrupt)?;
+                if matches!(event, MatchEvent::Resigned { .. }) {
+                    frame.outcome = Some(gfa_api_types::MatchOutcome::Resigned { seat: *seat });
+                } else {
+                    if count != 2 || frame.draw_offer == Some(*seat) {
+                        return Err(error::corrupt());
+                    }
+                    match frame.draw_offer {
+                        Some(_) => frame.outcome = Some(gfa_api_types::MatchOutcome::AgreedDraw),
+                        None => frame.draw_offer = Some(*seat),
+                    }
+                }
+                if frame.outcome.is_some() {
+                    frame.terminated = true;
+                    frame.draw_offer = None;
+                    finished = true;
+                }
             }
             MatchEvent::MatchFinished {
                 turn,

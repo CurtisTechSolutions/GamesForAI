@@ -61,6 +61,8 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
         ("/v1/matches", "post"),
         ("/v1/matches", "get"),
         ("/v1/matches/{id}", "get"),
+        ("/v1/matches/{id}/resign", "post"),
+        ("/v1/matches/{id}/offer-draw", "post"),
         ("/v1/matches/{id}/info", "get"),
         ("/v1/matches/{id}/state", "get"),
         ("/v1/matches/{id}/actions", "post"),
@@ -75,7 +77,7 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
             "missing {method} {path}"
         );
     }
-    assert_eq!(doc["paths"].as_object().map(serde_json::Map::len), Some(14));
+    assert_eq!(doc["paths"].as_object().map(serde_json::Map::len), Some(16));
     let game_info = &doc["paths"]["/v1/games/{game_id}/info"]["get"];
     assert!(game_info["responses"]["200"]["content"]["text/markdown"].is_object());
     assert!(game_info["responses"]["304"].get("content").is_none());

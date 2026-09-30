@@ -45,6 +45,24 @@ pub enum MatchEvent {
     MatchCreated(MatchOrigin),
     /// Validated action.
     Action(AppliedAction),
+    /// A resignation ends a one- or two-seat match without changing its board.
+    Resigned {
+        /// Accepted action count when the control was submitted.
+        turn: u64,
+        /// Resigning seat.
+        seat: PlayerId,
+        /// Unix milliseconds.
+        at_ms: u64,
+    },
+    /// Offer a draw, or accept the other seat's current offer.
+    DrawOffered {
+        /// Accepted action count when the control was submitted.
+        turn: u64,
+        /// Offering or accepting seat.
+        seat: PlayerId,
+        /// Unix milliseconds.
+        at_ms: u64,
+    },
     /// Ending marker, checked against the replayed engine result.
     MatchFinished {
         /// Accepted action count at completion.
