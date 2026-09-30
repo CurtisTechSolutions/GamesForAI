@@ -29,6 +29,12 @@ jobs:
           GFA_SQLX_WORK_DIR: ${{ runner.temp }}/gfa-sqlx
       - run: cargo build -p gfa-cli --locked
       - run: python3 .github/scripts/local-server-smoke.py
+      - name: Export generated OpenAPI
+        run: cargo run -p gfa-http --example export-openapi --locked > target/openapi.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: target/openapi.json
       - run: cargo xtask check-deps
       - run: cargo check -p gfa-games --no-default-features --locked
   lint:

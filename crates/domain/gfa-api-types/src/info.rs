@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Amount of briefing detail.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum InfoDetail {
@@ -15,6 +16,7 @@ pub enum InfoDetail {
 }
 
 /// One named section, in the order specified by the model briefing contract.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct InfoSection {
     /// Stable section identifier, such as identity or initial_state.
@@ -26,6 +28,7 @@ pub struct InfoSection {
 }
 
 /// Transport-independent model briefing, rendered from one canonical data structure.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Briefing {
     /// Engine information version plus the briefing format revision.
@@ -64,4 +67,50 @@ impl Briefing {
         self.approx_tokens = (bytes + 20).div_ceil(4);
         Ok(())
     }
+}
+
+/// HTTP representation of a briefing.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum InfoFormat {
+    /// Structured briefing sections.
+    #[default]
+    Json,
+    /// Prompt-ready Markdown.
+    Markdown,
+}
+
+/// Options for a synthetic game briefing.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
+#[cfg_attr(feature = "openapi", into_params(parameter_in = Query))]
+#[derive(Default, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GameInfoQuery {
+    /// Response representation; defaults to json.
+    #[serde(default)]
+    pub format: InfoFormat,
+    /// Detail level; defaults to full.
+    #[serde(default)]
+    pub detail: InfoDetail,
+    /// URL-encoded configuration JSON, at most 8192 decoded bytes.
+    pub config: Option<String>,
+    /// Optional zero-based seat; no live match is read.
+    pub seat: Option<u8>,
+}
+
+/// Options for a live match briefing.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
+#[cfg_attr(feature = "openapi", into_params(parameter_in = Query))]
+#[derive(Default, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MatchInfoQuery {
+    /// Response representation; defaults to json.
+    #[serde(default)]
+    pub format: InfoFormat,
+    /// Detail level; defaults to full.
+    #[serde(default)]
+    pub detail: InfoDetail,
+    /// Player seat, or omit for a spectator projection.
+    pub seat: Option<u8>,
 }

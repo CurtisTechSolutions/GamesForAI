@@ -4,32 +4,20 @@ use axum::{
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Response},
 };
-use gfa_api_types::{Briefing, InfoDetail};
+use gfa_api_types::{
+    Briefing, GameInfoQuery as GameQuery, InfoFormat as Format, MatchInfoQuery as MatchQuery,
+};
 use gfa_service::GameService;
-use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 
-#[derive(Clone, Copy, Default, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub(crate) enum Format {
-    #[default]
-    Json,
-    Markdown,
-}
+#[utoipa::path(
+    get, path = "/v1/games/{game_id}/info", tag = "Briefings",
 
-#[derive(Default, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct GameQuery {
-    #[serde(default)]
-    format: Format,
-    #[serde(default)]
-    detail: InfoDetail,
-    config: Option<String>,
-    seat: Option<u8>,
-}
-
+    params(("game_id" = String, Path, description = "Registered game identifier"),gfa_api_types::GameInfoQuery, ("If-None-Match" = Option<String>, Header, description = "ETag, weak tag, list, or *")),
+    responses((status = 200, description = "Deterministic synthetic briefing", content((Briefing = "application/json"), (String = "text/markdown")), headers(("ETag" = String, description = "SHA-256 of this representation"))), (status = 304, description = "Unchanged; no body"), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
+)]
 pub(crate) async fn game_info(
     State(service): State<Arc<GameService>>,
     path: Id,
@@ -99,16 +87,12 @@ pub(crate) fn render(
     Ok(response)
 }
 
-#[derive(Default, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub(crate) struct MatchQuery {
-    #[serde(default)]
-    format: Format,
-    #[serde(default)]
-    detail: InfoDetail,
-    seat: Option<u8>,
-}
+#[utoipa::path(
+    get, path = "/v1/matches/{id}/info", tag = "Briefings",
 
+    params(("id" = String, Path, description = "Match identifier"),gfa_api_types::MatchInfoQuery),
+    responses((status = 200, description = "Live match briefing; never cached", content((Briefing = "application/json"), (String = "text/markdown"))), (status = "default", description = "Structured recoverable error; local access requires a loopback peer and matching Host/Origin.", body = gfa_api_types::ErrorResponse))
+)]
 pub(crate) async fn match_info(
     State(service): State<Arc<GameService>>,
     path: Id,

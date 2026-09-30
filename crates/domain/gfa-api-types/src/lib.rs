@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// A validated custom starting position.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(untagged, deny_unknown_fields)]
 pub enum Start {
@@ -29,6 +30,7 @@ fn empty_config() -> Value {
 }
 
 /// Create a match with external players. Opponent scheduling is a separate use case.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CreateMatch {
@@ -39,6 +41,7 @@ pub struct CreateMatch {
     pub config: Value,
     /// Fixed seed, or a fresh seed supplied by the host.
     #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(minimum = 0))]
     pub seed: Option<u64>,
     /// Optional custom position.
     #[serde(default)]
@@ -49,12 +52,15 @@ pub struct CreateMatch {
 }
 
 /// Submit one action against an expected turn.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MoveRequest {
     /// Acting seat.
+    #[cfg_attr(feature = "openapi", schema(value_type = u8, minimum = 0, maximum = 255))]
     pub seat: PlayerId,
     /// Expected accepted-action count.
+    #[cfg_attr(feature = "openapi", schema(minimum = 0))]
     pub turn: u64,
     /// Canonical string, structured action, or {"index": n}.
     pub action: Value,
@@ -64,11 +70,13 @@ pub struct MoveRequest {
 }
 
 /// Full state projected into an explicitly selected viewer's information set.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct MatchState {
     /// Stable match identifier.
     pub match_id: String,
     /// Accepted action count, starting at zero.
+    #[cfg_attr(feature = "openapi", schema(minimum = 0))]
     pub turn: u64,
     /// Seats that must act.
     pub to_act: Vec<PlayerId>,
@@ -87,6 +95,7 @@ pub struct MatchState {
 }
 
 /// One accepted action and the resulting view.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct MoveResult {
     /// Canonical encoding selected from the engine's legal actions.
@@ -96,6 +105,7 @@ pub struct MoveResult {
 }
 
 /// Reconstructed observations, including the initial state at turn zero.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Replay {
     /// Stable match identifier.
@@ -107,6 +117,7 @@ pub struct Replay {
 }
 
 /// Stable, recoverable domain failure; transports wrap it under an error field.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema, thiserror::Error)]
 #[error("{message}")]
 pub struct ApiError {
@@ -176,9 +187,10 @@ mod tests {
 }
 
 mod info;
-pub use info::{Briefing, InfoDetail, InfoSection};
+pub use info::{Briefing, GameInfoQuery, InfoDetail, InfoFormat, InfoSection, MatchInfoQuery};
 
 /// Match creation response with the existing state fields and optional briefing.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct CreatedMatch {
     /// Initial observation and legal actions, kept at the response's top level.
@@ -191,3 +203,52 @@ pub struct CreatedMatch {
 
 mod position;
 pub use position::{ValidatePosition, ValidatedPosition};
+
+/// Local host liveness response.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct Health {
+    /// Liveness marker; currently ok.
+    pub status: String,
+    /// Serving mode; currently local.
+    pub mode: String,
+}
+
+/// Current legal actions for one viewer.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct LegalActions {
+    /// Current expected turn.
+    pub turn: u64,
+    /// Seats allowed to act.
+    pub to_act: Vec<PlayerId>,
+    /// Canonical actions for the selected player.
+    pub legal_actions: Vec<LegalAction>,
+    /// Discrete legal mask.
+    pub action_mask: Vec<bool>,
+}
+
+/// Stable error envelope shared by every REST failure.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct ErrorResponse {
+    /// Recoverable failure with retry context.
+    pub error: ApiError,
+}
+
+/// JSON messages emitted by the read-only live state stream.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum StreamMessage {
+    /// Initial or newly committed viewer-scoped state.
+    State {
+        /// State visible to this connection.
+        state: MatchState,
+    },
+    /// Recoverable service failure followed by stream closure.
+    Error {
+        /// Failure context.
+        error: ApiError,
+    },
+}

@@ -126,3 +126,6 @@ mod stream_tests;
 
 #[cfg(test)]
 mod briefing_tests;
+
+#[cfg(test)]
+mod openapi_tests;
