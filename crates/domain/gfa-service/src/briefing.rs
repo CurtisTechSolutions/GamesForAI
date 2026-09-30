@@ -12,17 +12,27 @@ pub(crate) fn internal() -> ApiError {
 }
 
 fn section(id: &str, text: impl Into<String>, data: Value) -> InfoSection {
-    InfoSection { id: id.into(), text: text.into(), data }
+    InfoSection {
+        id: id.into(),
+        text: text.into(),
+        data,
+    }
 }
 
-fn preview(frame: &Frame, game: &dyn DynGame, viewer: Viewer, full: bool) -> Result<Value, ApiError> {
-    let mut value = serde_json::to_value(frame.project("example", game, viewer)?)
-        .map_err(|_| internal())?;
+fn preview(
+    frame: &Frame,
+    game: &dyn DynGame,
+    viewer: Viewer,
+    full: bool,
+) -> Result<Value, ApiError> {
+    let mut value =
+        serde_json::to_value(frame.project("example", game, viewer)?).map_err(|_| internal())?;
     if let Some(object) = value.as_object_mut() {
         object.remove("match_id");
         if !full {
             object.remove("action_mask");
-            if let Some(observation) = object.get_mut("observation").and_then(Value::as_object_mut) {
+            if let Some(observation) = object.get_mut("observation").and_then(Value::as_object_mut)
+            {
                 observation.remove("tensor");
             }
         }
@@ -46,24 +56,43 @@ pub(crate) fn game_info(
     let first = actors.first().copied().ok_or_else(internal)?;
     let viewer = Viewer::Player(seat.unwrap_or(first));
     let initial = Frame {
-        state, turn: 0, terminated: false, truncated: false,
+        state,
+        turn: 0,
+        terminated: false,
+        truncated: false,
     };
     let full = detail == InfoDetail::Full;
     let initial_view = preview(&initial, game, viewer, full)?;
-    let actions = game.legal_actions(&initial.state, first).map_err(error::engine)?;
-    let you = seat.map(|seat| json!({
-        "seat":seat, "name":spec.seat_names.get(usize::from(seat)),
-        "moves_first":actors.contains(&seat)
-    }));
+    let actions = game
+        .legal_actions(&initial.state, first)
+        .map_err(error::engine)?;
+    let you = seat.map(|seat| {
+        json!({
+            "seat":seat, "name":spec.seat_names.get(usize::from(seat)),
+            "moves_first":actors.contains(&seat)
+        })
+    });
     let mut examples = Vec::new();
-    let mut frame = Frame { state:initial.state.clone(), turn:0, terminated:false, truncated:false };
+    let mut frame = Frame {
+        state: initial.state.clone(),
+        turn: 0,
+        terminated: false,
+        truncated: false,
+    };
     for _ in 0..if full { 2 } else { 1 } {
-        let player = game.current_players(&frame.state).map_err(error::engine)?
-            .first().copied().ok_or_else(internal)?;
-        let legal = game.legal_actions(&frame.state, player).map_err(error::engine)?;
+        let player = game
+            .current_players(&frame.state)
+            .map_err(error::engine)?
+            .first()
+            .copied()
+            .ok_or_else(internal)?;
+        let legal = game
+            .legal_actions(&frame.state, player)
+            .map_err(error::engine)?;
         let action = legal.first().ok_or_else(internal)?;
         let request = json!({"seat":player,"turn":frame.turn,"action":action.string});
-        let (state, events) = game.apply(&frame.state, player, &json!(action.string))
+        let (state, events) = game
+            .apply(&frame.state, player, &json!(action.string))
             .map_err(error::engine)?;
         frame = crate::replay::advance(game, state, frame.turn + 1, &events)?;
         examples.push(json!({
@@ -72,10 +101,15 @@ pub(crate) fn game_info(
             "response":if full { preview(&frame, game, viewer, true)? }
                 else { json!({"turn":frame.turn,"to_act":game.current_players(&frame.state).map_err(error::engine)?}) }
         }));
-        if frame.ended() { break; }
+        if frame.ended() {
+            break;
+        }
     }
     let invalid = json!({"index":spec.action_space_size});
-    let failure = game.apply(&initial.state, first, &invalid).err().ok_or_else(internal)?;
+    let failure = game
+        .apply(&initial.state, first, &invalid)
+        .err()
+        .ok_or_else(internal)?;
     examples.push(json!({
         "note":"Rejected at the initial state; the state is unchanged.",
         "request":{"seat":first,"turn":0,"action":invalid},
