@@ -1396,7 +1396,10 @@ fn automatic_matches_resume_from_durable_turns_and_bad_records_do_not_block_the_
     assert!(page.matches.is_empty());
     assert_eq!(page.unavailable.len(), 1);
     let page = run(service.pending_opponents(page.next.as_deref(), 1))?;
-    assert_eq!(page.matches.as_slice(), std::slice::from_ref(&first.match_id));
+    assert_eq!(
+        page.matches.as_slice(),
+        std::slice::from_ref(&first.match_id)
+    );
     assert_eq!(run(service.advance_opponents(&first.match_id, 1))?, 1);
     assert_eq!(
         run(service.get_state(&first.match_id, Viewer::Player(0)))?.turn,
