@@ -43,11 +43,19 @@ pub fn local_router(service: Arc<GameService>, address: SocketAddr) -> Result<Ro
 ///
 /// The host must install this same LiveUpdates instance with GameService::with_observer.
 /// Periodic reconciliation also catches commits from other hosts sharing the store.
-pub fn local_router_with_updates(service: Arc<GameService>, address: SocketAddr, updates: Arc<LiveUpdates>) -> Result<Router, ApiError> {
+pub fn local_router_with_updates(
+    service: Arc<GameService>,
+    address: SocketAddr,
+    updates: Arc<LiveUpdates>,
+) -> Result<Router, ApiError> {
     build_router(service, address, Some(updates))
 }
 
-fn build_router(service: Arc<GameService>, address: SocketAddr, updates: Option<Arc<LiveUpdates>>) -> Result<Router, ApiError> {
+fn build_router(
+    service: Arc<GameService>,
+    address: SocketAddr,
+    updates: Option<Arc<LiveUpdates>>,
+) -> Result<Router, ApiError> {
     if !address.ip().is_loopback() || address.port() == 0 {
         return Err(ApiError::new(
             "INVALID_CONFIG",
@@ -67,9 +75,13 @@ fn build_router(service: Arc<GameService>, address: SocketAddr, updates: Option<
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed);
     if let Some(updates) = updates {
-        router = router.route("/v1/matches/{id}/stream", get(stream::upgrade).layer(axum::Extension(updates)));
+        router = router.route(
+            "/v1/matches/{id}/stream",
+            get(stream::upgrade).layer(axum::Extension(updates)),
+        );
     }
-    Ok(router.layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+    Ok(router
+        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(middleware::from_fn_with_state(
             access::LocalAccess::new(address),
             access::guard,

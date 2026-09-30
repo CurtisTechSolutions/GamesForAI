@@ -589,7 +589,9 @@ fn observer_runs_only_after_successful_new_commits() -> TestResult {
     struct Recorder(Mutex<Vec<String>>);
     impl MatchObserver for Recorder {
         fn committed(&self, id: &str) {
-            if let Ok(mut records) = self.0.lock() { records.push(id.into()); }
+            if let Ok(mut records) = self.0.lock() {
+                records.push(id.into());
+            }
         }
     }
     let recorder = Arc::new(Recorder::default());
@@ -598,10 +600,16 @@ fn observer_runs_only_after_successful_new_commits() -> TestResult {
     let initial = run(service.create_match(create("counter"), Viewer::Player(0)))?;
     let id = &initial.match_id;
     store.append_mode.store(1, Ordering::SeqCst);
-    code(run(service.make_move(id, action(0, json!("1")), Some("once"))), "STORAGE_UNAVAILABLE");
+    code(
+        run(service.make_move(id, action(0, json!("1")), Some("once"))),
+        "STORAGE_UNAVAILABLE",
+    );
     assert_eq!(recorder.0.lock().map_err(|_| "poisoned")?.len(), 1);
     let response = run(service.make_move(id, action(0, json!("1")), Some("once")))?;
-    assert_eq!(run(service.make_move(id, action(0, json!("1")), Some("once")))?, response);
+    assert_eq!(
+        run(service.make_move(id, action(0, json!("1")), Some("once")))?,
+        response
+    );
     assert_eq!(recorder.0.lock().map_err(|_| "poisoned")?.len(), 2);
     Ok(())
 }

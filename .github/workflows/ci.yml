@@ -15,10 +15,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Resolve WebSocket dependencies
-        run: |
-          cargo update --workspace
-          python3 -c 'import json,pathlib; print("GFA_LOCK_JSON:"+json.dumps({"path":"Cargo.lock","content":pathlib.Path("Cargo.lock").read_text()}))'
       - name: Prepare SQLite schema for query checking
         run: python3 .github/scripts/sqlite-query-check.py prepare
         env:

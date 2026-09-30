@@ -1,7 +1,14 @@
 use crate::{error::HttpError, id, view, Id, View};
 use axum::{
-    extract::{ws::{CloseFrame, Message, WebSocket, WebSocketUpgrade, rejection::WebSocketUpgradeRejection}, State},
-    http::StatusCode, response::Response, Extension,
+    extract::{
+        ws::{
+            rejection::WebSocketUpgradeRejection, CloseFrame, Message, WebSocket, WebSocketUpgrade,
+        },
+        State,
+    },
+    http::StatusCode,
+    response::Response,
+    Extension,
 };
 use gfa_api_types::MatchState;
 use gfa_core::Viewer;
@@ -33,12 +40,16 @@ impl Default for LiveUpdates {
 }
 
 impl MatchObserver for LiveUpdates {
-    fn committed(&self, id: &str) { let _ = self.changed.send(id.into()); }
+    fn committed(&self, id: &str) {
+        let _ = self.changed.send(id.into());
+    }
 }
 
 impl LiveUpdates {
     /// Stop accepting new streams and signal existing streams to close.
-    pub fn close(&self) { self.shutdown.send_replace(true); }
+    pub fn close(&self) {
+        self.shutdown.send_replace(true);
+    }
 
     /// Wait for stream tasks to release their resources before closing storage.
     pub async fn wait_closed(&self) {
@@ -64,19 +75,43 @@ pub(crate) async fn upgrade(
     websocket: Result<WebSocketUpgrade, WebSocketUpgradeRejection>,
 ) -> Result<Response, HttpError> {
     if *updates.shutdown.borrow() {
-        return Err(HttpError::new(StatusCode::SERVICE_UNAVAILABLE, "SHUTTING_DOWN", "Server is shutting down", "Reconnect after the server restarts."));
+        return Err(HttpError::new(
+            StatusCode::SERVICE_UNAVAILABLE,
+            "SHUTTING_DOWN",
+            "Server is shutting down",
+            "Reconnect after the server restarts.",
+        ));
     }
     let id = id(path)?;
     let viewer = view(query)?.viewer();
-    let permit = updates.sessions.clone().try_acquire_owned().map_err(|_| HttpError::new(
-        StatusCode::TOO_MANY_REQUESTS, "RATE_LIMITED", "Too many live streams", "Close an existing stream before reconnecting.",
-    ))?;
+    let permit = updates.sessions.clone().try_acquire_owned().map_err(|_| {
+        HttpError::new(
+            StatusCode::TOO_MANY_REQUESTS,
+            "RATE_LIMITED",
+            "Too many live streams",
+            "Close an existing stream before reconnecting.",
+        )
+    })?;
     // Subscribe before reading so a commit during the initial read cannot be lost.
     let changes = updates.changed.subscribe();
     let shutdown = updates.shutdown.subscribe();
     let initial = service.get_state(&id, viewer).await?;
-    let websocket = websocket.map_err(|error| HttpError::new(error.status(), "INVALID_REQUEST", error.body_text(), "Connect with a WebSocket client."))?;
-    let subscription = Subscription { service, id, viewer, changes, shutdown, _permit: permit };
+    let websocket = websocket.map_err(|error| {
+        HttpError::new(
+            error.status(),
+            "INVALID_REQUEST",
+            error.body_text(),
+            "Connect with a WebSocket client.",
+        )
+    })?;
+    let subscription = Subscription {
+        service,
+        id,
+        viewer,
+        changes,
+        shutdown,
+        _permit: permit,
+    };
     Ok(websocket
         .max_message_size(4096)
         .max_frame_size(4096)
@@ -85,7 +120,10 @@ pub(crate) async fn upgrade(
 }
 
 async fn send(socket: &mut WebSocket, message: Message) -> bool {
-    matches!(tokio::time::timeout(Duration::from_secs(3), socket.send(message)).await, Ok(Ok(())))
+    matches!(
+        tokio::time::timeout(Duration::from_secs(3), socket.send(message)).await,
+        Ok(Ok(()))
+    )
 }
 
 async fn send_state(socket: &mut WebSocket, state: &MatchState) -> bool {
@@ -97,9 +135,13 @@ async fn send_state(socket: &mut WebSocket, state: &MatchState) -> bool {
 
 impl Subscription {
     async fn run(mut self, mut socket: WebSocket, initial: MatchState) {
-        if *self.shutdown.borrow() { return; }
+        if *self.shutdown.borrow() {
+            return;
+        }
         let mut turn = initial.turn;
-        if !send_state(&mut socket, &initial).await { return; }
+        if !send_state(&mut socket, &initial).await {
+            return;
+        }
         if initial.terminated || initial.truncated {
             let _ = send(&mut socket, Message::Close(None)).await;
             return;
@@ -128,7 +170,9 @@ impl Subscription {
                 },
                 _ = reconcile.tick() => true,
             };
-            if !refresh { continue; }
+            if !refresh {
+                continue;
+            }
             let replay = tokio::select! {
                 _ = self.shutdown.changed() => break,
                 result = self.service.get_replay(&self.id, self.viewer) => result,
@@ -136,8 +180,14 @@ impl Subscription {
             match replay {
                 Ok(replay) => {
                     let previous_turn = turn;
-                    for state in replay.states.iter().filter(|state| state.turn > previous_turn) {
-                        if *self.shutdown.borrow() || !send_state(&mut socket, state).await { return; }
+                    for state in replay
+                        .states
+                        .iter()
+                        .filter(|state| state.turn > previous_turn)
+                    {
+                        if *self.shutdown.borrow() || !send_state(&mut socket, state).await {
+                            return;
+                        }
                         turn = state.turn;
                         if state.terminated || state.truncated {
                             let _ = send(&mut socket, Message::Close(None)).await;

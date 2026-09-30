@@ -1,6 +1,6 @@
 use crate::{
-    error, replay, AppendResult, AppliedAction, Clock, MatchEvent, MatchIds, MatchOrigin,
-    MatchRecord, MatchStore, StoreError, StoredCommand, MatchObserver,
+    error, replay, AppendResult, AppliedAction, Clock, MatchEvent, MatchIds, MatchObserver,
+    MatchOrigin, MatchRecord, MatchStore, StoreError, StoredCommand,
 };
 use gfa_api_types::{ApiError, CreateMatch, MatchState, MoveRequest, MoveResult, Replay};
 use gfa_core::{GameRegistry, GameSpec, LegalAction, Viewer};
@@ -202,7 +202,7 @@ impl GameService {
             Ok(AppendResult::Appended) => {
                 self.observer.committed(id);
                 Ok(response)
-            },
+            }
             Ok(AppendResult::AlreadyCommitted(original)) => Ok(*original),
             Err(StoreError::Conflict) => {
                 let mut error = error::store(StoreError::Conflict);

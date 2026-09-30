@@ -67,14 +67,18 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
     let store = Arc::new(SqliteMatchStore::open(&config.sqlite).await?);
     let host = Arc::new(Host);
     let updates = Arc::new(gfa_http::LiveUpdates::default());
-    let service = Arc::new(GameService::new(
-        registry,
-        store.clone(),
-        host.clone(),
-        host,
-    ).with_observer(updates.clone()));
+    let service = Arc::new(
+        GameService::new(registry, store.clone(), host.clone(), host)
+            .with_observer(updates.clone()),
+    );
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
-    Ok(Application { router, store, updates, #[cfg(test)] service })
+    Ok(Application {
+        router,
+        store,
+        updates,
+        #[cfg(test)]
+        service,
+    })
 }
 
 /// Bind loopback, migrate the database, and serve until shutdown completes.
@@ -92,7 +96,11 @@ pub async fn serve(
     serve_application(listener, app, shutdown).await
 }
 
-async fn serve_application(listener: TcpListener, app: Application, shutdown: impl Future<Output = ()> + Send + 'static) -> Result<(), ServerError> {
+async fn serve_application(
+    listener: TcpListener,
+    app: Application,
+    shutdown: impl Future<Output = ()> + Send + 'static,
+) -> Result<(), ServerError> {
     let updates = app.updates.clone();
     let result = axum::serve(
         listener,
