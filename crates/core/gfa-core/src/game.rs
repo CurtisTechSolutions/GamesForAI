@@ -35,6 +35,21 @@ pub trait Game: Send + Sync + 'static {
         Self::validate_state(state)
     }
 
+    /// Reconstruct or sample a planning state using only one viewer's observation.
+    ///
+    /// Engines must never consult a live match or reuse its hidden RNG. Hidden
+    /// information engines should determinize consistently with the observation.
+    fn state_from_observation(
+        _config: &Self::Config,
+        _observation: &Observation,
+        _viewer: Viewer,
+        _seed: u64,
+    ) -> Result<Self::State, GameError> {
+        Err(GameError::position(
+            "This engine cannot reconstruct planning states",
+        ))
+    }
+
     /// Validate state received through a persistence or API boundary.
     fn validate_state(state: &Self::State) -> Result<(), GameError>;
     /// Seats that can act; empty after a terminal or truncated transition.

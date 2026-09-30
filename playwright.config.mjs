@@ -11,6 +11,7 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
+    channel: process.env.CI ? "chrome" : undefined,
     baseURL: "http://127.0.0.1:18080",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",

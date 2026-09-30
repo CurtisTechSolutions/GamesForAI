@@ -34,7 +34,7 @@ pub struct Action {
     pub column: u8,
 }
 
-#[derive(Serialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema)]
 #[serde(crate = "gfa_core::serde")]
 #[schemars(crate = "gfa_core::schemars")]
 struct Board {
@@ -132,6 +132,36 @@ impl Game for Connect4 {
             boards: [0, 0],
             to_move: 0,
         })
+    }
+
+    fn state_from_observation(
+        _: &Config,
+        observation: &Observation,
+        _: Viewer,
+        _: u64,
+    ) -> Result<State, GameError> {
+        let board: Board = serde_json::from_value(observation.json.clone())
+            .map_err(|error| GameError::position(error.to_string()))?;
+        if board.rows.len() != 6 || board.rows.iter().any(|row| row.len() != 7) {
+            return Err(GameError::position("Expected six rows of seven cells"));
+        }
+        let mut state = State {
+            boards: [0, 0],
+            to_move: board.to_move,
+        };
+        for (row, cells) in board.rows.iter().enumerate() {
+            for (col, cell) in cells.iter().enumerate() {
+                if let Some(seat) = cell {
+                    let bits = state
+                        .boards
+                        .get_mut(usize::from(*seat))
+                        .ok_or_else(|| GameError::position("Cell seat must be 0 or 1"))?;
+                    *bits |= 1_u64 << (col * 7 + 5 - row);
+                }
+            }
+        }
+        Self::validate_state(&state)?;
+        Ok(state)
     }
 
     fn validate_state(state: &State) -> Result<(), GameError> {

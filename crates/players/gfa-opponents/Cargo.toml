@@ -1,0 +1,11 @@
+[package]
+name = "gfa-opponents"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gfa-core.workspace = true
+
+[lints]
+workspace = true
