@@ -166,3 +166,6 @@ mod tests {
         }
     }
 }
+
+mod info;
+pub use info::{Briefing, InfoDetail, InfoSection};

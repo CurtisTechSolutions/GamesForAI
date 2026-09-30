@@ -75,3 +75,22 @@ persisted replay and applies the selected viewer to every frame. Local access
 rules also apply to upgrades; the host allows at most 64 concurrent streams and
 closes streams before closing SQLite during shutdown. The initial protocol
 streams state frames; paginated event delivery and resume cursors are later work.
+
+## Model briefings
+
+Read `GET /v1/games/tictactoe/info` (or `connect4`) before creating a match.
+Use `?detail=compact` for rules without schemas or long examples, and
+`?format=markdown` for a prompt-ready document. `config` accepts URL-encoded
+JSON; `seat=0` or `seat=1` adds seat-specific notes.
+
+JSON briefings contain `info_version`, `approx_tokens`, and an ordered
+`sections` array. Each section has a stable `id`, explanatory `text`, and
+structured `data`. Markdown renders those exact fields in the same order.
+Examples run the installed engine at a synthetic standard start with seed 0;
+they never access a live match. Copy live turn numbers when submitting moves.
+The estimate is a byte-based heuristic, not a specific model's token count.
+
+Game briefings return representation-specific ETags and support
+`If-None-Match`, including weak tags and tag lists. They need no credentials
+within local mode; the loopback and Host/Origin restrictions still apply.
+Unavailable capabilities are stated explicitly in their sections.
