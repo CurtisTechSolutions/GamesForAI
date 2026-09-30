@@ -39,9 +39,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: pnpm install --no-frozen-lockfile
-      - name: Capture initial web dependency lock
-        run: python3 -c 'import json,pathlib; print("GFA_LOCK_JSON:"+json.dumps({"path":"pnpm-lock.yaml","content":pathlib.Path("pnpm-lock.yaml").read_text()}))'
+      - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
       - if: success() || failure()

@@ -3,7 +3,8 @@ export class ApiClient {
   constructor(private readonly baseUrl = "") {}
 
   async request<T>(path: string, init?: RequestInit): Promise<T> {
-    if (!path.startsWith("/v1/")) throw new Error("Expected a versioned API path");
+    if (!path.startsWith("/v1/"))
+      throw new Error("Expected a versioned API path");
     const response = await fetch(this.baseUrl + path, {
       ...init,
       headers: { "Content-Type": "application/json", ...init?.headers },
@@ -17,7 +18,10 @@ export class ApiClient {
 }
 
 export class ApiError extends Error {
-  constructor(public readonly status: number, public readonly details: unknown) {
+  constructor(
+    public readonly status: number,
+    public readonly details: unknown,
+  ) {
     super(`GamesForAI request failed (${status})`);
   }
 }

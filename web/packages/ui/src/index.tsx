@@ -1,6 +1,12 @@
 import { useId, type ReactNode } from "react";
 
-export function Panel({ title, children }: { title: string; children: ReactNode }) {
+export function Panel({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
   const headingId = useId();
   return (
     <section className="panel" aria-labelledby={headingId}>

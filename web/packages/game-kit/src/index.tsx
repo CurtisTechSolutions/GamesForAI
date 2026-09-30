@@ -5,14 +5,22 @@ import Phaser from "phaser";
 export interface GameScenePlugin {
   gameId: string;
   createScene: () => Phaser.Scene;
-  render: (scene: Phaser.Scene, observation: unknown, perspective: number) => void;
-  onInput: (scene: Phaser.Scene, callback: (action: unknown) => void) => () => void;
+  render: (
+    scene: Phaser.Scene,
+    observation: unknown,
+    perspective: number,
+  ) => void;
+  onInput: (
+    scene: Phaser.Scene,
+    callback: (action: unknown) => void,
+  ) => () => void;
 }
 
 const plugins = new Map<string, GameScenePlugin>();
 
 export function registerGameScene(plugin: GameScenePlugin) {
-  if (plugins.has(plugin.gameId)) throw new Error(`Duplicate scene: ${plugin.gameId}`);
+  if (plugins.has(plugin.gameId))
+    throw new Error(`Duplicate scene: ${plugin.gameId}`);
   plugins.set(plugin.gameId, plugin);
 }
 
@@ -43,8 +51,14 @@ export function BoardHost({
     let dispose: (() => void) | undefined;
     board.events.once(Phaser.Scenes.Events.CREATE, () => {
       scene.current = board;
-      plugin.render(board, latest.current.observation, latest.current.perspective);
-      dispose = plugin.onInput(board, (action) => latest.current.onAction(action));
+      plugin.render(
+        board,
+        latest.current.observation,
+        latest.current.perspective,
+      );
+      dispose = plugin.onInput(board, (action) =>
+        latest.current.onAction(action),
+      );
     });
     const game = new Phaser.Game({
       type: Phaser.AUTO,
@@ -92,7 +106,11 @@ export function TextBoard({
           onChange={(event) => onAction(event.target.value)}
         >
           <option value="">Choose a move</option>
-          {legalActions.map((action) => <option key={action} value={action}>{action}</option>)}
+          {legalActions.map((action) => (
+            <option key={action} value={action}>
+              {action}
+            </option>
+          ))}
         </select>
       </label>
     </section>

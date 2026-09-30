@@ -115,51 +115,85 @@ impl Game for Connect4 {
     }
 
     fn new_initial_state(_: &Config, _: u64) -> Result<State, GameError> {
-        Ok(State { boards: [0, 0], to_move: 0 })
+        Ok(State {
+            boards: [0, 0],
+            to_move: 0,
+        })
     }
 
     fn validate_state(state: &State) -> Result<(), GameError> {
         let all = occupied(state);
         if all & !PLAYABLE != 0 || state.boards[0] & state.boards[1] != 0 {
-            return Err(GameError::position("Bitboards overlap or contain cells outside the board"));
+            return Err(GameError::position(
+                "Bitboards overlap or contain cells outside the board",
+            ));
         }
         let red = state.boards[0].count_ones();
         let yellow = state.boards[1].count_ones();
         if !(red == yellow || red == yellow + 1) || state.to_move != u8::from(red > yellow) {
-            return Err(GameError::position("Disc counts and next seat do not match alternating play"));
+            return Err(GameError::position(
+                "Disc counts and next seat do not match alternating play",
+            ));
         }
         for col in 0..7 {
             let column = (all >> (col * 7)) & 63;
             if column & (column + 1) != 0 {
-                return Err(GameError::position(format!("Column {} has a floating disc", col + 1)));
+                return Err(GameError::position(format!(
+                    "Column {} has a floating disc",
+                    col + 1
+                )));
             }
         }
-        if !reachable(state.boards, usize::from(state.to_move), &mut HashSet::new()) {
-            return Err(GameError::position("No legal alternating history reaches this position"));
+        if !reachable(
+            state.boards,
+            usize::from(state.to_move),
+            &mut HashSet::new(),
+        ) {
+            return Err(GameError::position(
+                "No legal alternating history reaches this position",
+            ));
         }
         Ok(())
     }
 
     fn current_players(state: &State) -> Vec<PlayerId> {
-        if Self::is_terminal(state) { vec![] } else { vec![state.to_move] }
+        if Self::is_terminal(state) {
+            vec![]
+        } else {
+            vec![state.to_move]
+        }
     }
 
     fn legal_actions(state: &State, player: PlayerId) -> Vec<Action> {
         if player != state.to_move || Self::is_terminal(state) {
             return vec![];
         }
-        (1..=7).filter_map(|column| {
-            (occupied(state) & (1_u64 << ((column - 1) * 7 + 5)) == 0)
-                .then_some(Action { column })
-        }).collect()
+        (1..=7)
+            .filter_map(|column| {
+                (occupied(state) & (1_u64 << ((column - 1) * 7 + 5)) == 0)
+                    .then_some(Action { column })
+            })
+            .collect()
     }
 
-    fn apply(state: &mut State, player: PlayerId, action: &Action) -> Result<StepEvents, GameError> {
+    fn apply(
+        state: &mut State,
+        player: PlayerId,
+        action: &Action,
+    ) -> Result<StepEvents, GameError> {
         if Self::is_terminal(state) {
-            return Err(GameError::new(ErrorCode::MatchFinished, "The game has ended", "Create or fork a match."));
+            return Err(GameError::new(
+                ErrorCode::MatchFinished,
+                "The game has ended",
+                "Create or fork a match.",
+            ));
         }
         if player != state.to_move || player > 1 {
-            return Err(GameError::new(ErrorCode::NotYourTurn, "The other seat must act", "Wait for your turn."));
+            return Err(GameError::new(
+                ErrorCode::NotYourTurn,
+                "The other seat must act",
+                "Wait for your turn.",
+            ));
         }
         if !(1..=7).contains(&action.column) {
             return Err(GameError::illegal("Column must be 1..7"));
@@ -179,7 +213,13 @@ impl Game for Connect4 {
     }
 
     fn returns(state: &State) -> Vec<f64> {
-        if won(state.boards[0]) { vec![1.0, -1.0] } else if won(state.boards[1]) { vec![-1.0, 1.0] } else { vec![0.0, 0.0] }
+        if won(state.boards[0]) {
+            vec![1.0, -1.0]
+        } else if won(state.boards[1]) {
+            vec![-1.0, 1.0]
+        } else {
+            vec![0.0, 0.0]
+        }
     }
 
     fn observe(state: &State, _: Viewer) -> Observation {
@@ -190,18 +230,45 @@ impl Game for Connect4 {
             text.push_str(&format!("{}  ", 6 - row));
             for col in 0..7 {
                 let bit = 1_u64 << (col * 7 + row);
-                let cell = if state.boards[0] & bit != 0 { Some(0) } else if state.boards[1] & bit != 0 { Some(1) } else { None };
+                let cell = if state.boards[0] & bit != 0 {
+                    Some(0)
+                } else if state.boards[1] & bit != 0 {
+                    Some(1)
+                } else {
+                    None
+                };
                 cells.push(cell);
-                text.push(match cell { Some(0) => 'R', Some(1) => 'Y', _ => '.' });
+                text.push(match cell {
+                    Some(0) => 'R',
+                    Some(1) => 'Y',
+                    _ => '.',
+                });
                 text.push(' ');
             }
             rows.push(cells);
             text.push('\n');
         }
         text.push_str(if Self::is_terminal(state) {
-            if won(state.boards[0]) { "Red wins." } else if won(state.boards[1]) { "Yellow wins." } else { "Draw." }
-        } else if state.to_move == 0 { "Red to move (seat 0)." } else { "Yellow to move (seat 1)." });
-        Observation { text, json: serde_json::json!(Board { rows, to_move: state.to_move }), tensor: None }
+            if won(state.boards[0]) {
+                "Red wins."
+            } else if won(state.boards[1]) {
+                "Yellow wins."
+            } else {
+                "Draw."
+            }
+        } else if state.to_move == 0 {
+            "Red to move (seat 0)."
+        } else {
+            "Yellow to move (seat 1)."
+        });
+        Observation {
+            text,
+            json: serde_json::json!(Board {
+                rows,
+                to_move: state.to_move
+            }),
+            tensor: None,
+        }
     }
 
     fn action_to_string(_: &State, action: &Action) -> String {
@@ -210,9 +277,15 @@ impl Game for Connect4 {
 
     fn action_from_string(_: &State, text: &str) -> Result<Action, GameError> {
         if text.len() == 1 && (b'1'..=b'7').contains(&text.as_bytes()[0]) {
-            Ok(Action { column: text.as_bytes()[0] - b'0' })
+            Ok(Action {
+                column: text.as_bytes()[0] - b'0',
+            })
         } else {
-            Err(GameError::new(ErrorCode::UnparseableAction, "Expected a column 1..7", "Choose one of legal_actions."))
+            Err(GameError::new(
+                ErrorCode::UnparseableAction,
+                "Expected a column 1..7",
+                "Choose one of legal_actions.",
+            ))
         }
     }
 
@@ -221,8 +294,16 @@ impl Game for Connect4 {
     }
 
     fn action_from_index(_: &State, index: u32) -> Result<Action, GameError> {
-        if index < 7 { Ok(Action { column: index as u8 + 1 }) } else {
-            Err(GameError::new(ErrorCode::UnparseableAction, "Index must be 0..6", "Choose an index from legal_actions."))
+        if index < 7 {
+            Ok(Action {
+                column: index as u8 + 1,
+            })
+        } else {
+            Err(GameError::new(
+                ErrorCode::UnparseableAction,
+                "Index must be 0..6",
+                "Choose an index from legal_actions.",
+            ))
         }
     }
 
@@ -232,7 +313,8 @@ impl Game for Connect4 {
     }
 
     fn state_from_notation(_: &Config, notation: &str) -> Result<State, GameError> {
-        let state = serde_json::from_str(notation).map_err(|e| GameError::position(format!("{e}")))?;
+        let state =
+            serde_json::from_str(notation).map_err(|e| GameError::position(format!("{e}")))?;
         Self::validate_state(&state)?;
         Ok(state)
     }
@@ -249,11 +331,23 @@ mod tests {
 
     #[test]
     fn validates_geometry_and_reachability() {
-        assert_eq!(PLAYABLE, (0..7).map(|c| 63_u64 << (7 * c)).sum());
-        assert!(Connect4::validate_state(&State { boards: [2, 0], to_move: 1 }).is_err());
+        assert_eq!(PLAYABLE, (0..7).map(|c| 63_u64 << (7 * c)).sum::<u64>());
+        assert!(Connect4::validate_state(&State {
+            boards: [2, 0],
+            to_move: 1
+        })
+        .is_err());
         // Yellow below red cannot be the first two moves.
-        assert!(Connect4::validate_state(&State { boards: [2, 1], to_move: 0 }).is_err());
-        assert!(Connect4::validate_state(&State { boards: [64, 0], to_move: 1 }).is_err());
+        assert!(Connect4::validate_state(&State {
+            boards: [2, 1],
+            to_move: 0
+        })
+        .is_err());
+        assert!(Connect4::validate_state(&State {
+            boards: [64, 0],
+            to_move: 1
+        })
+        .is_err());
     }
 
     #[test]
