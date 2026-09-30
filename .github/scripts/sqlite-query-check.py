@@ -19,7 +19,11 @@ if sys.argv[1] == "prepare":
             connection.executescript(migration.read_text())
 elif sys.argv[1] == "verify":
     def metadata(directory):
-        return {path.name: json.loads(path.read_text()) for path in directory.glob("query-*.json")}
+        return {
+            path.name: json.loads(path.read_text())
+            for path in directory.glob("query-*.json")
+            if json.loads(path.read_text())["db_name"] == "SQLite"
+        }
 
     generated = metadata(queries)
     if not generated or generated != metadata(Path(".sqlx")):

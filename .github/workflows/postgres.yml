@@ -1,0 +1,44 @@
+name: PostgreSQL CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: postgres-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: gfa_test
+          POSTGRES_PASSWORD: gfa-test
+          POSTGRES_DB: gfa_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gfa_test -d gfa_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://gfa_test:gfa-test@localhost:5432/gfa_query
+      GFA_TEST_POSTGRES_URL: postgres://gfa_test:gfa-test@localhost:5432/gfa_test
+      SQLX_OFFLINE_DIR: ${{ github.workspace }}/target/pg-queries
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Prepare migration-derived query schema
+        run: |
+          psql "$GFA_TEST_POSTGRES_URL" -v ON_ERROR_STOP=1 -c 'CREATE DATABASE gfa_query'
+          for migration in crates/adapters/gfa-store/migrations/postgres/*.sql; do
+            psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$migration"
+          done
+          mkdir -p "$SQLX_OFFLINE_DIR"
+      - name: Check queries and exercise PostgreSQL
+        run: cargo test -p gfa-store --no-default-features --features postgres --locked -- --ignored
+      - name: Verify PostgreSQL query metadata
+        run: python3 .github/scripts/postgres-query-check.py

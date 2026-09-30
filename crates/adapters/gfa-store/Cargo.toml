@@ -4,6 +4,11 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+default = ["sqlite"]
+sqlite = ["sqlx/sqlite"]
+postgres = ["sqlx/postgres", "sqlx/tls-rustls-ring-native-roots"]
+
 [dependencies]
 gfa-api-types.workspace = true
 gfa-service.workspace = true

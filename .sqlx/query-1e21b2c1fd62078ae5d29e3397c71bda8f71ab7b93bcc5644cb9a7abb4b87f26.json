@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT command_key, payload FROM gfa_commands WHERE match_id = $1 ORDER BY receipt_sequence",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "command_key",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "payload",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "1e21b2c1fd62078ae5d29e3397c71bda8f71ab7b93bcc5644cb9a7abb4b87f26"
+}
