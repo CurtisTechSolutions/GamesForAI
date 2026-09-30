@@ -224,3 +224,6 @@ mod event_tests;
 
 #[cfg(test)]
 mod chess_tests;
+
+#[cfg(test)]
+mod uci_tests;

@@ -36,3 +36,12 @@ Validation: fake engines exercise crash recovery, process reuse, cancellation,
 busy admission, hung searches, blocked stdin and malformed/oversized output.
 The dedicated UCI workflow runs a real Stockfish search through the production
 sandbox. No production switch disables isolation.
+
+
+UciOpponent implements the shared observation-only player contract. The host
+uses Opponent::decide to preserve operational errors. Its selected action,
+ponder reply and published PV prefixes are checked by the injected game before
+a result escapes the adapter. PVs expose at most 32 validated plies and mark
+truncation. Engine scores retain their units and root-seat perspective in
+advice.details; ChoiceInfo.evaluation remains absent because a centipawn or mate
+score is not an expected game return. All MultiPV lines are retained there.
