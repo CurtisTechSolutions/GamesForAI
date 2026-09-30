@@ -143,3 +143,9 @@ private state from an existing match.
 response types. It lists installed routes, query/header parameters, JSON and
 Markdown briefing formats, and error envelopes. Routers without live updates
 omit the WebSocket path. Export instructions are in `schemas/README.md`.
+
+## Interactive API documentation
+
+Open [the local API explorer](http://127.0.0.1:8080/docs/) after starting the server. The explorer uses the generated OpenAPI contract and bundles its JavaScript and styles with the server, so it works without a CDN. Expand an operation, edit the example, and select **Execute**. Start with `POST /v1/matches`, copy its `match_id`, then submit a move through `POST /v1/matches/{id}/actions` with the current turn and seat.
+
+Requests run against the same local server. The explorer uses the same Host and Origin checks as the API, and no external schema validator is contacted. Browser tests create a match and make a move through the visible controls.

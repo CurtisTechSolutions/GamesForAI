@@ -8,7 +8,8 @@
     "typecheck": "tsc --noEmit -p web/tsconfig.json",
     "lint": "eslint web && depcruise web --config .dependency-cruiser.cjs",
     "format:check": "prettier --check 'web/**/*.{ts,tsx,css,html,json}'",
-    "format": "prettier --write 'web/**/*.{ts,tsx,css,html,json}'"
+    "format": "prettier --write 'web/**/*.{ts,tsx,css,html,json}'",
+    "test:browser": "playwright test"
   },
   "devDependencies": {
     "@eslint/js": "^9.22.0",
@@ -17,6 +18,7 @@
     "globals": "^16.0.0",
     "prettier": "^3.5.3",
     "typescript": "^5.8.2",
-    "typescript-eslint": "^8.26.0"
+    "typescript-eslint": "^8.26.0",
+    "@playwright/test": "1.58.2"
   }
 }

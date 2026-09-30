@@ -74,7 +74,16 @@ fn build_router(
             "Check schema derives.",
         )
     })?;
+    let docs = utoipa_swagger_ui::SwaggerUi::new("/docs").config(
+        utoipa_swagger_ui::Config::from("/v1/openapi.json")
+            .validator_url("none")
+            .query_config_enabled(false)
+            .use_base_layout()
+            .filter(true)
+            .try_it_out_enabled(true),
+    );
     let mut router = Router::new()
+        .merge(docs)
         .route(
             "/v1/openapi.json",
             get(openapi::document).layer(axum::Extension(openapi::Document(document))),
