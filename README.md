@@ -58,7 +58,7 @@ Create an interactive match with one assignment per player:
 
 An omitted list keeps both seats external. A bot in the starting seat plays before
 creation returns; use `?seat=1` when joining the second seat. An action request
-returns `opponent_replies` and the final observation after those replies. The
+returns `opponent_actions` and the final observation after those replies. The
 caller's move, automatic replies, and idempotency receipt commit together, so
 worker failure or a conflicting write leaves the attempted batch unapplied.
 

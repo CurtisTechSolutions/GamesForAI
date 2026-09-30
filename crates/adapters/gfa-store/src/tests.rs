@@ -35,7 +35,7 @@ fn command(key: &str) -> StoredCommand {
             reasoning: None,
         },
         response: MoveResult {
-            opponent_replies: vec![],
+            opponent_actions: vec![],
             accepted_action: LegalAction {
                 string: "move".into(),
                 json: json!({"cell":0}),

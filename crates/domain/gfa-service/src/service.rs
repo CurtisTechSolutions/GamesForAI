@@ -384,7 +384,7 @@ impl GameService {
         })?;
         let next = replay::advance(game, state, current.turn + 1, &engine_events)?;
         let mut response = MoveResult {
-            opponent_replies: vec![],
+            opponent_actions: vec![],
             accepted_action: accepted_action.clone(),
             state: next.project(id, game, Viewer::Player(request.seat))?,
         };
@@ -412,7 +412,7 @@ impl GameService {
         response.state = progress
             .frame
             .project(id, game, Viewer::Player(request.seat))?;
-        response.opponent_replies = progress.replies;
+        response.opponent_actions = progress.replies;
         let events = staged.events[revision..].to_vec();
         let command = idempotency_key.map(|key| StoredCommand {
             key: key.into(),

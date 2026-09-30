@@ -1291,9 +1291,9 @@ fn automatic_replies_are_atomic_idempotent_and_do_not_leak_the_other_seat() -> T
     assert_eq!(first.state.turn, 2);
     assert_eq!(first.state.to_act, [0]);
     assert_eq!(first.state.observation.json["private"], "seat-0");
-    assert_eq!(first.opponent_replies.len(), 1);
-    assert_eq!(first.opponent_replies[0].seat, 1);
-    assert!(first.opponent_replies[0].action.is_none());
+    assert_eq!(first.opponent_actions.len(), 1);
+    assert_eq!(first.opponent_actions[0].seat, 1);
+    assert!(first.opponent_actions[0].action.is_none());
     assert_eq!(
         first,
         run(service.make_move(&initial.match_id, request.clone(), Some("turn-zero")))?
