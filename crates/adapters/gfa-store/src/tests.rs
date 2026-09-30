@@ -16,6 +16,7 @@ fn new_record(id: &str) -> MatchRecord {
             seed: 42,
             start: None,
             created_at_ms: 1234,
+            assists: gfa_api_types::Assists::default(),
         })],
         commands: vec![],
     }
@@ -321,5 +322,38 @@ async fn fresh_database_initialization_precedes_pool_expansion() -> TestResult {
     memory.create(new_record("memory")).await?;
     assert_eq!(memory.load("memory").await?, Some(new_record("memory")));
     memory.close().await;
+    Ok(())
+}
+
+#[tokio::test]
+async fn simulation_counters_are_atomic_and_leave_events_unchanged() -> TestResult {
+    let store = SqliteMatchStore::in_memory().await?;
+    let record = new_record("planning");
+    store.create(record.clone()).await?;
+    let (a, b) = tokio::join!(
+        store.record_simulation("planning", 0, 7),
+        store.record_simulation("planning", 0, 3),
+    );
+    a?;
+    b?;
+    store.record_simulation("planning", 1, 0).await?;
+    assert_eq!(store.load("planning").await?, Some(record));
+    assert_eq!(
+        store.assist_usage("planning").await?,
+        vec![
+            gfa_api_types::AssistUsage {
+                seat: 0,
+                simulation_calls: 2,
+                simulated_moves: 10
+            },
+            gfa_api_types::AssistUsage {
+                seat: 1,
+                simulation_calls: 1,
+                simulated_moves: 0
+            },
+        ]
+    );
+    assert!(store.record_simulation("missing", 0, 1).await.is_err());
+    store.close().await;
     Ok(())
 }

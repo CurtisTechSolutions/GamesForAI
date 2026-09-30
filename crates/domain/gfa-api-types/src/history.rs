@@ -41,6 +41,10 @@ pub struct MatchMetadata {
     /// Seat with a pending draw offer.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub draw_offer: Option<u8>,
+    /// Assistance policy recorded when the match was created.
+    pub assists: crate::Assists,
+    /// Recorded simulation usage, ordered by seat.
+    pub assist_usage: Vec<crate::AssistUsage>,
     /// Creation timestamp in Unix milliseconds.
     pub created_at_ms: u64,
 }

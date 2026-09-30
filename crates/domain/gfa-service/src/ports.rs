@@ -43,6 +43,32 @@ pub trait MatchStore: Send + Sync {
         })
     }
 
+    /// Atomically add one simulation call and its accepted transition count.
+    fn record_simulation<'a>(
+        &'a self,
+        _id: &'a str,
+        _seat: u8,
+        _moves: u32,
+    ) -> StoreFuture<'a, ()> {
+        Box::pin(async {
+            Err(StoreError::Unavailable(
+                "Assist accounting is unsupported".into(),
+            ))
+        })
+    }
+
+    /// Read recorded counters in ascending seat order.
+    fn assist_usage<'a>(
+        &'a self,
+        _id: &'a str,
+    ) -> StoreFuture<'a, Vec<gfa_api_types::AssistUsage>> {
+        Box::pin(async {
+            Err(StoreError::Unavailable(
+                "Assist accounting is unsupported".into(),
+            ))
+        })
+    }
+
     /// Compare-and-append using the current event count as the revision.
     ///
     /// Check idempotency before the revision: an identical command returns its

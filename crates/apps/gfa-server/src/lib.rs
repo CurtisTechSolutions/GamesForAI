@@ -132,3 +132,6 @@ mod openapi_tests;
 
 #[cfg(test)]
 mod opponent_tests;
+
+#[cfg(test)]
+mod simulation_tests;

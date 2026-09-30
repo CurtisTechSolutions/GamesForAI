@@ -173,7 +173,7 @@ fn game_info_with_viewer(
             section("rewards", guide.rewards, json!({"range":spec.reward_range})),
             section("config_options", guide.config, config_data),
             section("time_controls", "Untimed play only; no running clocks or timeout penalties.", json!({"supported":["none"],"default":"none"})),
-            section("opponents", "Local clients control the seats. Built-in opponents, analysis, and simulation are not installed.", json!({"available":[],"analysis":false,"simulation":false})),
+            section("opponents", "Local clients control the seats. Simulation is available when the match allows it. Built-in opponent scheduling and analysis are not installed.", json!({"available":[],"analysis":false,"simulation":true})),
             section("illegal_move_policy", "Reject without changing state; retry using the returned hint and current legal actions.", json!({"supported":["reject"],"default":"reject"})),
             section("how_to_play", "Create a match, then submit moves for seats in to_act until terminated or truncated. MCP is not available yet.", json!({
                 "create":{"method":"POST","path":"/v1/matches","body":{"game_id":spec.id,"config":config}},
@@ -245,7 +245,7 @@ impl MatchBrief<'_> {
                 "start":start,
                 "time_control":{"type":"none","clocks":null},
                 "illegal_move_policy":{"policy":"reject","attempts_remaining":null},
-                "assists":{"allow_analysis":false,"allow_simulation":false},
+                "assists":self.origin.assists,
                 "task":{"type":"none","note":"No benchmark task is assigned."},
                 "recording":{"moves":true,"reasoning":true,"llm_transcripts":false,
                     "visibility":"local","note":"Replays apply the requested viewer; transcripts are unavailable."},

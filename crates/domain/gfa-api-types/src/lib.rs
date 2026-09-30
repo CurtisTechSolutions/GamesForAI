@@ -46,6 +46,9 @@ pub struct CreateMatch {
     /// Optional custom position.
     #[serde(default)]
     pub start: Option<Start>,
+    /// Assistance available during this match.
+    #[serde(default)]
+    pub assists: Assists,
     /// Include a compact briefing in transport creation responses.
     #[serde(default = "include_info_by_default")]
     pub include_info: bool,
@@ -264,3 +267,9 @@ pub use history::{MatchHistory, MatchHistoryQuery, MatchMetadata, MatchStatus};
 
 mod controls;
 pub use controls::{ControlRequest, MatchOutcome};
+
+mod simulation;
+pub use simulation::{
+    AssistUsage, Assists, SimulateRequest, SimulatedLine, SimulationFailure, SimulationFrom,
+    SimulationOutput, SimulationResult,
+};

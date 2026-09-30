@@ -92,6 +92,7 @@ fn build_router(
         .route("/v1/games", get(games))
         .route("/v1/games/{game_id}", get(game))
         .route("/v1/games/{game_id}/info", get(info::game_info))
+        .route("/v1/games/{game_id}/simulate", post(simulate))
         .route(
             "/v1/games/{game_id}/positions/validate",
             post(validate_position),
@@ -397,4 +398,30 @@ async fn offer_draw(
 ) -> Result<Json<MatchState>, HttpError> {
     let Json(request) = body?;
     Ok(Json(service.offer_draw(&id(path)?, request).await?))
+}
+
+#[utoipa::path(
+    post, path = "/v1/games/{game_id}/simulate", tag = "Games",
+    params(("game_id" = String, Path, description = "Registered game identifier"),
+        ("seat" = Option<u8>, Query, description = "Standalone viewer, default 0. Must match the body seat for a match source.")),
+    request_body = gfa_api_types::SimulateRequest,
+    responses((status = 200, description = "Independent hypothetical lines with recoverable per-line failures", body = gfa_api_types::SimulationResult),
+        (status = "default", description = "Assist policy or source error", body = gfa_api_types::ErrorResponse))
+)]
+async fn simulate(
+    State(service): State<Arc<GameService>>,
+    path: Id,
+    query: View,
+    body: Result<Json<gfa_api_types::SimulateRequest>, JsonRejection>,
+) -> Result<Json<gfa_api_types::SimulationResult>, HttpError> {
+    let Json(request) = body?;
+    let seat = view(query)?.seat.unwrap_or(match &request.from {
+        gfa_api_types::SimulationFrom::Match { seat, .. } => *seat,
+        _ => 0,
+    });
+    Ok(Json(
+        service
+            .simulate(&id(path)?, request, Viewer::Player(seat))
+            .await?,
+    ))
 }
