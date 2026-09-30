@@ -33,7 +33,9 @@ impl SqliteMatchStore {
     }
 
     async fn connect(options: SqliteConnectOptions, connections: u32) -> Result<Self, StoreError> {
-        let options = options.foreign_keys(true).busy_timeout(Duration::from_secs(5));
+        let options = options
+            .foreign_keys(true)
+            .busy_timeout(Duration::from_secs(5));
         if connections > 1 {
             // Configure WAL and migrate before the pool can open other connections.
             // A checkout during migrations otherwise lets pool maintenance race
@@ -216,6 +218,23 @@ impl MatchStore for SqliteMatchStore {
 
     fn load<'a>(&'a self, id: &'a str) -> StoreFuture<'a, Option<MatchRecord>> {
         Box::pin(self.snapshot(id))
+    }
+
+    fn list_ids<'a>(&'a self, after: &'a str, limit: u32) -> StoreFuture<'a, Vec<String>> {
+        Box::pin(async move {
+            if !(1..=101).contains(&limit) {
+                return Err(unavailable("History limit must be 1..101"));
+            }
+            let limit = i64::from(limit);
+            sqlx::query_scalar!(
+                "SELECT id FROM gfa_matches WHERE id > ? ORDER BY id LIMIT ?",
+                after,
+                limit
+            )
+            .fetch_all(&self.pool)
+            .await
+            .map_err(unavailable)
+        })
     }
 
     fn append<'a>(

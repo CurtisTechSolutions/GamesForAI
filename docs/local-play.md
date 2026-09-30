@@ -144,6 +144,12 @@ response types. It lists installed routes, query/header parameters, JSON and
 Markdown briefing formats, and error envelopes. Routers without live updates
 omit the WebSocket path. Export instructions are in `schemas/README.md`.
 
+## Match history
+
+`GET /v1/matches/{id}` returns current public metadata reconstructed from the event log. `GET /v1/matches?game_id=tictactoe&status=finished&limit=50` scans local history in ascending match-id order. Pass the response's `next` as `after` to continue. The limit bounds records scanned before filtering, so an empty filtered page can still have a continuation. A new scan includes concurrent creations that sort before your current cursor.
+
+Metadata omits seeds, starting state, observations and reasoning. This index is for the loopback-restricted single-user mode; public multi-user hosting needs owner/visibility authorization.
+
 ## Interactive API documentation
 
 Open [the local API explorer](http://127.0.0.1:8080/docs/) after starting the server. The explorer uses the generated OpenAPI contract and bundles its JavaScript and styles with the server, so it works without a CDN. Expand an operation, edit the example, and select **Execute**. Start with `POST /v1/matches`, copy its `match_id`, then submit a move through `POST /v1/matches/{id}/actions` with the current turn and seat.

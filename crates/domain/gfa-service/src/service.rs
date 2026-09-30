@@ -202,6 +202,84 @@ impl GameService {
         .build(detail)
     }
 
+    /// Read public metadata from one consistent event snapshot.
+    pub async fn get_match(&self, id: &str) -> Result<gfa_api_types::MatchMetadata, ApiError> {
+        let record = self.record(id).await?;
+        let reconstructed = replay::reconstruct(&self.registry, &record)?;
+        let Some(MatchEvent::MatchCreated(origin)) = record.events.first() else {
+            return Err(error::corrupt());
+        };
+        let state =
+            reconstructed
+                .current()?
+                .project(id, reconstructed.game.as_ref(), Viewer::Spectator)?;
+        Ok(gfa_api_types::MatchMetadata {
+            match_id: id.into(),
+            game_id: origin.game_id.clone(),
+            engine_version: origin.engine_version.clone(),
+            status: if state.terminated || state.truncated {
+                gfa_api_types::MatchStatus::Finished
+            } else {
+                gfa_api_types::MatchStatus::Active
+            },
+            turn: state.turn,
+            to_act: state.to_act,
+            returns: state.returns,
+            terminated: state.terminated,
+            truncated: state.truncated,
+            created_at_ms: origin.created_at_ms,
+        })
+    }
+
+    /// Scan a bounded page of local match history; callers must follow next even
+    /// when filters leave this page empty. Concurrent insertions before a cursor
+    /// appear on a new scan, preserving stable forward pagination.
+    pub async fn list_matches(
+        &self,
+        query: gfa_api_types::MatchHistoryQuery,
+    ) -> Result<gfa_api_types::MatchHistory, ApiError> {
+        if !(1..=100).contains(&query.limit)
+            || query.after.as_ref().is_some_and(|value| value.len() > 128)
+        {
+            return Err(ApiError::new(
+                "INVALID_CONFIG",
+                "Invalid history limit or cursor",
+                "Use a limit from 1 to 100 and the previous page's next cursor.",
+            ));
+        }
+        if let Some(game_id) = &query.game_id {
+            self.registry.get(game_id).map_err(error::engine)?;
+        }
+        let after = query.after.as_deref().unwrap_or("");
+        let mut ids = self
+            .store
+            .list_ids(after, query.limit + 1)
+            .await
+            .map_err(error::store)?;
+        if ids.len() > query.limit as usize + 1
+            || ids.iter().any(|id| id.as_str() <= after)
+            || ids.windows(2).any(|pair| pair[0] >= pair[1])
+        {
+            return Err(error::corrupt());
+        }
+        let more = ids.len() > query.limit as usize;
+        ids.truncate(query.limit as usize);
+        let next = if more { ids.last().cloned() } else { None };
+        let mut matches = Vec::new();
+        for id in ids {
+            let metadata = self.get_match(&id).await?;
+            if query
+                .game_id
+                .as_ref()
+                .is_none_or(|id| id == &metadata.game_id)
+                && query.status.is_none_or(|status| status == metadata.status)
+            {
+                matches.push(metadata);
+            }
+        }
+        Ok(gfa_api_types::MatchHistory { matches, next })
+    }
+
     /// Reconstruct and project the latest committed state.
     pub async fn get_state(&self, id: &str, viewer: Viewer) -> Result<MatchState, ApiError> {
         let record = self.record(id).await?;
