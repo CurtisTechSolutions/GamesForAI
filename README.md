@@ -47,3 +47,23 @@ placement and supporting candidate eliminations. Search-backed steps are marked
 `advice.is_guess: true`; an incorrect entered digit produces an explicit
 `solution_check` erasure recommendation. Ordinary state responses do not include
 these recommendations or the solution grid.
+
+## Play against a built-in opponent
+
+Create an interactive match with one assignment per player:
+
+```json
+{"game_id":"tictactoe","seats":[{"type":"self"},{"type":"opponent","opponent":{"id":"minimax","level":3},"seed":19}]}
+```
+
+An omitted list keeps both seats external. A bot in the starting seat plays before
+creation returns; use `?seat=1` when joining the second seat. An action request
+returns `opponent_actions` and the final observation after those replies. The
+caller's move, automatic replies, and idempotency receipt commit together, so
+worker failure or a conflicting write leaves the attempted batch unapplied.
+
+Planning seeds are materialized independently from game randomness. Replay
+reapplies recorded actions without rerunning opponents. Forks may replace
+`seats`; omitted assignments retain the parent's configuration. Interactive
+matches currently require at least one external seat; fully automatic scheduling
+is a separate increment.

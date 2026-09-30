@@ -258,13 +258,13 @@ impl MatchBrief<'_> {
         };
         info.sections.insert(0, section(
             "match",
-            "Live match settings and viewer-scoped state. Later game examples use an independent synthetic start. Local clients control all seats; invalid moves can be retried without a limit.",
+            "Live match settings and viewer-scoped state. Later game examples use an independent synthetic start. Local clients control external seats; opponents reply automatically. Invalid moves can be retried without a limit.",
             json!({
                 "match_id":self.id,
                 "status":if self.current.ended() { "finished" } else { "active" },
                 "turn":current.turn,"to_act":current.to_act,"you":you,
                 "participants":spec.seat_names.iter().enumerate().map(|(seat,name)|
-                    json!({"seat":seat,"name":name,"type":"external","level":null,"rating":null})).collect::<Vec<_>>(),
+                    json!({"seat":seat,"name":name,"assignment":self.origin.seats.get(seat).cloned().unwrap_or_default(),"rating":null})).collect::<Vec<_>>(),
                 "start":start,
                 "time_control":{"type":"none","clocks":null},
                 "illegal_move_policy":{"policy":"reject","attempts_remaining":null},

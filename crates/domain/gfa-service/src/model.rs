@@ -6,6 +6,9 @@ use serde_json::Value;
 /// Immutable engine inputs, recorded as the first event.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct MatchOrigin {
+    /// Immutable assignments; older records default to external callers.
+    #[serde(default)]
+    pub seats: Vec<gfa_api_types::Seat>,
     /// Registered game id.
     pub game_id: String,
     /// Engine version required for exact replay.
@@ -32,6 +35,9 @@ pub struct MatchOrigin {
 /// One action accepted by the engine.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AppliedAction {
+    /// Private diagnostics from an automatic player, absent for external moves.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub opponent_info: Option<gfa_opponents::ChoiceInfo>,
     /// Turn before the action.
     pub turn: u64,
     /// Acting seat.

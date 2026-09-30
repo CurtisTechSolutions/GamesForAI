@@ -29,3 +29,5 @@ mod planning;
 pub use opponents::{
     BuiltinOpponentFactory, OpponentExecutor, OpponentFactory, OpponentFuture, OpponentJob,
 };
+
+mod seats;

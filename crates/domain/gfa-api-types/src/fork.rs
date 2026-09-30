@@ -8,6 +8,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ForkMatch {
+    /// Optional replacement assignments; omitted values retain the parent's seats.
+    #[serde(default)]
+    pub seats: Option<Vec<crate::Seat>>,
     /// Accepted-action count in the parent, including zero.
     pub turn: u64,
     /// Preserve the source RNG; requires full-state access for hidden-information games.

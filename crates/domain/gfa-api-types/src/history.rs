@@ -17,6 +17,9 @@ pub enum MatchStatus {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct MatchMetadata {
+    /// Recorded player assignments, including independent opponent planning seeds.
+    #[serde(default)]
+    pub seats: Vec<crate::Seat>,
     /// Match identifier.
     pub match_id: String,
     /// Immutable parent reference for a variation.

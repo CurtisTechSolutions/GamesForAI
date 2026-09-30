@@ -29,11 +29,14 @@ fn empty_config() -> Value {
     serde_json::json!({})
 }
 
-/// Create a match with external players. Opponent scheduling is a separate use case.
+/// Create a match with external and optionally automatic opponent seats.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CreateMatch {
+    /// One assignment per actual player; omitted lists default to external callers.
+    #[serde(default)]
+    pub seats: Vec<Seat>,
     /// Stable registered game id.
     pub game_id: String,
     /// Validated game options.
@@ -107,9 +110,12 @@ pub struct MatchState {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct MoveResult {
+    /// Automatic replies committed with this move; absent when no opponent acted.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub opponent_actions: Vec<OpponentReply>,
     /// Canonical encoding selected from the engine's legal actions.
     pub accepted_action: LegalAction,
-    /// State for the acting player.
+    /// Final state for the acting player, after any automatic replies.
     pub state: MatchState,
 }
 
@@ -284,3 +290,6 @@ mod opponents;
 pub use opponents::{
     AnalysisRequest, AnalysisResult, OpponentConfig, OpponentLevel, OpponentSpec, SearchBudget,
 };
+
+mod seats;
+pub use seats::{OpponentReply, Seat};

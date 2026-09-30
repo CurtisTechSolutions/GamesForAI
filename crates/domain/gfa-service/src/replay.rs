@@ -109,6 +109,15 @@ pub(crate) fn initial(game: &dyn DynGame, origin: &MatchOrigin) -> Result<Frame,
             "Choose a nonterminal position with an active seat.",
         ));
     }
+    if !origin.seats.is_empty()
+        && origin.seats.len() != game.returns(&state).map_err(error::engine)?.len()
+    {
+        return Err(ApiError::new(
+            "INVALID_CONFIG",
+            "Recorded seat count disagrees with the engine",
+            "Use one seat per actual player.",
+        ));
+    }
     if game.spec().max_game_length == 0 {
         return Err(ApiError::new(
             "INVALID_CONFIG",
