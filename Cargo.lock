@@ -628,6 +628,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "gfa-opponents"
+version = "0.1.0"
+dependencies = [
+ "gfa-core",
+]
+
+[[package]]
 name = "gfa-server"
 version = "0.1.0"
 dependencies = [
@@ -637,6 +644,7 @@ dependencies = [
  "gfa-core",
  "gfa-games",
  "gfa-http",
+ "gfa-opponents",
  "gfa-service",
  "gfa-store",
  "jsonschema",
