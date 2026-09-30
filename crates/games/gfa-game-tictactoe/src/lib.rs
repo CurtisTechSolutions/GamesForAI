@@ -323,6 +323,10 @@ impl Game for TicTacToe {
         }
     }
 
+    fn public_position(state: &State) -> Result<Option<String>, GameError> {
+        Self::state_to_notation(state).map(Some)
+    }
+
     fn state_to_notation(state: &State) -> Result<String, GameError> {
         Self::validate_state(state)?;
         Ok(serde_json::to_string(state)?)
