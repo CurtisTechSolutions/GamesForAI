@@ -228,12 +228,22 @@ async fn interactive_docs_are_bundled_and_share_local_access_guards() -> TestRes
     for (path, content_type, content) in [
         ("/docs/", "text/html", "swagger-ui"),
         ("/docs/swagger-ui.css", "text/css", ".swagger-ui"),
-        ("/docs/swagger-ui-bundle.js", "javascript", "SwaggerUIBundle"),
-        ("/docs/swagger-initializer.js", "javascript", "/v1/openapi.json"),
+        (
+            "/docs/swagger-ui-bundle.js",
+            "javascript",
+            "SwaggerUIBundle",
+        ),
+        (
+            "/docs/swagger-initializer.js",
+            "javascript",
+            "/v1/openapi.json",
+        ),
     ] {
         let response = app.clone().oneshot(request("GET", path, "")?).await?;
         assert_eq!(response.status(), StatusCode::OK, "{path}");
-        assert!(response.headers()[header::CONTENT_TYPE].to_str()?.contains(content_type));
+        assert!(response.headers()[header::CONTENT_TYPE]
+            .to_str()?
+            .contains(content_type));
         assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
         let body = to_bytes(response.into_body(), 8 * 1024 * 1024).await?;
         let body = std::str::from_utf8(&body)?;
@@ -243,8 +253,13 @@ async fn interactive_docs_are_bundled_and_share_local_access_guards() -> TestRes
             assert!(body.contains(r#""queryConfigEnabled": false"#));
         }
         let mut rejected = request("GET", path, "")?;
-        rejected.headers_mut().insert(header::ORIGIN, "https://example.org".parse()?);
-        assert_eq!(app.clone().oneshot(rejected).await?.status(), StatusCode::FORBIDDEN);
+        rejected
+            .headers_mut()
+            .insert(header::ORIGIN, "https://example.org".parse()?);
+        assert_eq!(
+            app.clone().oneshot(rejected).await?.status(),
+            StatusCode::FORBIDDEN
+        );
     }
     Ok(())
 }

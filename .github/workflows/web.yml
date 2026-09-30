@@ -17,10 +17,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Resolve browser test lockfile
-        run: |
-          pnpm install --lockfile-only
-          node -e 'console.log("GFA_PNPM_JSON:"+JSON.stringify({content:require("fs").readFileSync("pnpm-lock.yaml","utf8")}))'
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
