@@ -29,7 +29,7 @@ use gfa_core::{GameSpec, Viewer};
 use gfa_service::GameService;
 use serde::Deserialize;
 #[cfg(test)]
-use serde_json::Value;
+use serde_json::{json, Value};
 use std::{net::SocketAddr, sync::Arc};
 
 /// Maximum JSON request size, including optional move reasoning.
