@@ -116,6 +116,9 @@ pub struct AnalysisResult {
     pub seed: u64,
     /// Recommended legal actions in order of preference.
     pub best_moves: Vec<LegalAction>,
+    /// Per-move analysis in the same preference order as best_moves.
+    #[serde(default)]
+    pub variations: Vec<gfa_core::ActionChoice>,
     /// Expected return for the requesting seat, absent without completed search.
     pub evaluation: Option<f64>,
     /// Canonical continuation, beginning with the recommended action.

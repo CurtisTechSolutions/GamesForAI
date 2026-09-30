@@ -10,6 +10,7 @@ members = [
     "crates/games/gfa-games",
     "crates/adapters/gfa-store",
     "crates/adapters/gfa-http",
+    "crates/adapters/gfa-mcp",
     "crates/apps/gfa-server",
     "crates/apps/gfa-cli",
     "xtask",
@@ -39,6 +40,8 @@ gfa-opponents = { version = "0.1.0", path = "crates/players/gfa-opponents" }
 gfa-engine-uci = { version = "0.1.0", path = "crates/players/gfa-engine-uci" }
 gfa-service = { version = "0.1.0", path = "crates/domain/gfa-service" }
 gfa-http = { version = "0.1.0", path = "crates/adapters/gfa-http" }
+gfa-mcp = { version = "0.1.0", path = "crates/adapters/gfa-mcp" }
+rmcp = { version = "3.5.0", default-features = false, features = ["server", "transport-io"] }
 gfa-store = { version = "0.1.0", path = "crates/adapters/gfa-store" }
 gfa-server = { version = "0.1.0", path = "crates/apps/gfa-server" }
 serde = { version = "1", features = ["derive"] }

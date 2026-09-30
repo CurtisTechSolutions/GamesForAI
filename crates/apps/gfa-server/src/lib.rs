@@ -233,3 +233,6 @@ mod uci_tests;
 
 #[cfg(test)]
 mod stockfish_tests;
+
+#[cfg(test)]
+mod mcp_tests;

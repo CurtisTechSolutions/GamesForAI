@@ -15,6 +15,10 @@ use std::{future::Future, pin::Pin, sync::Arc};
 pub type OpponentFuture<'a> =
     Pin<Box<dyn Future<Output = Result<ActionChoice, ApiError>> + Send + 'a>>;
 
+/// Bounded recommendations returned by an analysis worker.
+pub type AnalysisFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<Vec<ActionChoice>, ApiError>> + Send + 'a>>;
+
 /// Select installed players without exposing live state or transport details.
 pub trait OpponentFactory: Send + Sync {
     /// Stable catalog for this game.
@@ -33,6 +37,10 @@ pub trait OpponentFactory: Send + Sync {
 pub trait OpponentExecutor: Send + Sync {
     /// Run outside the request executor, rejecting excess work instead of queueing without bounds.
     fn execute(&self, job: OpponentJob) -> OpponentFuture<'_>;
+    /// Analyze on the host's bounded executor. Legacy executors retain single-choice behavior.
+    fn analyze(&self, job: OpponentJob) -> AnalysisFuture<'_> {
+        Box::pin(async move { self.execute(job).await.map(|choice| vec![choice]) })
+    }
 }
 
 /// Owned planning input. No raw match state or match RNG is passed to the worker.
@@ -45,6 +53,21 @@ pub struct OpponentJob {
 }
 
 impl OpponentJob {
+    /// Request ranked analysis recommendations with the same observation-only input.
+    pub fn analyze(self, clock: &dyn Clock) -> Result<Vec<ActionChoice>, ApiError> {
+        self.opponent
+            .analyze(
+                &PlayerTurn {
+                    seat: self.seat,
+                    observation: &self.observation,
+                    legal_actions: &self.legal_actions,
+                },
+                self.limits,
+                clock,
+            )
+            .map_err(error::opponent)
+    }
+
     /// Execute with an injected monotonic clock. The host supplies the runtime.
     pub fn run(self, clock: &dyn Clock) -> Result<ActionChoice, ApiError> {
         self.opponent
@@ -267,27 +290,42 @@ impl GameService {
                 "Select the current player or an earlier turn.",
             ));
         }
-        let choice = self
-            .choose_opponent(
-                planning.game,
-                planning.config,
-                &request.opponent,
-                seed,
-                seat,
-                visible,
+        let (factory, executor) = self.opponents.as_ref().ok_or_else(|| {
+            ApiError::new(
+                "ENGINE_UNAVAILABLE",
+                "No opponent executor is installed",
+                "Configure an opponent worker pool on the host.",
             )
+        })?;
+        let (opponent, limits) =
+            factory.create(planning.game, planning.config, &request.opponent, seed)?;
+        let choices = executor
+            .analyze(OpponentJob {
+                opponent,
+                seat,
+                observation: visible.observation,
+                legal_actions: visible.legal_actions.clone(),
+                limits,
+            })
             .await?;
+        validate_analysis_choices(&choices, &visible.legal_actions)?;
+        let choice = choices.first().ok_or_else(invalid_analysis)?;
         Ok(AnalysisResult {
-            advice: choice.info.advice,
+            advice: choice.info.advice.clone(),
             game_id: request.game_id,
             opponent: request.opponent.id,
             seed,
-            best_moves: vec![choice.action],
+            best_moves: choices.iter().map(|choice| choice.action.clone()).collect(),
             evaluation: choice.info.evaluation,
-            principal_variation: choice.info.principal_variation,
-            nodes: choice.info.nodes,
+            principal_variation: choice.info.principal_variation.clone(),
+            nodes: choices
+                .iter()
+                .map(|choice| choice.info.nodes)
+                .max()
+                .unwrap_or(0),
             depth: choice.info.depth,
-            budget_exhausted: choice.info.budget_exhausted,
+            budget_exhausted: choices.iter().any(|choice| choice.info.budget_exhausted),
+            variations: choices,
         })
     }
 }
@@ -337,5 +375,81 @@ mod failure_tests {
             "ENGINE_TIMEOUT"
         );
         Ok(())
+    }
+}
+
+fn invalid_analysis() -> ApiError {
+    ApiError::new(
+        "ENGINE_INVALID_RESPONSE",
+        "Opponent returned invalid analysis recommendations",
+        "Select another opponent and report the provider failure.",
+    )
+}
+fn validate_analysis_choices(
+    choices: &[ActionChoice],
+    legal: &[LegalAction],
+) -> Result<(), ApiError> {
+    if choices.is_empty() || choices.len() > 16 {
+        return Err(invalid_analysis());
+    }
+    let mut seen = std::collections::BTreeSet::new();
+    for choice in choices {
+        if !legal.contains(&choice.action)
+            || !seen.insert(choice.action.index)
+            || choice
+                .info
+                .evaluation
+                .is_some_and(|score| !score.is_finite())
+            || choice.info.principal_variation.len() > 128
+            || choice
+                .info
+                .principal_variation
+                .first()
+                .is_some_and(|first| first != &choice.action.string)
+        {
+            return Err(invalid_analysis());
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod analysis_validation_tests {
+    use super::*;
+    fn choice() -> ActionChoice {
+        ActionChoice {
+            action: LegalAction {
+                string: "a".into(),
+                json: serde_json::json!("a"),
+                index: 0,
+            },
+            info: gfa_core::ChoiceInfo {
+                advice: None,
+                algorithm: "test".into(),
+                nodes: 1,
+                depth: 1,
+                evaluation: Some(0.0),
+                principal_variation: vec!["a".into()],
+                budget_exhausted: false,
+            },
+        }
+    }
+    #[test]
+    fn rejects_empty_duplicate_nonfinite_illegal_and_mismatched_analysis() {
+        let first = choice();
+        let legal = vec![first.action.clone()];
+        assert!(validate_analysis_choices(std::slice::from_ref(&first), &legal).is_ok());
+        assert!(validate_analysis_choices(&[], &legal).is_err());
+        assert!(validate_analysis_choices(&vec![first.clone(); 17], &legal).is_err());
+        assert!(validate_analysis_choices(&[first.clone(), first.clone()], &legal).is_err());
+        let mut bad = first.clone();
+        bad.info.evaluation = Some(f64::NAN);
+        assert!(validate_analysis_choices(&[bad], &legal).is_err());
+        let mut bad = first.clone();
+        bad.action.string = "b".into();
+        assert!(validate_analysis_choices(&[bad], &legal).is_err());
+        let mut bad = first;
+        bad.info.principal_variation[0] = "b".into();
+        assert!(validate_analysis_choices(&[bad], &legal).is_err());
     }
 }
