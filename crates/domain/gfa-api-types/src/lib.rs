@@ -123,6 +123,21 @@ pub struct MoveResult {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
 pub struct Replay {
+    /// Registered game identifier needed to load this replay.
+    pub game_id: String,
+    /// Canonical public engine configuration.
+    pub config: Value,
+    /// Initial game RNG seed, available only to authorized omniscient callers.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub seed: Option<u64>,
+    /// Complete initial engine state, including a fork's local starting position.
+    /// Only authorized omniscient callers receive this field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub initial_state: Option<Value>,
+    /// Event count in this consistent replay snapshot.
+    pub revision: u64,
+    /// Viewer-scoped recorded facts, including controls and reasoning.
+    pub events: Vec<RecordedEvent>,
     /// Stable match identifier.
     pub match_id: String,
     /// Engine version used to reconstruct this replay.

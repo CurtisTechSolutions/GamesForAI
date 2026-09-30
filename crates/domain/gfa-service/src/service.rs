@@ -312,16 +312,32 @@ impl GameService {
     pub async fn get_replay(&self, id: &str, viewer: Viewer) -> Result<Replay, ApiError> {
         let record = self.record(id).await?;
         let replay = replay::reconstruct(&self.registry, &record)?;
-        let states = replay
-            .frames
-            .iter()
-            .map(|frame| frame.project(id, replay.game.as_ref(), viewer))
-            .collect::<Result<Vec<_>, _>>()?;
+        let origin = record.origin().ok_or_else(error::corrupt)?;
+        let config = replay.game.normalize_config(&origin.config).map_err(error::engine)?;
+        let mut budget = crate::events::ReplayBudget::default();
+        budget.include(&config)?;
+        let initial_state = if viewer == Viewer::Omniscient {
+            let state = replay.frames.first().ok_or_else(error::corrupt)?.state.clone();
+            budget.include(&state)?;
+            Some(state)
+        } else { None };
+        let mut states = Vec::new();
+        for frame in &replay.frames {
+            let state = frame.project(id, replay.game.as_ref(), viewer)?;
+            budget.include(&state)?;
+            states.push(state);
+        }
+        let events = crate::events::project(&record, &replay, viewer, 0..record.events.len(), &mut budget)?;
+        let ancestors = self.fork_ancestors(&record).await?;
+        budget.include(&ancestors)?;
         Ok(Replay {
+            game_id:origin.game_id.clone(), config,
+            seed:(viewer == Viewer::Omniscient).then_some(origin.seed),
+            initial_state, revision:record.events.len() as u64, events,
             match_id: id.into(),
             engine_version: replay.game.spec().engine_version,
             states,
-            ancestors: self.fork_ancestors(&record).await?,
+            ancestors,
         })
     }
 
