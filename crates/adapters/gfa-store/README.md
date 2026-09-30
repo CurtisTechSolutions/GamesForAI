@@ -20,13 +20,13 @@ checks the generated metadata against the committed files.
 After changing a query or migration, from the repository root:
 
 ```sh
-export RUNNER_TEMP="$(mktemp -d)"
+export GFA_SQLX_WORK_DIR="$(mktemp -d)"
 python3 .github/scripts/sqlite-query-check.py prepare
 cargo clean -p gfa-store
-DATABASE_URL="sqlite:$RUNNER_TEMP/gfa-sqlx/schema.sqlite" \
-SQLX_OFFLINE_DIR="$RUNNER_TEMP/gfa-sqlx/queries" \
+DATABASE_URL="sqlite:$GFA_SQLX_WORK_DIR/schema.sqlite" \
+SQLX_OFFLINE_DIR="$GFA_SQLX_WORK_DIR/queries" \
 cargo check -p gfa-store --locked
-cp "$RUNNER_TEMP"/gfa-sqlx/queries/query-*.json .sqlx/
+cp "$GFA_SQLX_WORK_DIR"/queries/query-*.json .sqlx/
 python3 .github/scripts/sqlite-query-check.py verify
 ```
 

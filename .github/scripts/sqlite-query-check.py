@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 import sys
 
-work = Path(os.environ["RUNNER_TEMP"]) / "gfa-sqlx"
+work = Path(os.environ["GFA_SQLX_WORK_DIR"])
 database = work / "schema.sqlite"
 queries = work / "queries"
 
