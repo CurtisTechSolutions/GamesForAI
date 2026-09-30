@@ -77,6 +77,19 @@ impl<const TERMINATES: bool> Game for Counter<TERMINATES> {
         state[1] = seed;
         Ok(())
     }
+    fn state_from_observation(
+        config: &Self::Config,
+        observation: &Observation,
+        _: Viewer,
+        seed: u64,
+    ) -> Result<Self::State, GameError> {
+        Self::new_initial_state(config, seed)?;
+        let turn = observation.json["turn"].as_u64().ok_or_else(|| GameError::position("turn"))?;
+        let total = observation.json["total"].as_u64().ok_or_else(|| GameError::position("total"))?;
+        let state = [turn, seed, total];
+        Self::validate_state(&state)?;
+        Ok(state)
+    }
     fn validate_state(state: &Self::State) -> Result<(), GameError> {
         if state[0] > 4 || state[2] > state[0] * 3 {
             return Err(GameError::position("Invalid counter"));
@@ -182,6 +195,7 @@ impl<const TERMINATES: bool> Game for Counter<TERMINATES> {
 #[derive(Default)]
 struct MemoryStore {
     records: Mutex<BTreeMap<String, MatchRecord>>,
+    usage: Mutex<BTreeMap<String, BTreeMap<u8, (u64, u64)>>>,
     // Inject a failure (1), identical command race (2), or unkeyed move race (3).
     append_mode: AtomicU8,
 }
@@ -208,6 +222,28 @@ impl MatchStore for MemoryStore {
                 .map_err(|_| StoreError::Unavailable("poisoned".into()))?
                 .get(id)
                 .cloned())
+        })
+    }
+    fn list_ids<'a>(&'a self, after: &'a str, limit: u32) -> StoreFuture<'a, Vec<String>> {
+        Box::pin(async move {
+            Ok(self.records.lock().map_err(|_| StoreError::Unavailable("poisoned".into()))?
+                .keys().filter(|id| id.as_str() > after).take(limit as usize).cloned().collect())
+        })
+    }
+    fn record_simulation<'a>(&'a self, id: &'a str, seat: u8, moves: u32) -> StoreFuture<'a, ()> {
+        Box::pin(async move {
+            let mut usage = self.usage.lock().map_err(|_| StoreError::Unavailable("poisoned".into()))?;
+            let entry = usage.entry(id.into()).or_default().entry(seat).or_default();
+            entry.0 += 1;
+            entry.1 += u64::from(moves);
+            Ok(())
+        })
+    }
+    fn assist_usage<'a>(&'a self, id: &'a str) -> StoreFuture<'a, Vec<gfa_api_types::AssistUsage>> {
+        Box::pin(async move {
+            let usage = self.usage.lock().map_err(|_| StoreError::Unavailable("poisoned".into()))?;
+            Ok(usage.get(id).into_iter().flat_map(|seats| seats.iter()).map(|(seat, (calls, moves))|
+                gfa_api_types::AssistUsage { seat: *seat, simulation_calls: *calls, simulated_moves: *moves }).collect())
         })
     }
     fn append<'a>(
@@ -779,5 +815,37 @@ fn control_events_preserve_hidden_boards_and_reject_tampered_logs() -> TestResul
         run(service.get_state(id, Viewer::Player(0))),
         "INVALID_EVENT_LOG",
     );
+    Ok(())
+}
+
+#[test]
+fn simulation_reseeds_hidden_chance_without_touching_the_live_record() -> TestResult {
+    use gfa_api_types::{SimulateRequest, SimulationFrom, SimulationOutput};
+    let (service, store) = fixture()?;
+    let initial = run(service.create_match(create("counter"), Viewer::Player(0)))?;
+    let id = &initial.match_id;
+    let before = record(&store, id)?;
+    let request = SimulateRequest {
+        from: SimulationFrom::Match { match_id: id.clone(), seat: 0, turn: None },
+        config: json!({}), seed: Some(71), output: SimulationOutput::All,
+        lines: vec![vec![json!("1"), json!("2")], vec![json!("1"), json!("2")]],
+    };
+    let simulated = run(service.simulate("counter", request.clone(), Viewer::Player(0)))?;
+    assert_eq!(serde_json::to_value(&simulated.lines[0])?, serde_json::to_value(&simulated.lines[1])?);
+    assert_eq!(serde_json::to_value(&simulated)?, serde_json::to_value(run(service.simulate("counter", request, Viewer::Player(0)))?)?);
+    assert_eq!(record(&store, id)?, before);
+    let clone = run(service.create_match(CreateMatch {
+        seed: Some(71), ..create("counter")
+    }, Viewer::Player(0)))?;
+    for (turn, action_value) in [json!("1"), json!("2")].into_iter().enumerate() {
+        run(service.make_move(&clone.match_id, action(turn as u64, action_value), None))?;
+        let mut played = run(service.get_state(&clone.match_id, Viewer::Player(0)))?;
+        played.match_id.clear();
+        assert_eq!(simulated.lines[0].states[turn], played);
+        assert_eq!(played.observation.json["private"], "seat-0");
+    }
+    let usage = run(store.assist_usage(id))?;
+    assert_eq!(usage[0].simulation_calls, 2);
+    assert_eq!(usage[0].simulated_moves, 8);
     Ok(())
 }

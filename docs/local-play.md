@@ -163,3 +163,11 @@ To run the browser check locally, build the CLI with `cargo build -p gfa-cli`, i
 Submit `{"seat":0,"turn":3}` to `POST /v1/matches/{id}/resign` to concede, or to `POST /v1/matches/{id}/offer-draw` to offer a draw. If the other seat already has a pending offer at that turn, the second offer accepts it. Repeating your own offer has no effect; a move expires it. Resignation supports one- or two-seat games, and agreed draws require two seats.
 
 Controls use the same expected-turn and atomic event-append checks as moves. They preserve the engine position and add an explicit `outcome` to the match state. A control ending is terminal, remains terminal after restart, and reaches live subscribers even when the turn number has not changed.
+
+## Simulation and assists
+
+`POST /v1/games/{game_id}/simulate` accepts `{"from":{"match_id":"…","seat":0},"lines":[["r1c1","r2c2"],["r3c3"]],"seed":42,"return":"all"}`. Use `from.turn` for an earlier turn, or `from.position` / `from.state` with game `config` for a standalone position. Standalone views default to seat 0 and accept a `?seat=` query. There can be 1–16 independent lines, each with at most 32 actions.
+
+Each line begins with a separate copy and the caller's RNG seed. Match sources reconstruct a planning state exclusively from the authorized seat's observation; unsupported reconstruction fails without exposing full match state. `return: "final"` returns the final legal prefix (including an empty line's starting state); `"all"` returns every accepted transition. A line stops at its first invalid action while other lines continue.
+
+Set `assists: {"allow_simulation": false}` at creation to disable simulation. The policy also blocks equivalent standalone positions from active local matches, using a hash of normalized config and the viewer's observation. Local mode treats all matches as belonging to one owner. Matching finished positions can be explored independently. Game events, clocks, and command receipts remain unchanged; completed match-source requests update separate per-seat usage counters, visible in match metadata and history.
