@@ -187,6 +187,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "gfa-game-connect4"
+version = "0.1.0"
+dependencies = [
+ "gfa-core",
+ "gfa-testkit",
+]
+
+[[package]]
 name = "gfa-game-tictactoe"
 version = "0.1.0"
 dependencies = [
@@ -199,6 +207,7 @@ name = "gfa-games"
 version = "0.1.0"
 dependencies = [
  "gfa-core",
+ "gfa-game-connect4",
  "gfa-game-tictactoe",
 ]
 
