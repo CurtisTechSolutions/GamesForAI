@@ -21,13 +21,20 @@ impl Grid {
     pub fn parse(size: u8, notation: &str) -> Result<Self, GameError> {
         boxes(size)?;
         if notation.len() != usize::from(size).pow(2) {
-            return Err(GameError::position("Grid must contain exactly size squared cells"));
+            return Err(GameError::position(
+                "Grid must contain exactly size squared cells",
+            ));
         }
-        let cells = notation.bytes().map(|byte| match byte {
-            b'.' | b'0' => Ok(0),
-            b'1'..=b'9' if byte - b'0' <= size => Ok(byte - b'0'),
-            _ => Err(GameError::position("Use '.' or digits from 1 through the grid size")),
-        }).collect::<Result<Vec<_>, _>>()?;
+        let cells = notation
+            .bytes()
+            .map(|byte| match byte {
+                b'.' | b'0' => Ok(0),
+                b'1'..=b'9' if byte - b'0' <= size => Ok(byte - b'0'),
+                _ => Err(GameError::position(
+                    "Use '.' or digits from 1 through the grid size",
+                )),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Self::from_cells(size, cells)
     }
 
@@ -36,13 +43,17 @@ impl Grid {
         let (height, width) = boxes(size)?;
         let n = usize::from(size);
         if cells.len() != n * n || cells.iter().any(|&digit| digit > size) {
-            return Err(GameError::position("Grid dimensions or digit range are invalid"));
+            return Err(GameError::position(
+                "Grid dimensions or digit range are invalid",
+            ));
         }
         let mut rows = vec![0_u16; n];
         let mut cols = vec![0_u16; n];
         let mut regions = vec![0_u16; n];
         for (index, &digit) in cells.iter().enumerate() {
-            if digit == 0 { continue; }
+            if digit == 0 {
+                continue;
+            }
             let row = index / n;
             let col = index % n;
             let region = row / height * (n / width) + col / width;
@@ -50,7 +61,8 @@ impl Grid {
             if (rows[row] | cols[col] | regions[region]) & bit != 0 {
                 return Err(GameError::position(format!(
                     "Digit {digit} at r{}c{} duplicates a row, column, or box",
-                    row + 1, col + 1
+                    row + 1,
+                    col + 1
                 )));
             }
             rows[row] |= bit;
@@ -61,27 +73,47 @@ impl Grid {
     }
 
     /// Width and height in cells.
-    pub fn size(&self) -> u8 { self.size }
+    pub fn size(&self) -> u8 {
+        self.size
+    }
 
     /// Row-major cells, with zero for empty.
-    pub fn cells(&self) -> &[u8] { &self.cells }
+    pub fn cells(&self) -> &[u8] {
+        &self.cells
+    }
 
     /// Canonical notation, using '.' for empty cells.
     pub fn notation(&self) -> String {
-        self.cells.iter().map(|&digit| if digit == 0 { '.' } else { char::from(b'0' + digit) }).collect()
+        self.cells
+            .iter()
+            .map(|&digit| {
+                if digit == 0 {
+                    '.'
+                } else {
+                    char::from(b'0' + digit)
+                }
+            })
+            .collect()
     }
 
     /// Candidate bit mask for a zero-based cell, excluding its current value.
     /// Returns zero for an out-of-range index.
     pub fn candidates(&self, index: usize) -> u16 {
         let n = usize::from(self.size);
-        if index >= n * n { return 0; }
-        let (height, width) = match boxes(self.size) { Ok(value) => value, Err(_) => return 0 };
+        if index >= n * n {
+            return 0;
+        }
+        let (height, width) = match boxes(self.size) {
+            Ok(value) => value,
+            Err(_) => return 0,
+        };
         let row = index / n;
         let col = index % n;
         let mut used = 0_u16;
         for (other, &digit) in self.cells.iter().enumerate() {
-            if other == index || digit == 0 { continue; }
+            if other == index || digit == 0 {
+                continue;
+            }
             let r = other / n;
             let c = other % n;
             if r == row || c == col || (r / height == row / height && c / width == col / width) {

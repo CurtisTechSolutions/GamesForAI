@@ -25,10 +25,19 @@ impl Cover {
             nodes.push(Node {
                 left: if index == 0 { columns } else { index - 1 },
                 right: if index == columns { 0 } else { index + 1 },
-                up: index, down: index, column: index, assignment: 0,
+                up: index,
+                down: index,
+                column: index,
+                assignment: 0,
             });
         }
-        Self { nodes, sizes: vec![0; columns + 1], selected: Vec::new(), count: 0, first: None }
+        Self {
+            nodes,
+            sizes: vec![0; columns + 1],
+            selected: Vec::new(),
+            count: 0,
+            first: None,
+        }
     }
 
     fn add(&mut self, columns: [usize; 4], assignment: usize) {
@@ -39,7 +48,10 @@ impl Cover {
             self.nodes.push(Node {
                 left: start + (offset + 3) % 4,
                 right: start + (offset + 1) % 4,
-                up, down: column, column, assignment,
+                up,
+                down: column,
+                column,
+                assignment,
             });
             self.nodes[up].down = index;
             self.nodes[column].up = index;
@@ -84,19 +96,27 @@ impl Cover {
     }
 
     fn search(&mut self) {
-        if self.count == 2 { return; }
+        if self.count == 2 {
+            return;
+        }
         if self.nodes[0].right == 0 {
             self.count += 1;
-            if self.first.is_none() { self.first = Some(self.selected.clone()); }
+            if self.first.is_none() {
+                self.first = Some(self.selected.clone());
+            }
             return;
         }
         let mut column = self.nodes[0].right;
         let mut next = self.nodes[column].right;
         while next != 0 {
-            if self.sizes[next] < self.sizes[column] { column = next; }
+            if self.sizes[next] < self.sizes[column] {
+                column = next;
+            }
             next = self.nodes[next].right;
         }
-        if self.sizes[column] == 0 { return; }
+        if self.sizes[column] == 0 {
+            return;
+        }
         self.cover(column);
         let mut row = self.nodes[column].down;
         while row != column && self.count < 2 {
@@ -123,22 +143,36 @@ pub(crate) fn solve(grid: &Grid) -> Solutions {
     let n = usize::from(grid.size);
     let (height, width) = match boxes(grid.size) {
         Ok(value) => value,
-        Err(_) => return Solutions { count: 0, first: None },
+        Err(_) => {
+            return Solutions {
+                count: 0,
+                first: None,
+            }
+        }
     };
     let mut cover = Cover::new(4 * n * n);
     for (index, &given) in grid.cells.iter().enumerate() {
         let row = index / n;
         let col = index % n;
         let region = row / height * (n / width) + col / width;
-        let candidates = if given == 0 { grid.candidates(index) } else { 1 << (given - 1) };
+        let candidates = if given == 0 {
+            grid.candidates(index)
+        } else {
+            1 << (given - 1)
+        };
         for digit in 0..n {
-            if candidates & (1 << digit) == 0 { continue; }
-            cover.add([
-                1 + index,
-                1 + n * n + row * n + digit,
-                1 + 2 * n * n + col * n + digit,
-                1 + 3 * n * n + region * n + digit,
-            ], index * n + digit);
+            if candidates & (1 << digit) == 0 {
+                continue;
+            }
+            cover.add(
+                [
+                    1 + index,
+                    1 + n * n + row * n + digit,
+                    1 + 2 * n * n + col * n + digit,
+                    1 + 3 * n * n + region * n + digit,
+                ],
+                index * n + digit,
+            );
         }
     }
     cover.search();
@@ -147,7 +181,13 @@ pub(crate) fn solve(grid: &Grid) -> Solutions {
         for assignment in assignments {
             cells[assignment / n] = (assignment % n + 1) as u8;
         }
-        Grid { size: grid.size, cells }
+        Grid {
+            size: grid.size,
+            cells,
+        }
     });
-    Solutions { count: cover.count, first }
+    Solutions {
+        count: cover.count,
+        first,
+    }
 }

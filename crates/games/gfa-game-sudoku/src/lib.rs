@@ -2,8 +2,8 @@
 mod cover;
 mod grid;
 
-pub use grid::Grid;
 use gfa_core::{GameError, SeededRng};
+pub use grid::Grid;
 
 /// A uniqueness check stops at two solutions; the first solution is retained.
 #[derive(Clone, Debug, PartialEq, Eq)]

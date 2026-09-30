@@ -2,8 +2,10 @@ use super::*;
 
 type TestResult = Result<(), Box<dyn std::error::Error>>;
 
-const PUZZLE: &str = "530070000600195000098000060800060003400803001700020006060000280000419005000080079";
-const SOLUTION: &str = "534678912672195348198342567859761423426853791713924856961537284287419635345286179";
+const PUZZLE: &str =
+    "530070000600195000098000060800060003400803001700020006060000280000419005000080079";
+const SOLUTION: &str =
+    "534678912672195348198342567859761423426853791713924856961537284287419635345286179";
 
 #[test]
 fn solves_known_grid_and_stops_after_two_solutions() -> TestResult {
@@ -58,26 +60,38 @@ fn exact_cover_matches_independent_four_by_four_backtracking() -> TestResult {
             }
         }
     }
-    assert!(unsatisfiable > 0, "exercise consistent but unsatisfiable grids");
+    assert!(
+        unsatisfiable > 0,
+        "exercise consistent but unsatisfiable grids"
+    );
     Ok(())
 }
 
 fn brute_force(cells: &mut [u8], index: usize) -> u8 {
-    if index == 16 { return 1; }
-    if cells[index] != 0 { return brute_force(cells, index + 1); }
+    if index == 16 {
+        return 1;
+    }
+    if cells[index] != 0 {
+        return brute_force(cells, index + 1);
+    }
     let row = index / 4;
     let col = index % 4;
     let mut count = 0;
     for digit in 1..=4 {
-        if (0..16).any(|other| cells[other] == digit &&
-            (other / 4 == row || other % 4 == col ||
-             (other / 4 / 2 == row / 2 && other % 4 / 2 == col / 2))) {
+        if (0..16).any(|other| {
+            cells[other] == digit
+                && (other / 4 == row
+                    || other % 4 == col
+                    || (other / 4 / 2 == row / 2 && other % 4 / 2 == col / 2))
+        }) {
             continue;
         }
         cells[index] = digit;
         count += brute_force(cells, index + 1);
         cells[index] = 0;
-        if count >= 2 { return 2; }
+        if count >= 2 {
+            return 2;
+        }
     }
     count
 }
