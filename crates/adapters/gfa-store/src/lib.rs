@@ -33,7 +33,9 @@ impl SqliteMatchStore {
     }
 
     async fn connect(options: SqliteConnectOptions, connections: u32) -> Result<Self, StoreError> {
-        let options = options.foreign_keys(true).busy_timeout(Duration::from_secs(5));
+        let options = options
+            .foreign_keys(true)
+            .busy_timeout(Duration::from_secs(5));
         if connections > 1 {
             // Configure WAL and migrate before the pool can open other connections.
             // A checkout during migrations otherwise lets pool maintenance race
