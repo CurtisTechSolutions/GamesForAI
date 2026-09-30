@@ -1,0 +1,18 @@
+[package]
+name = "gfa-game-tictactoe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+gfa-core.workspace = true
+
+[dev-dependencies]
+gfa-testkit.workspace = true
+
+[lints]
+workspace = true
+
+[[bench]]
+name = "playout"
+harness = false
