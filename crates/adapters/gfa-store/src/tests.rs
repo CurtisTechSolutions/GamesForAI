@@ -16,6 +16,7 @@ fn new_record(id: &str) -> MatchRecord {
             seed: 42,
             start: None,
             created_at_ms: 1234,
+            assists: gfa_api_types::Assists::default(),
         })],
         commands: vec![],
     }

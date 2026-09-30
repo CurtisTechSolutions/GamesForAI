@@ -237,6 +237,39 @@ impl MatchStore for SqliteMatchStore {
         })
     }
 
+    fn record_simulation<'a>(
+        &'a self,
+        id: &'a str,
+        seat: u8,
+        moves: u32,
+    ) -> StoreFuture<'a, ()> {
+        Box::pin(async move {
+            let seat = i64::from(seat);
+            let moves = i64::from(moves);
+            sqlx::query!(
+                "INSERT INTO gfa_assist_usage (match_id, seat, simulation_calls, simulated_moves) VALUES (?, ?, 1, ?) ON CONFLICT(match_id, seat) DO UPDATE SET simulation_calls = simulation_calls + 1, simulated_moves = simulated_moves + excluded.simulated_moves",
+                id,
+                seat,
+                moves
+            ).execute(&self.pool).await.map_err(unavailable)?;
+            Ok(())
+        })
+    }
+
+    fn assist_usage<'a>(&'a self, id: &'a str) -> StoreFuture<'a, Vec<gfa_api_types::AssistUsage>> {
+        Box::pin(async move {
+            let rows = sqlx::query!(
+                "SELECT seat, simulation_calls, simulated_moves FROM gfa_assist_usage WHERE match_id = ? ORDER BY seat",
+                id
+            ).fetch_all(&self.pool).await.map_err(unavailable)?;
+            rows.into_iter().map(|row| Ok(gfa_api_types::AssistUsage {
+                seat: u8::try_from(row.seat).map_err(unavailable)?,
+                simulation_calls: u64::try_from(row.simulation_calls).map_err(unavailable)?,
+                simulated_moves: u64::try_from(row.simulated_moves).map_err(unavailable)?,
+            })).collect()
+        })
+    }
+
     fn append<'a>(
         &'a self,
         id: &'a str,

@@ -32,6 +32,7 @@ async fn create(service: &GameService) -> Result<String, ServerError> {
                 seed: Some(42),
                 start: None,
                 include_info: true,
+                assists: gfa_api_types::Assists::default(),
             },
             Viewer::Player(0),
         )

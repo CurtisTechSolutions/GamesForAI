@@ -301,6 +301,7 @@ fn create(game: &str) -> CreateMatch {
         seed: Some(7),
         start: None,
         include_info: true,
+        assists: gfa_api_types::Assists::default(),
     }
 }
 fn action(turn: u64, value: Value) -> MoveRequest {
@@ -741,6 +742,7 @@ fn imported_positions_get_fresh_rng_without_storage_writes() -> TestResult {
             seed: Some(17),
             start: Some(Start::State { state: input }),
             include_info: false,
+            assists: gfa_api_types::Assists::default(),
         },
         Viewer::Player(0),
     ))?;

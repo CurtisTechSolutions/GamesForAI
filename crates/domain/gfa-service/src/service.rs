@@ -143,6 +143,7 @@ impl GameService {
             seed: request.seed.unwrap_or_else(|| self.ids.next_seed()),
             start: request.start,
             created_at_ms: self.clock.now_ms(),
+            assists: request.assists,
         };
         let frame = replay::initial(game.as_ref(), &origin)?;
         let id = self.ids.next_id();
@@ -230,6 +231,8 @@ impl GameService {
             terminated: state.terminated,
             truncated: state.truncated,
             created_at_ms: origin.created_at_ms,
+            assists: origin.assists.clone(),
+            assist_usage: self.store.assist_usage(id).await.map_err(error::store)?,
             outcome: state.outcome,
             draw_offer: state.draw_offer,
         })
