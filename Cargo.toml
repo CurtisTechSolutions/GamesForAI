@@ -53,6 +53,7 @@ tokio-tungstenite = { version = "0.28", default-features = false, features = ["c
 futures-util = { version = "0.3", features = ["sink"] }
 sha2 = "0.10.9"
 utoipa = { version = "5.4.0", default-features = false, features = ["macros"] }
+utoipa-swagger-ui = { version = "9.0.2", default-features = false, features = ["axum", "vendored"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

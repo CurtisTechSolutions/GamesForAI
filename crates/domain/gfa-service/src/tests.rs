@@ -759,13 +759,23 @@ fn control_events_preserve_hidden_boards_and_reject_tampered_logs() -> TestResul
     let resigned = run(service.resign(id, ControlRequest { seat: 0, turn: 0 }))?;
     assert_eq!(resigned.observation, initial.observation);
     assert_eq!(resigned.returns, vec![-1.0, 1.0]);
-    assert_eq!(run(service.get_replay(id, Viewer::Player(0)))?.states, vec![resigned]);
+    assert_eq!(
+        run(service.get_replay(id, Viewer::Player(0)))?.states,
+        vec![resigned]
+    );
     let mut changed = record(&store, id)?;
     match changed.events.last_mut() {
         Some(MatchEvent::Resigned { turn, .. }) => *turn = 1,
         _ => return Err("missing resignation".into()),
     }
-    store.records.lock().map_err(|_| "poisoned")?.insert(id.clone(), changed);
-    code(run(service.get_state(id, Viewer::Player(0))), "INVALID_EVENT_LOG");
+    store
+        .records
+        .lock()
+        .map_err(|_| "poisoned")?
+        .insert(id.clone(), changed);
+    code(
+        run(service.get_state(id, Viewer::Player(0))),
+        "INVALID_EVENT_LOG",
+    );
     Ok(())
 }

@@ -469,40 +469,101 @@ async fn resignation_and_draw_agreements_replay_after_restart() -> TestResult {
     let directory = tempfile::tempdir()?;
     let settings = config(&directory);
     let app = fixture(&settings).await?;
-    let (_, initial) = call(&app.router, "POST", "/v1/matches", json!({"game_id":"tictactoe"}), None).await?;
+    let (_, initial) = call(
+        &app.router,
+        "POST",
+        "/v1/matches",
+        json!({"game_id":"tictactoe"}),
+        None,
+    )
+    .await?;
     let id = match_id(&initial)?;
-    let (status, resigned) = call(&app.router, "POST", &format!("/v1/matches/{id}/resign"),
-        json!({"seat":1,"turn":0}), None).await?;
+    let (status, resigned) = call(
+        &app.router,
+        "POST",
+        &format!("/v1/matches/{id}/resign"),
+        json!({"seat":1,"turn":0}),
+        None,
+    )
+    .await?;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(resigned["turn"], 0);
     assert_eq!(resigned["observation"], initial["observation"]);
-    assert_eq!(resigned["returns"], json!([1.0,-1.0]));
+    assert_eq!(resigned["returns"], json!([1.0, -1.0]));
     assert_eq!(resigned["outcome"], json!({"reason":"resigned","seat":1}));
     assert_eq!(resigned["terminated"], true);
     assert_eq!(resigned["legal_actions"], json!([]));
-    let (status, _) = call(&app.router, "POST", &format!("/v1/matches/{id}/actions"),
-        json!({"seat":0,"turn":0,"action":"r1c1"}), None).await?;
+    let (status, _) = call(
+        &app.router,
+        "POST",
+        &format!("/v1/matches/{id}/actions"),
+        json!({"seat":0,"turn":0,"action":"r1c1"}),
+        None,
+    )
+    .await?;
     assert_eq!(status, StatusCode::CONFLICT);
-    let (_, created) = call(&app.router, "POST", "/v1/matches", json!({"game_id":"connect4"}), None).await?;
+    let (_, created) = call(
+        &app.router,
+        "POST",
+        "/v1/matches",
+        json!({"game_id":"connect4"}),
+        None,
+    )
+    .await?;
     let drawn_id = match_id(&created)?;
     let offer_url = format!("/v1/matches/{drawn_id}/offer-draw");
-    let (_, offered) = call(&app.router, "POST", &offer_url, json!({"seat":0,"turn":0}), None).await?;
+    let (_, offered) = call(
+        &app.router,
+        "POST",
+        &offer_url,
+        json!({"seat":0,"turn":0}),
+        None,
+    )
+    .await?;
     assert_eq!(offered["draw_offer"], 0);
     assert_eq!(offered["terminated"], false);
-    let (_, duplicate) = call(&app.router, "POST", &offer_url, json!({"seat":0,"turn":0}), None).await?;
+    let (_, duplicate) = call(
+        &app.router,
+        "POST",
+        &offer_url,
+        json!({"seat":0,"turn":0}),
+        None,
+    )
+    .await?;
     assert_eq!(offered, duplicate);
-    let (_, drawn) = call(&app.router, "POST", &offer_url, json!({"seat":1,"turn":0}), None).await?;
+    let (_, drawn) = call(
+        &app.router,
+        "POST",
+        &offer_url,
+        json!({"seat":1,"turn":0}),
+        None,
+    )
+    .await?;
     assert_eq!(drawn["outcome"], json!({"reason":"agreed_draw"}));
-    assert_eq!(drawn["returns"], json!([0.0,0.0]));
+    assert_eq!(drawn["returns"], json!([0.0, 0.0]));
     assert!(drawn.get("draw_offer").is_none());
     let (_, doc) = call(&app.router, "GET", "/v1/openapi.json", Value::Null, None).await?;
     assert!(doc["components"]["schemas"]["MatchOutcome"].is_object());
     app.store.close().await;
     let app = fixture(&settings).await?;
     for (id, expected) in [(id, resigned), (drawn_id, drawn)] {
-        let (_, replay) = call(&app.router, "GET", &format!("/v1/matches/{id}/replay?seat=1"), Value::Null, None).await?;
+        let (_, replay) = call(
+            &app.router,
+            "GET",
+            &format!("/v1/matches/{id}/replay?seat=1"),
+            Value::Null,
+            None,
+        )
+        .await?;
         assert_eq!(replay["states"], json!([expected]));
-        let (_, metadata) = call(&app.router, "GET", &format!("/v1/matches/{id}"), Value::Null, None).await?;
+        let (_, metadata) = call(
+            &app.router,
+            "GET",
+            &format!("/v1/matches/{id}"),
+            Value::Null,
+            None,
+        )
+        .await?;
         assert_eq!(metadata["status"], "finished");
         assert_eq!(metadata["outcome"], expected["outcome"]);
     }
@@ -515,21 +576,49 @@ async fn controls_validate_turns_expire_offers_and_commit_once_under_races() -> 
     use gfa_api_types::{ControlRequest, MoveRequest};
     let directory = tempfile::tempdir()?;
     let app = fixture(&config(&directory)).await?;
-    let (_, initial) = call(&app.router, "POST", "/v1/matches", json!({"game_id":"tictactoe"}), None).await?;
+    let (_, initial) = call(
+        &app.router,
+        "POST",
+        "/v1/matches",
+        json!({"game_id":"tictactoe"}),
+        None,
+    )
+    .await?;
     let id = match_id(&initial)?;
     for (request, expected) in [
         (json!({"seat":0,"turn":1}), StatusCode::CONFLICT),
         (json!({"seat":9,"turn":0}), StatusCode::UNPROCESSABLE_ENTITY),
         (json!({"seat":0}), StatusCode::UNPROCESSABLE_ENTITY),
     ] {
-        let (status, _) = call(&app.router, "POST", &format!("/v1/matches/{id}/resign"), request, None).await?;
+        let (status, _) = call(
+            &app.router,
+            "POST",
+            &format!("/v1/matches/{id}/resign"),
+            request,
+            None,
+        )
+        .await?;
         assert_eq!(status, expected);
     }
-    app.service.offer_draw(&id, ControlRequest { seat: 0, turn: 0 }).await?;
-    app.service.make_move(&id, MoveRequest {
-        seat: 0, turn: 0, action: json!("r2c2"), reasoning: None,
-    }, None).await?;
-    let offer = app.service.offer_draw(&id, ControlRequest { seat: 1, turn: 1 }).await?;
+    app.service
+        .offer_draw(&id, ControlRequest { seat: 0, turn: 0 })
+        .await?;
+    app.service
+        .make_move(
+            &id,
+            MoveRequest {
+                seat: 0,
+                turn: 0,
+                action: json!("r2c2"),
+                reasoning: None,
+            },
+            None,
+        )
+        .await?;
+    let offer = app
+        .service
+        .offer_draw(&id, ControlRequest { seat: 1, turn: 1 })
+        .await?;
     assert!(!offer.terminated);
     assert_eq!(offer.draw_offer, Some(1));
     let (a, b) = tokio::join!(
@@ -537,8 +626,11 @@ async fn controls_validate_turns_expire_offers_and_commit_once_under_races() -> 
         app.service.resign(&id, ControlRequest { seat: 1, turn: 1 }),
     );
     assert_eq!(usize::from(a.is_ok()) + usize::from(b.is_ok()), 1);
-    assert!(a.err().into_iter().chain(b.err()).all(|error|
-        error.code == "STALE_TURN" || error.code == "MATCH_FINISHED"));
+    assert!(a
+        .err()
+        .into_iter()
+        .chain(b.err())
+        .all(|error| error.code == "STALE_TURN" || error.code == "MATCH_FINISHED"));
     app.store.close().await;
     Ok(())
 }

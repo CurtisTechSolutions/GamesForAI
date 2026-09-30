@@ -438,33 +438,58 @@ impl GameService {
         let mut record = self.record(id).await?;
         let reconstructed = replay::reconstruct(&self.registry, &record)?;
         let current = reconstructed.current()?;
-        let state = current.project(id, reconstructed.game.as_ref(), Viewer::Player(request.seat))?;
+        let state = current.project(
+            id,
+            reconstructed.game.as_ref(),
+            Viewer::Player(request.seat),
+        )?;
         if request.turn != current.turn {
             let mut failure = error::store(StoreError::Conflict);
             failure.details = json!({"turn":current.turn});
             return Err(failure);
         }
         if current.ended() {
-            return Err(ApiError::new("MATCH_FINISHED", "This match has ended", "Create or fork a match."));
+            return Err(ApiError::new(
+                "MATCH_FINISHED",
+                "This match has ended",
+                "Create or fork a match.",
+            ));
         }
         let count = state.returns.len();
         if count > 2 || (!resign && count != 2) {
-            return Err(ApiError::new("INVALID_CONFIG", "Control is unsupported for this player count",
-                "Draws require two seats; resignation supports one or two seats."));
+            return Err(ApiError::new(
+                "INVALID_CONFIG",
+                "Control is unsupported for this player count",
+                "Draws require two seats; resignation supports one or two seats.",
+            ));
         }
         if !resign && state.draw_offer == Some(request.seat) {
             return Ok(state);
         }
         let event = if resign {
-            MatchEvent::Resigned { turn: request.turn, seat: request.seat, at_ms: self.clock.now_ms() }
+            MatchEvent::Resigned {
+                turn: request.turn,
+                seat: request.seat,
+                at_ms: self.clock.now_ms(),
+            }
         } else {
-            MatchEvent::DrawOffered { turn: request.turn, seat: request.seat, at_ms: self.clock.now_ms() }
+            MatchEvent::DrawOffered {
+                turn: request.turn,
+                seat: request.seat,
+                at_ms: self.clock.now_ms(),
+            }
         };
         let revision = record.events.len() as u64;
         record.events.push(event.clone());
         let after = replay::reconstruct(&self.registry, &record)?;
-        let response = after.current()?.project(id, after.game.as_ref(), Viewer::Player(request.seat))?;
-        self.store.append(id, revision, vec![event], None).await.map_err(error::store)?;
+        let response =
+            after
+                .current()?
+                .project(id, after.game.as_ref(), Viewer::Player(request.seat))?;
+        self.store
+            .append(id, revision, vec![event], None)
+            .await
+            .map_err(error::store)?;
         self.observer.committed(id);
         Ok(response)
     }

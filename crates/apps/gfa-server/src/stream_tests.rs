@@ -277,18 +277,31 @@ async fn control_updates_are_delivered_even_when_turn_does_not_change() -> TestR
     let directory = tempfile::tempdir()?;
     let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).await?;
     let address = listener.local_addr()?;
-    let app = application(&Config { sqlite: directory.path().join("controls.sqlite"), port: 0 }, address).await?;
+    let app = application(
+        &Config {
+            sqlite: directory.path().join("controls.sqlite"),
+            port: 0,
+        },
+        address,
+    )
+    .await?;
     let service = app.service.clone();
     let id = create(&service).await?;
     let (stop, stopped) = oneshot::channel();
-    let task = tokio::spawn(serve_application(listener, app, async { let _ = stopped.await; }));
+    let task = tokio::spawn(serve_application(listener, app, async {
+        let _ = stopped.await;
+    }));
     let (mut client, _) = connect_async(format!("ws://{address}/v1/matches/{id}/stream")).await?;
     assert_eq!(next_state(&mut client).await?["turn"], 0);
-    service.offer_draw(&id, ControlRequest { seat: 0, turn: 0 }).await?;
+    service
+        .offer_draw(&id, ControlRequest { seat: 0, turn: 0 })
+        .await?;
     let offered = next_state(&mut client).await?;
     assert_eq!(offered["turn"], 0);
     assert_eq!(offered["draw_offer"], 0);
-    service.offer_draw(&id, ControlRequest { seat: 1, turn: 0 }).await?;
+    service
+        .offer_draw(&id, ControlRequest { seat: 1, turn: 0 })
+        .await?;
     let ended = next_state(&mut client).await?;
     assert_eq!(ended["turn"], 0);
     assert_eq!(ended["terminated"], true);

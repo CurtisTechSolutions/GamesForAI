@@ -47,8 +47,18 @@ impl Frame {
             returns: match &self.outcome {
                 Some(gfa_api_types::MatchOutcome::Resigned { seat }) => {
                     let count = game.returns(&self.state).map_err(error::engine)?.len();
-                    if count == 1 { vec![0.0] } else {
-                        (0..count).map(|index| if index == usize::from(*seat) { -1.0 } else { 1.0 }).collect()
+                    if count == 1 {
+                        vec![0.0]
+                    } else {
+                        (0..count)
+                            .map(|index| {
+                                if index == usize::from(*seat) {
+                                    -1.0
+                                } else {
+                                    1.0
+                                }
+                            })
+                            .collect()
                     }
                 }
                 Some(gfa_api_types::MatchOutcome::AgreedDraw) => vec![0.0; 2],
@@ -188,9 +198,18 @@ pub(crate) fn reconstruct(
                     .map_err(|_| error::corrupt())?;
                 result.frames.push(frame);
             }
-            MatchEvent::Resigned { turn, seat, .. } | MatchEvent::DrawOffered { turn, seat, .. } => {
-                let count = result.game.returns(&current.state).map_err(|_| error::corrupt())?.len();
-                if current.ended() || *turn != current.turn || usize::from(*seat) >= count || count > 2 {
+            MatchEvent::Resigned { turn, seat, .. }
+            | MatchEvent::DrawOffered { turn, seat, .. } => {
+                let count = result
+                    .game
+                    .returns(&current.state)
+                    .map_err(|_| error::corrupt())?
+                    .len();
+                if current.ended()
+                    || *turn != current.turn
+                    || usize::from(*seat) >= count
+                    || count > 2
+                {
                     return Err(error::corrupt());
                 }
                 let frame = result.frames.last_mut().ok_or_else(error::corrupt)?;

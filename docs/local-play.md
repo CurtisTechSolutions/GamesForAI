@@ -150,6 +150,14 @@ omit the WebSocket path. Export instructions are in `schemas/README.md`.
 
 Metadata omits seeds, starting state, observations and reasoning. This index is for the loopback-restricted single-user mode; public multi-user hosting needs owner/visibility authorization.
 
+## Interactive API documentation
+
+Open [the local API explorer](http://127.0.0.1:8080/docs/) after starting the server. The explorer uses the generated OpenAPI contract and bundles its JavaScript and styles with the server, so it works without a CDN. Expand an operation, edit the example, and select **Execute**. Start with `POST /v1/matches`, copy its `match_id`, then submit a move through `POST /v1/matches/{id}/actions` with the current turn and seat.
+
+Requests run against the same local server. The explorer uses the same Host and Origin checks as the API, and no external schema validator is contacted. Browser tests create a match and make a move through the visible controls.
+
+To run the browser check locally, build the CLI with `cargo build -p gfa-cli`, install Chromium with `pnpm exec playwright install chromium`, then run `pnpm test:browser`. CI uses the Chrome installation supplied by the GitHub runner image.
+
 ## Match controls
 
 Submit `{"seat":0,"turn":3}` to `POST /v1/matches/{id}/resign` to concede, or to `POST /v1/matches/{id}/offer-draw` to offer a draw. If the other seat already has a pending offer at that turn, the second offer accepts it. Repeating your own offer has no effect; a move expires it. Resignation supports one- or two-seat games, and agreed draws require two seats.
