@@ -50,6 +50,22 @@ pub trait Game: Send + Sync + 'static {
         ))
     }
 
+    /// Whether this engine provides a reference solver or hint policy.
+    fn supports_reference_advice() -> bool {
+        false
+    }
+
+    /// Recommend a legal action from a caller-owned planning state.
+    ///
+    /// Hosts must enforce assist permissions and reconstruct player observations
+    /// before invoking this hook. The default preserves existing game behavior.
+    fn reference_advice(
+        _state: &Self::State,
+        _player: PlayerId,
+    ) -> Result<Option<crate::Advice<Self::Action>>, GameError> {
+        Ok(None)
+    }
+
     /// Validate state received through a persistence or API boundary.
     fn validate_state(state: &Self::State) -> Result<(), GameError>;
     /// Seats that can act; empty after a terminal or truncated transition.

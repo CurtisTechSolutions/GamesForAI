@@ -1126,7 +1126,7 @@ impl OpponentExecutor for ImmediateOpponentExecutor {
 
 struct ObservingFactory;
 impl OpponentFactory for ObservingFactory {
-    fn catalog(&self, game: &GameSpec) -> Vec<gfa_api_types::OpponentSpec> {
+    fn catalog(&self, game: &dyn gfa_core::DynGame) -> Vec<gfa_api_types::OpponentSpec> {
         BuiltinOpponentFactory.catalog(game)
     }
     fn create(

@@ -41,3 +41,9 @@ variation, node count, depth and whether the budget was exhausted. Match analysi
 requires `assists.allow_analysis: true`. A standalone copy of an active position
 cannot bypass that policy. Searches run in four bounded workers and receive
 only the authorized observation and legal actions.
+
+Sudoku also advertises the `reference` opponent. Analysis returns its next
+placement and supporting candidate eliminations. Search-backed steps are marked
+`advice.is_guess: true`; an incorrect entered digit produces an explicit
+`solution_check` erasure recommendation. Ordinary state responses do not include
+these recommendations or the solution grid.

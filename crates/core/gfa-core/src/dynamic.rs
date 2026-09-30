@@ -43,6 +43,18 @@ pub trait DynGame: Send + Sync {
             "This engine cannot reconstruct planning states",
         ))
     }
+    /// Whether the engine exposes a reference solver through the generic hook.
+    fn supports_reference_advice(&self) -> bool {
+        false
+    }
+    /// Obtain a legal recommendation from an authorized planning state.
+    fn reference_advice(
+        &self,
+        _state: &Value,
+        _player: PlayerId,
+    ) -> Result<Option<crate::Advice<LegalAction>>, GameError> {
+        Ok(None)
+    }
     /// Validate a JSON state before accepting it from a caller.
     fn validate_state(&self, state: &Value) -> Result<(), GameError>;
     /// Seats currently allowed to act.
@@ -179,6 +191,34 @@ impl<G: Game> DynGame for GameAdapter<G> {
             ));
         }
         Ok(serde_json::to_value(state)?)
+    }
+
+    fn supports_reference_advice(&self) -> bool {
+        G::supports_reference_advice()
+    }
+
+    fn reference_advice(
+        &self,
+        state: &Value,
+        player: PlayerId,
+    ) -> Result<Option<crate::Advice<LegalAction>>, GameError> {
+        let state = Self::state(state)?;
+        let Some(advice) = G::reference_advice(&state, player)? else {
+            return Ok(None);
+        };
+        if !G::legal_actions(&state, player).contains(&advice.action) {
+            return Err(GameError::illegal(
+                "Reference solver returned an illegal action",
+            ));
+        }
+        Ok(Some(crate::Advice {
+            action: LegalAction {
+                string: G::action_to_string(&state, &advice.action),
+                index: G::action_to_index(&advice.action),
+                json: serde_json::to_value(advice.action)?,
+            },
+            info: advice.info,
+        }))
     }
 
     fn validate_state(&self, state: &Value) -> Result<(), GameError> {
