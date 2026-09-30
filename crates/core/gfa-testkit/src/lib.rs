@@ -9,6 +9,14 @@ use std::collections::HashSet;
 /// non-leakage tests: generic tests cannot know which parts of their state are private.
 pub fn conformance<G: Game>() -> Result<(), Box<dyn std::error::Error>> {
     let spec = G::spec();
+    let guide = G::play_guide().ok_or("registered game is missing its play guide")?;
+    guide.validate()?;
+    assert!(!spec.name.trim().is_empty());
+    assert!(!spec.summary.trim().is_empty());
+    assert!(!spec.engine_version.trim().is_empty());
+    assert!(!spec.info_version.trim().is_empty());
+    assert_eq!(spec.seat_names.len(), usize::from(spec.num_players[1]));
+    assert!(spec.seat_names.iter().all(|name| !name.trim().is_empty()));
     assert!(!spec.id.is_empty());
     assert!(!spec.rules_markdown.is_empty());
     assert!(!spec.action_notation.is_empty());

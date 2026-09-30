@@ -114,6 +114,19 @@ impl Game for Connect4 {
         }
     }
 
+    fn play_guide() -> Option<gfa_core::PlayGuide> {
+        Some(gfa_core::PlayGuide {
+            objective: "Connect four of your discs horizontally, vertically, or diagonally to win. A full board without a winner draws. Play stops immediately on a win.".into(),
+            observation: "Text and JSON rows run top to bottom; columns 1..7 run left to right. R is Red (seat 0), Y is Yellow (seat 1), and . is empty. JSON rows contains six rows of seven cells (null, 0, or 1); to_move is the next seat. Both seats and spectators see the entire board.".into(),
+            tensor: "No tensor representation is supplied by this engine.".into(),
+            rewards: "Terminal returns are +1 for the winner, -1 for the loser, and 0 each for a draw. Returns before termination are 0. Shaped rewards are not supported.".into(),
+            config: "No configurable fields. Use {} for the standard 7-column, 6-row board.".into(),
+            solved: "Solved: the first player can force a win on the standard board.".into(),
+            common_mistakes: vec!["Choose a column, not a row: gravity selects the lowest empty cell.".into(), "Columns are one-based; discrete indices are zero-based.".into(), "A full column is illegal.".into()],
+            strategy_notes: vec!["Check immediate wins and blocks before other moves.".into(), "Central columns participate in more possible four-disc lines.".into()],
+        })
+    }
+
     fn new_initial_state(_: &Config, _: u64) -> Result<State, GameError> {
         Ok(State {
             boards: [0, 0],
