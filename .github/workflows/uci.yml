@@ -1,0 +1,21 @@
+name: UCI sandbox CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  stockfish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install engine isolation tools
+        run: sudo apt-get update && sudo apt-get install -y stockfish bubblewrap
+      - name: Build real engine integration test
+        run: cargo test -p gfa-engine-uci --test stockfish --no-run --locked
+      - name: Search inside the production sandbox
+        run: cargo test -p gfa-engine-uci --test stockfish --locked -- --ignored --nocapture

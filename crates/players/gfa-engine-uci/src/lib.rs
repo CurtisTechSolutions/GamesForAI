@@ -1,5 +1,7 @@
 //! Bounded UCI command and response types. Process isolation is supplied by the host.
 mod protocol;
+mod pool;
+pub use pool::{EnginePool, SandboxConfig, SearchResult, UciError};
 use gfa_core::serde_json::Value;
 use gfa_core::{DynGame, ErrorCode, GameError, PlayerTurn, SearchLimits, UciPosition, Viewer};
 pub use protocol::{parse_line, Bound, EngineLine, EngineOption, Info, OptionKind, Score};
