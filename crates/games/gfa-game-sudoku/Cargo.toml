@@ -7,6 +7,9 @@ license.workspace = true
 [dependencies]
 gfa-core.workspace = true
 
+[dev-dependencies]
+gfa-testkit.workspace = true
+
 [lints]
 workspace = true
 

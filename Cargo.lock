@@ -681,6 +681,7 @@ name = "gfa-game-sudoku"
 version = "0.1.0"
 dependencies = [
  "gfa-core",
+ "gfa-testkit",
 ]
 
 [[package]]
@@ -697,6 +698,7 @@ version = "0.1.0"
 dependencies = [
  "gfa-core",
  "gfa-game-connect4",
+ "gfa-game-sudoku",
  "gfa-game-tictactoe",
 ]
 
