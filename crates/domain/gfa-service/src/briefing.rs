@@ -218,18 +218,24 @@ impl MatchBrief<'_> {
         )?;
         let you =
             seat.map(|seat| json!({"seat":seat,"name":spec.seat_names.get(usize::from(seat))}));
+        let public_position = if self.origin.start.is_none() {
+            None
+        } else if self.viewer == Viewer::Omniscient {
+            Some(
+                self.game
+                    .state_to_notation(&self.initial.state)
+                    .map_err(error::engine)?,
+            )
+        } else {
+            self.game
+                .public_position(&self.initial.state)
+                .map_err(error::engine)?
+        };
         let start = if self.origin.start.is_none() {
             json!({"type":"standard"})
-        } else if self.viewer == Viewer::Omniscient
-            || (spec.information == gfa_core::Information::Perfect && !spec.stochastic)
-        {
-            json!({
-                "type":"custom",
-                "position":self.game.state_to_notation(&self.initial.state).map_err(error::engine)?
-            })
+        } else if let Some(position) = public_position {
+            json!({"type":"custom","position":position})
         } else {
-            // State notation may contain hidden cards or an RNG state. Never
-            // expose it as match metadata merely because a caller can view play.
             json!({"type":"custom","view":initial.observation,
                 "note":"Only this viewer's starting observation is available."})
         };

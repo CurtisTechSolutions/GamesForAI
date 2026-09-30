@@ -76,6 +76,14 @@ pub trait Game: Send + Sync + 'static {
     fn action_to_index(action: &Self::Action) -> u32;
     /// Decode a discrete index.
     fn action_from_index(state: &Self::State, index: u32) -> Result<Self::Action, GameError>;
+    /// Optional notation safe to expose in ordinary match metadata.
+    ///
+    /// Full state notation may contain solution caches or RNG state, even in a
+    /// perfect-information game. Opt in only when the encoding is entirely public.
+    fn public_position(_state: &Self::State) -> Result<Option<String>, GameError> {
+        Ok(None)
+    }
+
     /// Export a validated position.
     fn state_to_notation(state: &Self::State) -> Result<String, GameError>;
     /// Import and validate a position.
