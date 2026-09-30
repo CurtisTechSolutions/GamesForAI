@@ -1,6 +1,10 @@
 //! Runtime scheduling glue; durable discovery and move policy live in the service.
 use gfa_service::GameService;
-use std::{collections::{HashSet, VecDeque}, sync::Arc, time::Duration};
+use std::{
+    collections::{HashSet, VecDeque},
+    sync::Arc,
+    time::Duration,
+};
 use tokio::{sync::watch, task::JoinSet};
 
 pub(super) async fn run(service: Arc<GameService>, mut stopped: watch::Receiver<bool>) {
@@ -20,15 +24,22 @@ pub(super) async fn run(service: Arc<GameService>, mut stopped: watch::Receiver<
                     cursor = page.next;
                     queue.extend(page.matches);
                     for failure in page.unavailable {
-                        report(&mut last_error, format!("Match {:?}: {}", failure.match_id, failure.error.code));
+                        report(
+                            &mut last_error,
+                            format!("Match {:?}: {}", failure.match_id, failure.error.code),
+                        );
                     }
                 }
                 Err(error) => report(&mut last_error, error.code),
             }
         }
         while jobs.len() < 4 {
-            let Some(id) = queue.pop_front() else { break; };
-            if !active.insert(id.clone()) { continue; }
+            let Some(id) = queue.pop_front() else {
+                break;
+            };
+            if !active.insert(id.clone()) {
+                continue;
+            }
             let service = service.clone();
             jobs.spawn(async move {
                 let result = service.advance_opponents(&id, 1).await;

@@ -947,6 +947,7 @@ fn perfect_information_does_not_opt_in_to_raw_position_disclosure() -> TestResul
 
 fn fork_request(turn: u64, keep_rng: bool) -> gfa_api_types::ForkMatch {
     gfa_api_types::ForkMatch {
+        seats: None,
         turn,
         keep_rng,
         seed: None,
@@ -1372,9 +1373,13 @@ fn invalid_or_unconfigured_opponent_seats_fail_before_persistence() -> TestResul
 }
 
 #[test]
-fn automatic_matches_resume_from_durable_turns_and_bad_records_do_not_block_the_queue() -> TestResult {
+fn automatic_matches_resume_from_durable_turns_and_bad_records_do_not_block_the_queue() -> TestResult
+{
     let (service, store) = fixture()?;
-    let service = service.with_opponents(Arc::new(BuiltinOpponentFactory), Arc::new(ImmediateOpponentExecutor));
+    let service = service.with_opponents(
+        Arc::new(BuiltinOpponentFactory),
+        Arc::new(ImmediateOpponentExecutor),
+    );
     let mut options = create("counter");
     options.seats = vec![opponent_seat(), opponent_seat()];
     let damaged = run(service.create_match(options.clone(), Viewer::Player(0)))?;
@@ -1383,7 +1388,9 @@ fn automatic_matches_resume_from_durable_turns_and_bad_records_do_not_block_the_
     {
         let mut records = store.records.lock().map_err(|_| "poisoned")?;
         let record = records.get_mut(&damaged.match_id).ok_or("record")?;
-        if let MatchEvent::MatchCreated(origin) = &mut record.events[0] { origin.engine_version = "unavailable".into(); }
+        if let MatchEvent::MatchCreated(origin) = &mut record.events[0] {
+            origin.engine_version = "unavailable".into();
+        }
     }
     let page = run(service.pending_opponents(None, 1))?;
     assert!(page.matches.is_empty());
@@ -1391,16 +1398,30 @@ fn automatic_matches_resume_from_durable_turns_and_bad_records_do_not_block_the_
     let page = run(service.pending_opponents(page.next.as_deref(), 1))?;
     assert_eq!(page.matches, [first.match_id.clone()]);
     assert_eq!(run(service.advance_opponents(&first.match_id, 1))?, 1);
-    assert_eq!(run(service.get_state(&first.match_id, Viewer::Player(0)))?.turn, 1);
+    assert_eq!(
+        run(service.get_state(&first.match_id, Viewer::Player(0)))?.turn,
+        1
+    );
     store.append_mode.store(3, Ordering::SeqCst);
-    code(run(service.advance_opponents(&first.match_id, 1)), "STALE_TURN");
-    assert_eq!(run(service.get_state(&first.match_id, Viewer::Player(0)))?.turn, 2);
+    code(
+        run(service.advance_opponents(&first.match_id, 1)),
+        "STALE_TURN",
+    );
+    assert_eq!(
+        run(service.get_state(&first.match_id, Viewer::Player(0)))?.turn,
+        2
+    );
     assert_eq!(run(service.advance_opponents(&first.match_id, 8))?, 2);
     assert_eq!(run(service.advance_opponents(&first.match_id, 8))?, 0);
     let states = run(service.get_replay(&first.match_id, Viewer::Player(0)))?.states;
     assert_eq!(states.len(), 5);
     assert!(states[4].terminated);
-    assert!(run(service.pending_opponents(None, 100))?.matches.is_empty());
-    code(run(service.advance_opponents(&first.match_id, 0)), "INVALID_CONFIG");
+    assert!(run(service.pending_opponents(None, 100))?
+        .matches
+        .is_empty());
+    code(
+        run(service.advance_opponents(&first.match_id, 0)),
+        "INVALID_CONFIG",
+    );
     Ok(())
 }

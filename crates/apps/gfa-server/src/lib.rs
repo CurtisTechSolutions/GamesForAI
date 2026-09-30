@@ -1,6 +1,6 @@
 //! Local server composition: registry, lifecycle service, persistence, and HTTP.
-mod workers;
 mod runner;
+mod workers;
 
 use gfa_service::{Clock, GameService, MatchIds, MatchStore};
 use gfa_store::SqliteMatchStore;

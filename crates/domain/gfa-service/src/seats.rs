@@ -34,7 +34,15 @@ pub(crate) fn external_seat(origin: &MatchOrigin, seat: u8) -> Result<(), ApiErr
 
 /// Foreground creation avoids starting a long all-opponent game inside its request.
 pub(crate) fn opening_budget(origin: &MatchOrigin) -> usize {
-    if origin.seats.iter().all(|seat| matches!(seat, Seat::Opponent { .. })) { 0 } else { 8 }
+    if origin
+        .seats
+        .iter()
+        .all(|seat| matches!(seat, Seat::Opponent { .. }))
+    {
+        0
+    } else {
+        8
+    }
 }
 
 impl GameService {
