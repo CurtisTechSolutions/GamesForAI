@@ -53,3 +53,25 @@ can use a same-origin development proxy.
 This first local host exposes the existing external-player lifecycle. Opponent
 scheduling, game briefings, simulation, forks, public authentication, PostgreSQL,
 and OpenAPI documentation remain separate M1 increments.
+
+## Live state
+
+Connect a WebSocket to `ws://127.0.0.1:8080/v1/matches/MATCH_ID/stream?seat=0`.
+Omit `seat` for a spectator projection. The first message contains the current
+state; subsequent messages contain each newly committed turn in order:
+
+```json
+{"type":"state","state":{"match_id":"...","turn":1,"observation":{},"...":"..."}}
+```
+
+Submit moves through REST. Text/binary messages sent to the stream close it with
+code 1003. Each connection has a bounded write timeout; reconnecting begins with
+the current state, and REST replay provides earlier history. A terminal state is
+sent before the stream closes. Service errors use `{"type":"error","error":...}`.
+
+Commit notifications wake streams immediately. A two-second reconciliation pass
+recovers changes from other processes or missed notifications. Catch-up reads
+persisted replay and applies the selected viewer to every frame. Local access
+rules also apply to upgrades; the host allows at most 64 concurrent streams and
+closes streams before closing SQLite during shutdown. The initial protocol
+streams state frames; paginated event delivery and resume cursors are later work.

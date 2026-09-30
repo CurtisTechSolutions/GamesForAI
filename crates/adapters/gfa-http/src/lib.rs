@@ -5,6 +5,9 @@
 //! It does not issue seat credentials and must not be mounted behind a public proxy.
 mod access;
 mod error;
+mod stream;
+
+pub use stream::LiveUpdates;
 
 use axum::{
     extract::{
@@ -33,6 +36,18 @@ pub const MAX_BODY_BYTES: usize = 64 * 1024;
 /// Serve using `into_make_service_with_connect_info::<SocketAddr>()`; requests
 /// without peer information are refused. The address must already be loopback.
 pub fn local_router(service: Arc<GameService>, address: SocketAddr) -> Result<Router, ApiError> {
+    build_router(service, address, None)
+}
+
+/// Construct local REST and WebSocket routes using the service's commit observer.
+///
+/// The host must install this same LiveUpdates instance with GameService::with_observer.
+/// Periodic reconciliation also catches commits from other hosts sharing the store.
+pub fn local_router_with_updates(service: Arc<GameService>, address: SocketAddr, updates: Arc<LiveUpdates>) -> Result<Router, ApiError> {
+    build_router(service, address, Some(updates))
+}
+
+fn build_router(service: Arc<GameService>, address: SocketAddr, updates: Option<Arc<LiveUpdates>>) -> Result<Router, ApiError> {
     if !address.ip().is_loopback() || address.port() == 0 {
         return Err(ApiError::new(
             "INVALID_CONFIG",
@@ -40,7 +55,7 @@ pub fn local_router(service: Arc<GameService>, address: SocketAddr) -> Result<Ro
             "Bind 127.0.0.1 or ::1, then pass listener.local_addr().",
         ));
     }
-    Ok(Router::new()
+    let mut router = Router::new()
         .route("/healthz", get(health))
         .route("/v1/games", get(games))
         .route("/v1/games/{game_id}", get(game))
@@ -50,8 +65,11 @@ pub fn local_router(service: Arc<GameService>, address: SocketAddr) -> Result<Ro
         .route("/v1/matches/{id}/actions", post(make_move))
         .route("/v1/matches/{id}/replay", get(replay))
         .fallback(not_found)
-        .method_not_allowed_fallback(method_not_allowed)
-        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+        .method_not_allowed_fallback(method_not_allowed);
+    if let Some(updates) = updates {
+        router = router.route("/v1/matches/{id}/stream", get(stream::upgrade).layer(axum::Extension(updates)));
+    }
+    Ok(router.layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
         .layer(middleware::from_fn_with_state(
             access::LocalAccess::new(address),
             access::guard,

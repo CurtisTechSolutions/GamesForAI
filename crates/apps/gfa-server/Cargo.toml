@@ -14,6 +14,10 @@ tokio.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
+gfa-api-types.workspace = true
+gfa-core.workspace = true
+tokio-tungstenite.workspace = true
+futures-util.workspace = true
 serde_json.workspace = true
 tempfile.workspace = true
 tower.workspace = true

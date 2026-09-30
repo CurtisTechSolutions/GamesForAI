@@ -60,3 +60,13 @@ pub trait MatchIds: Send + Sync {
     /// Fresh seed when the caller did not request a fixed one.
     fn next_seed(&self) -> u64;
 }
+
+/// Best-effort notification after durable match commits.
+///
+/// Implementations must return promptly and must not panic. Notifications contain
+/// only the match ID; consumers obtain authorized state from the service. Delivery
+/// is not durable, so consumers must recover gaps from persisted events.
+pub trait MatchObserver: Send + Sync {
+    /// A creation or action batch has committed successfully.
+    fn committed(&self, match_id: &str);
+}
