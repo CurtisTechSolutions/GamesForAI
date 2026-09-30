@@ -1,8 +1,10 @@
 //! Pure Sudoku puzzle validation, exact-cover solving, and seeded generation.
 mod cover;
+mod grading;
 mod grid;
 
 use gfa_core::{GameError, SeededRng};
+pub use grading::{grade, hint, Candidate, Difficulty, Grade, Hint, Technique};
 pub use grid::Grid;
 
 /// A uniqueness check stops at two solutions; the first solution is retained.
