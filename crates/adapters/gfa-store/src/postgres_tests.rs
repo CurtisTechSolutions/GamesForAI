@@ -18,6 +18,7 @@ fn new_record(id: &str) -> MatchRecord {
             created_at_ms: 1234,
             preserve_start_rng: false,
             benchmark_run: None,
+            seats: vec![],
             assists: gfa_api_types::Assists::default(),
         })],
         commands: vec![],
@@ -34,6 +35,7 @@ fn command(key: &str) -> StoredCommand {
             reasoning: None,
         },
         response: MoveResult {
+            opponent_replies: vec![],
             accepted_action: LegalAction {
                 string: "move".into(),
                 json: json!({"cell":0}),
@@ -66,6 +68,7 @@ fn events() -> Vec<MatchEvent> {
         seat: 0,
         action: command("unused").response.accepted_action,
         reasoning: Some("fixture".into()),
+        opponent_info: None,
         engine_events: StepEvents::default(),
         accepted_at_ms: 1235,
     })]

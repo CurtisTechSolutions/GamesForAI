@@ -141,7 +141,7 @@ impl GameService {
         include_info: bool,
     ) -> Result<gfa_api_types::CreatedMatch, ApiError> {
         let game = self.registry.get(&request.game_id).map_err(error::engine)?;
-        let origin = MatchOrigin {
+        let mut origin = MatchOrigin {
             game_id: request.game_id,
             engine_version: game.spec().engine_version,
             config: request.config,
@@ -150,9 +150,11 @@ impl GameService {
             created_at_ms: self.clock.now_ms(),
             preserve_start_rng: false,
             benchmark_run: None,
+            seats: request.seats,
             assists: request.assists,
         };
         let frame = replay::initial(game.as_ref(), &origin)?;
+        self.prepare_seats(&mut origin, game.clone(), &frame)?;
         let id = self.ids.next_id();
         if id.is_empty() || id.len() > 128 {
             return Err(ApiError::new(
@@ -161,14 +163,17 @@ impl GameService {
                 "Check the host identifier provider.",
             ));
         }
-        let state = frame.project(&id, game.as_ref(), viewer)?;
+        // Complete bot openings on a private staging record before creating anything.
+        let mut staged = MatchRecord { id: id.clone(), events: vec![MatchEvent::MatchCreated(origin.clone())], commands: vec![] };
+        let progress = self.automatic_replies(&mut staged).await?;
+        let state = progress.frame.project(&id, game.as_ref(), viewer)?;
         let info = if include_info {
             Some(
                 crate::briefing::MatchBrief {
                     game: game.as_ref(),
                     origin: &origin,
                     initial: &frame,
-                    current: &frame,
+                    current: &progress.frame,
                     id: &id,
                     viewer,
                 }
@@ -178,11 +183,7 @@ impl GameService {
             None
         };
         self.store
-            .create(MatchRecord {
-                id,
-                events: vec![MatchEvent::MatchCreated(origin)],
-                commands: vec![],
-            })
+            .create(staged)
             .await
             .map_err(error::store)?;
         self.observer.committed(&state.match_id);
@@ -223,6 +224,7 @@ impl GameService {
             reconstructed
                 .current()?
                 .project(id, reconstructed.game.as_ref(), Viewer::Spectator)?;
+        let seats = crate::seats::assignments(origin, state.returns.len());
         Ok(gfa_api_types::MatchMetadata {
             match_id: id.into(),
             forked_from: record.fork_source().cloned(),
@@ -239,6 +241,7 @@ impl GameService {
             terminated: state.terminated,
             truncated: state.truncated,
             created_at_ms: origin.created_at_ms,
+            seats,
             assists: origin.assists.clone(),
             assist_usage: self.store.assist_usage(id).await.map_err(error::store)?,
             outcome: state.outcome,
@@ -340,6 +343,7 @@ impl GameService {
                 };
             }
         }
+        crate::seats::external_seat(record.origin().ok_or_else(error::corrupt)?, request.seat)?;
         let reconstructed = replay::reconstruct(&self.registry, &record)?;
         let game = reconstructed.game.as_ref();
         let current = reconstructed.current()?;
@@ -376,7 +380,8 @@ impl GameService {
             ))
         })?;
         let next = replay::advance(game, state, current.turn + 1, &engine_events)?;
-        let response = MoveResult {
+        let mut response = MoveResult {
+            opponent_replies: vec![],
             accepted_action: accepted_action.clone(),
             state: next.project(id, game, Viewer::Player(request.seat))?,
         };
@@ -385,6 +390,7 @@ impl GameService {
             seat: request.seat,
             action: accepted_action,
             reasoning: request.reasoning.clone(),
+            opponent_info: None,
             engine_events,
             accepted_at_ms: self.clock.now_ms(),
         })];
@@ -396,6 +402,13 @@ impl GameService {
                 truncated: next.truncated,
             });
         }
+        let revision = record.events.len();
+        let mut staged = record.clone();
+        staged.events.extend(events);
+        let progress = self.automatic_replies(&mut staged).await?;
+        response.state = progress.frame.project(id, game, Viewer::Player(request.seat))?;
+        response.opponent_replies = progress.replies;
+        let events = staged.events[revision..].to_vec();
         let command = idempotency_key.map(|key| StoredCommand {
             key: key.into(),
             request: request.clone(),

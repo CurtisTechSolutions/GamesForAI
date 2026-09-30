@@ -88,18 +88,20 @@ impl GameService {
             game.state_from_observation(&origin.config, &observation, access.viewer, seed)
                 .map_err(error::engine)?
         };
-        let child_origin = MatchOrigin {
+        let mut child_origin = MatchOrigin {
             game_id: origin.game_id.clone(),
             engine_version: origin.engine_version.clone(),
             config: origin.config.clone(),
             seed,
             start: Some(Start::State { state }),
             created_at_ms: self.clock.now_ms(),
+            seats: request.seats.unwrap_or_else(|| origin.seats.clone()),
             assists: origin.assists.clone(),
             preserve_start_rng: request.keep_rng,
             benchmark_run: None,
         };
         let child = replay::initial(game, &child_origin)?;
+        self.prepare_seats(&mut child_origin, rebuilt.game.clone(), &child)?;
         let child_id = self.ids.next_id();
         if child_id.is_empty() || child_id.len() > 128 {
             return Err(ApiError::new(
@@ -108,25 +110,8 @@ impl GameService {
                 "Check the host identifier provider.",
             ));
         }
-        let state = child.project(&child_id, game, access.viewer)?;
-        let info = if request.include_info {
-            Some(
-                crate::briefing::MatchBrief {
-                    game,
-                    origin: &child_origin,
-                    initial: &child,
-                    current: &child,
-                    id: &child_id,
-                    viewer: access.viewer,
-                }
-                .build(gfa_api_types::InfoDetail::Compact)?,
-            )
-        } else {
-            None
-        };
-        self.store
-            .create(MatchRecord {
-                id: child_id,
+        let mut staged = MatchRecord {
+                id: child_id.clone(),
                 events: vec![
                     MatchEvent::ForkedFrom {
                         source: ForkSource {
@@ -136,10 +121,28 @@ impl GameService {
                         viewer: access.viewer,
                         parent_revision: parent.events.len() as u64,
                     },
-                    MatchEvent::MatchCreated(child_origin),
+                    MatchEvent::MatchCreated(child_origin.clone()),
                 ],
                 commands: vec![],
-            })
+            };
+        let progress = self.automatic_replies(&mut staged).await?;
+        let state = progress.frame.project(&child_id, game, access.viewer)?;
+        let info = if request.include_info {
+            Some(
+                crate::briefing::MatchBrief {
+                    game,
+                    origin: &child_origin,
+                    initial: &child,
+                    current: &progress.frame,
+                    id: &child_id,
+                    viewer: access.viewer,
+                }
+                .build(gfa_api_types::InfoDetail::Compact)?,
+            )
+        } else {
+            None
+        };
+        self.store.create(staged)
             .await
             .map_err(error::store)?;
         self.observer.committed(&state.match_id);

@@ -161,6 +161,44 @@ impl OpponentFactory for BuiltinOpponentFactory {
 }
 
 impl GameService {
+    pub(crate) async fn choose_opponent(
+        &self, game: Arc<dyn DynGame>, config: Value, selection: &OpponentConfig,
+        seed: u64, seat: u8, visible: gfa_api_types::MatchState,
+    ) -> Result<ActionChoice, ApiError> {
+        let (factory, executor) = self.opponents.as_ref().ok_or_else(|| {
+            ApiError::new(
+                "ENGINE_UNAVAILABLE",
+                "No opponent executor is installed",
+                "Configure an opponent worker pool on the host.",
+            )
+        })?;
+        let (opponent, limits) =
+            factory.create(game, config, selection, seed)?;
+        let choice = executor
+            .execute(OpponentJob {
+                opponent,
+                seat,
+                observation: visible.observation,
+                legal_actions: visible.legal_actions.clone(),
+                limits,
+            })
+            .await?;
+        if !visible.legal_actions.contains(&choice.action)
+            || choice
+                .info
+                .evaluation
+                .is_some_and(|score| !score.is_finite())
+        {
+            return Err(ApiError::new(
+                "ENGINE_UNAVAILABLE",
+                "Opponent returned an invalid recommendation",
+                "Choose another opponent and report the provider failure.",
+            ));
+        }
+        Ok(choice)
+    }
+
+
     /// Install a player registry and a bounded host executor before serving requests.
     pub fn with_opponents(
         mut self,
@@ -193,13 +231,6 @@ impl GameService {
                 "Select a seat you may access.",
             ));
         };
-        let (factory, executor) = self.opponents.as_ref().ok_or_else(|| {
-            ApiError::new(
-                "ENGINE_UNAVAILABLE",
-                "No opponent executor is installed",
-                "Configure an opponent worker pool on the host.",
-            )
-        })?;
         let seed = request.seed.unwrap_or_else(|| self.ids.next_seed());
         let planning = self
             .planning_source(
@@ -226,29 +257,7 @@ impl GameService {
                 "Select the current player or an earlier turn.",
             ));
         }
-        let (opponent, limits) =
-            factory.create(planning.game, planning.config, &request.opponent, seed)?;
-        let choice = executor
-            .execute(OpponentJob {
-                opponent,
-                seat,
-                observation: visible.observation,
-                legal_actions: visible.legal_actions.clone(),
-                limits,
-            })
-            .await?;
-        if !visible.legal_actions.contains(&choice.action)
-            || choice
-                .info
-                .evaluation
-                .is_some_and(|score| !score.is_finite())
-        {
-            return Err(ApiError::new(
-                "ENGINE_UNAVAILABLE",
-                "Opponent returned an invalid recommendation",
-                "Choose another opponent and report the provider failure.",
-            ));
-        }
+        let choice = self.choose_opponent(planning.game, planning.config, &request.opponent, seed, seat, visible).await?;
         Ok(AnalysisResult {
             advice: choice.info.advice,
             game_id: request.game_id,

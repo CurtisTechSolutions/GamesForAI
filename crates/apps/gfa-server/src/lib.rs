@@ -206,3 +206,6 @@ mod sudoku_tests;
 
 #[cfg(test)]
 mod analysis_tests;
+
+#[cfg(test)]
+mod seat_tests;
