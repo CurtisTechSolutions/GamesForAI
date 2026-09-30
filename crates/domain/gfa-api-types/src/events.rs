@@ -5,7 +5,9 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-fn default_limit() -> u32 { 50 }
+fn default_limit() -> u32 {
+    50
+}
 
 /// Cursor and view requested for one event-log page.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema, utoipa::IntoParams))]
@@ -24,7 +26,13 @@ pub struct EventsQuery {
 }
 
 impl Default for EventsQuery {
-    fn default() -> Self { Self { since:None, limit:50, seat:None } }
+    fn default() -> Self {
+        Self {
+            since: None,
+            limit: 50,
+            seat: None,
+        }
+    }
 }
 
 /// A public or seat-scoped event payload. Storage records are never serialized directly.
