@@ -51,7 +51,7 @@ limited to 64 KiB. Browser calls must have the same origin; the future web clien
 can use a same-origin development proxy.
 
 This first local host exposes the existing external-player lifecycle. Opponent
-scheduling, game briefings, simulation, forks, public authentication, PostgreSQL,
+scheduling, simulation, forks, public authentication, PostgreSQL,
 and OpenAPI documentation remain separate M1 increments.
 
 ## Live state

@@ -150,13 +150,25 @@ async fn every_game_briefing_contains_executable_examples_and_matching_views() -
             .get("schema")
             .is_none());
         assert!(data(&compact, "config_options")?.get("schema").is_none());
+        assert_eq!(
+            data(&compact, "observation_format")?["tensor_shape"],
+            if game == "tictactoe" {
+                json!([3, 3, 3])
+            } else {
+                Value::Null
+            }
+        );
         assert!(data(&compact, "strategy_notes")?.is_null());
         assert!(compact.approx_tokens < info.approx_tokens);
         println!(
             "{game} compact briefing estimate: {}",
             compact.approx_tokens
         );
-        assert!(compact.approx_tokens < 1500, "{game}: {} tokens", compact.approx_tokens);
+        assert!(
+            compact.approx_tokens < 1500,
+            "{game}: {} tokens",
+            compact.approx_tokens
+        );
     }
     app.store.close().await;
     Ok(())
