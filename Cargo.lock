@@ -41,6 +41,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "arrayvec"
+version = "0.7.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3fb67a6e08acf24fdeccbac2cb6ac4305825bd1f117462e0e6f2f193345ad56"
+
+[[package]]
 name = "atoi"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -173,6 +179,15 @@ name = "borrow-or-share"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dc0b364ead1874514c8c2855ab558056ebfeb775653e7ae45ff72f28f8f3166c"
+
+[[package]]
+name = "btoi"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b5ab9db53bcda568284df0fd39f6eac24ad6f7ba7ff1168b9e76eba6576b976"
+dependencies = [
+ "num-traits",
+]
 
 [[package]]
 name = "bumpalo"
@@ -682,6 +697,15 @@ dependencies = [
  "serde_json",
  "thiserror",
  "utoipa",
+]
+
+[[package]]
+name = "gfa-game-chess"
+version = "0.1.0"
+dependencies = [
+ "gfa-core",
+ "gfa-testkit",
+ "shakmaty",
 ]
 
 [[package]]
@@ -1229,6 +1253,12 @@ dependencies = [
  "wasi",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "nohash-hasher"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "num"
@@ -1933,6 +1963,19 @@ dependencies = [
  "cfg-if",
  "cpufeatures 0.3.1",
  "digest 0.11.3",
+]
+
+[[package]]
+name = "shakmaty"
+version = "0.30.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f8377322ffda8ac1d6c24af5d4c2cacaf6e059c5581c6082f222364ec759578c"
+dependencies = [
+ "arrayvec",
+ "bitflags",
+ "btoi",
+ "nohash-hasher",
+ "serde",
 ]
 
 [[package]]

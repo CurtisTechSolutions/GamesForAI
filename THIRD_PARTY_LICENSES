@@ -1,0 +1,12 @@
+Third-party game engines and rules libraries
+===========================================
+
+shakmaty 0.30.1
+  Source: https://github.com/niklasf/shakmaty
+  License: GPL-3.0-or-later (used under GPL version 3 in this GPL-3.0-only project)
+  License text: https://github.com/niklasf/shakmaty/blob/master/COPYING
+  Purpose: legal move generation and FEN validation for gfa-game-chess.
+  Linked as a Rust library; no separate engine binary is bundled yet.
+
+Cargo.lock pins Rust dependencies. cargo deny checks all transitive Rust licenses
+and advisories in CI; deny.toml lists the accepted licenses.
