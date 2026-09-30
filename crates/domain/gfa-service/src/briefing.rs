@@ -25,8 +25,10 @@ fn preview(
     viewer: Viewer,
     full: bool,
 ) -> Result<Value, ApiError> {
-    let mut value =
-        serde_json::to_value(frame.project("example", game, viewer)?).map_err(|_| internal())?;
+    // Use the wire representation so f32 tensor values match live JSON responses.
+    let bytes = serde_json::to_vec(&frame.project("example", game, viewer)?)
+        .map_err(|_| internal())?;
+    let mut value: Value = serde_json::from_slice(&bytes).map_err(|_| internal())?;
     if let Some(object) = value.as_object_mut() {
         object.remove("match_id");
         if !full {

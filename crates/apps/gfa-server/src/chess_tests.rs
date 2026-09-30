@@ -41,7 +41,7 @@ async fn chess_draw_history_forks_and_replay_survive_restart() -> TestResult {
         .await?;
         assert_eq!(status, StatusCode::OK);
     }
-    let (_, child) = call(
+    let (status, child) = call(
         &app.router,
         "POST",
         &format!("/v1/matches/{id}/fork?seat=0"),
@@ -49,9 +49,10 @@ async fn chess_draw_history_forks_and_replay_survive_restart() -> TestResult {
         None,
     )
     .await?;
-    let child_id = child["state"]["match_id"].as_str().ok_or("child id")?;
-    assert_eq!(child["state"]["turn"], 0);
-    assert_eq!(child["state"]["observation"]["json"]["repetitions"], 3);
+    assert_eq!(status, StatusCode::CREATED, "{child}");
+    let child_id = child["match_id"].as_str().ok_or("child id")?;
+    assert_eq!(child["turn"], 0);
+    assert_eq!(child["observation"]["json"]["repetitions"], 3);
     let (_, claimed) = call(
         &app.router,
         "POST",
