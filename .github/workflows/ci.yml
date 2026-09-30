@@ -17,6 +17,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace --all-features --locked
       - run: cargo xtask check-deps
+      - run: cargo check -p gfa-games --no-default-features --locked
   lint:
     runs-on: ubuntu-latest
     steps:
