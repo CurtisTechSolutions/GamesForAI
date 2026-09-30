@@ -103,10 +103,7 @@ async fn stockfish_http_seats_analysis_and_idempotency() -> Result<(), ServerErr
         .contains(&analysis["best_moves"][0]));
     assert!(analysis["evaluation"].is_null());
     assert_eq!(
-        analysis["variations"]
-            .as_array()
-            .ok_or("variations")?
-            .len(),
+        analysis["variations"].as_array().ok_or("variations")?.len(),
         2
     );
     let (_, after) = call(&app.router, "GET", &replay_path, Value::Null, None).await?;

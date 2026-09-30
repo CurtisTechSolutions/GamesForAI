@@ -27,7 +27,8 @@ mod fork;
 mod opponents;
 mod planning;
 pub use opponents::{
-    AnalysisFuture, BuiltinOpponentFactory, OpponentExecutor, OpponentFactory, OpponentFuture, OpponentJob,
+    AnalysisFuture, BuiltinOpponentFactory, OpponentExecutor, OpponentFactory, OpponentFuture,
+    OpponentJob,
 };
 
 mod seats;

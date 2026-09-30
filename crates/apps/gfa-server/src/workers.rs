@@ -40,12 +40,16 @@ impl Workers {
     fn schedule<T: Send + 'static>(
         &self,
         job: impl FnOnce(&SearchClock) -> Result<T, gfa_api_types::ApiError> + Send + 'static,
-    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, gfa_api_types::ApiError>> + Send>> {
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<T, gfa_api_types::ApiError>> + Send>,
+    > {
         let capacity = self.0.clone();
         Box::pin(async move {
             let permit = capacity.try_acquire_owned().map_err(|_| {
                 gfa_api_types::ApiError::new(
-                    "ENGINE_BUSY", "All opponent workers are busy", "Retry after a running search finishes.",
+                    "ENGINE_BUSY",
+                    "All opponent workers are busy",
+                    "Retry after a running search finishes.",
                 )
             })?;
             let cancelled = Arc::new(AtomicBool::new(false));
@@ -53,10 +57,19 @@ impl Workers {
             tokio::task::spawn_blocking(move || {
                 // Capacity remains leased until CPU work responds to cancellation and exits.
                 let _permit = permit;
-                job(&SearchClock { cancelled, clock: gfa_opponents::SystemClock::default() })
-            }).await.map_err(|_| gfa_api_types::ApiError::new(
-                "ENGINE_UNAVAILABLE", "Opponent worker failed", "Retry or select another opponent.",
-            ))?
+                job(&SearchClock {
+                    cancelled,
+                    clock: gfa_opponents::SystemClock::default(),
+                })
+            })
+            .await
+            .map_err(|_| {
+                gfa_api_types::ApiError::new(
+                    "ENGINE_UNAVAILABLE",
+                    "Opponent worker failed",
+                    "Retry or select another opponent.",
+                )
+            })?
         })
     }
 }

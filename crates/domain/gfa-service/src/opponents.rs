@@ -55,11 +55,17 @@ pub struct OpponentJob {
 impl OpponentJob {
     /// Request ranked analysis recommendations with the same observation-only input.
     pub fn analyze(self, clock: &dyn Clock) -> Result<Vec<ActionChoice>, ApiError> {
-        self.opponent.analyze(
-            &PlayerTurn {
-                seat: self.seat, observation: &self.observation, legal_actions: &self.legal_actions,
-            }, self.limits, clock,
-        ).map_err(error::opponent)
+        self.opponent
+            .analyze(
+                &PlayerTurn {
+                    seat: self.seat,
+                    observation: &self.observation,
+                    legal_actions: &self.legal_actions,
+                },
+                self.limits,
+                clock,
+            )
+            .map_err(error::opponent)
     }
 
     /// Execute with an injected monotonic clock. The host supplies the runtime.
@@ -284,14 +290,24 @@ impl GameService {
                 "Select the current player or an earlier turn.",
             ));
         }
-        let (factory, executor) = self.opponents.as_ref().ok_or_else(|| ApiError::new(
-            "ENGINE_UNAVAILABLE", "No opponent executor is installed", "Configure an opponent worker pool on the host."
-        ))?;
-        let (opponent, limits) = factory.create(planning.game, planning.config, &request.opponent, seed)?;
-        let choices = executor.analyze(OpponentJob {
-            opponent, seat, observation: visible.observation,
-            legal_actions: visible.legal_actions.clone(), limits,
-        }).await?;
+        let (factory, executor) = self.opponents.as_ref().ok_or_else(|| {
+            ApiError::new(
+                "ENGINE_UNAVAILABLE",
+                "No opponent executor is installed",
+                "Configure an opponent worker pool on the host.",
+            )
+        })?;
+        let (opponent, limits) =
+            factory.create(planning.game, planning.config, &request.opponent, seed)?;
+        let choices = executor
+            .analyze(OpponentJob {
+                opponent,
+                seat,
+                observation: visible.observation,
+                legal_actions: visible.legal_actions.clone(),
+                limits,
+            })
+            .await?;
         validate_analysis_choices(&choices, &visible.legal_actions)?;
         let choice = choices.first().ok_or_else(invalid_analysis)?;
         Ok(AnalysisResult {
@@ -302,7 +318,11 @@ impl GameService {
             best_moves: choices.iter().map(|choice| choice.action.clone()).collect(),
             evaluation: choice.info.evaluation,
             principal_variation: choice.info.principal_variation.clone(),
-            nodes: choices.iter().map(|choice| choice.info.nodes).max().unwrap_or(0),
+            nodes: choices
+                .iter()
+                .map(|choice| choice.info.nodes)
+                .max()
+                .unwrap_or(0),
             depth: choice.info.depth,
             budget_exhausted: choices.iter().any(|choice| choice.info.budget_exhausted),
             variations: choices,
@@ -358,35 +378,59 @@ mod failure_tests {
     }
 }
 
-
 fn invalid_analysis() -> ApiError {
-    ApiError::new("ENGINE_INVALID_RESPONSE", "Opponent returned invalid analysis recommendations", "Select another opponent and report the provider failure.")
+    ApiError::new(
+        "ENGINE_INVALID_RESPONSE",
+        "Opponent returned invalid analysis recommendations",
+        "Select another opponent and report the provider failure.",
+    )
 }
-fn validate_analysis_choices(choices: &[ActionChoice], legal: &[LegalAction]) -> Result<(), ApiError> {
+fn validate_analysis_choices(
+    choices: &[ActionChoice],
+    legal: &[LegalAction],
+) -> Result<(), ApiError> {
     if choices.is_empty() || choices.len() > 16 {
         return Err(invalid_analysis());
     }
     let mut seen = std::collections::BTreeSet::new();
     for choice in choices {
-        if !legal.contains(&choice.action) || !seen.insert(choice.action.index)
-            || choice.info.evaluation.is_some_and(|score| !score.is_finite())
+        if !legal.contains(&choice.action)
+            || !seen.insert(choice.action.index)
+            || choice
+                .info
+                .evaluation
+                .is_some_and(|score| !score.is_finite())
             || choice.info.principal_variation.len() > 128
-            || choice.info.principal_variation.first().is_some_and(|first| first != &choice.action.string)
-        { return Err(invalid_analysis()); }
+            || choice
+                .info
+                .principal_variation
+                .first()
+                .is_some_and(|first| first != &choice.action.string)
+        {
+            return Err(invalid_analysis());
+        }
     }
     Ok(())
 }
-
 
 #[cfg(test)]
 mod analysis_validation_tests {
     use super::*;
     fn choice() -> ActionChoice {
         ActionChoice {
-            action: LegalAction { string: "a".into(), json: serde_json::json!("a"), index: 0 },
+            action: LegalAction {
+                string: "a".into(),
+                json: serde_json::json!("a"),
+                index: 0,
+            },
             info: gfa_core::ChoiceInfo {
-                advice: None, algorithm: "test".into(), nodes: 1, depth: 1,
-                evaluation: Some(0.0), principal_variation: vec!["a".into()], budget_exhausted: false,
+                advice: None,
+                algorithm: "test".into(),
+                nodes: 1,
+                depth: 1,
+                evaluation: Some(0.0),
+                principal_variation: vec!["a".into()],
+                budget_exhausted: false,
             },
         }
     }
