@@ -37,7 +37,7 @@ fn preview(
             {
                 if actions.len() > 16 {
                     let total = actions.len();
-                    actions.truncate(3);
+                    actions.truncate(1);
                     object.insert("legal_actions_total".into(), json!(total));
                     object.insert("legal_actions_truncated".into(), json!(true));
                 }
