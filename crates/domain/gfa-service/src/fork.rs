@@ -125,7 +125,7 @@ impl GameService {
             ],
             commands: vec![],
         };
-        let progress = self.automatic_replies(&mut staged).await?;
+        let progress = self.automatic_replies(&mut staged, crate::seats::opening_budget(&child_origin)).await?;
         let state = progress.frame.project(&child_id, game, access.viewer)?;
         let info = if request.include_info {
             Some(

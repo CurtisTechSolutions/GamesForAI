@@ -169,7 +169,7 @@ impl GameService {
             events: vec![MatchEvent::MatchCreated(origin.clone())],
             commands: vec![],
         };
-        let progress = self.automatic_replies(&mut staged).await?;
+        let progress = self.automatic_replies(&mut staged, crate::seats::opening_budget(&origin)).await?;
         let state = progress.frame.project(&id, game.as_ref(), viewer)?;
         let info = if include_info {
             Some(
@@ -406,7 +406,7 @@ impl GameService {
         let revision = record.events.len();
         let mut staged = record.clone();
         staged.events.extend(events);
-        let progress = self.automatic_replies(&mut staged).await?;
+        let progress = self.automatic_replies(&mut staged, 8).await?;
         response.state = progress
             .frame
             .project(id, game, Viewer::Player(request.seat))?;

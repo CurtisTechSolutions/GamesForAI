@@ -1367,11 +1367,40 @@ fn invalid_or_unconfigured_opponent_seats_fail_before_persistence() -> TestResul
         run(service.create_match(options.clone(), Viewer::Player(0))),
         "INVALID_CONFIG",
     );
-    options.seats = vec![opponent_seat(), opponent_seat()];
-    code(
-        run(service.create_match(options, Viewer::Player(0))),
-        "INVALID_CONFIG",
-    );
     assert!(run(store.list_ids("", 100))?.is_empty());
+    Ok(())
+}
+
+#[test]
+fn automatic_matches_resume_from_durable_turns_and_bad_records_do_not_block_the_queue() -> TestResult {
+    let (service, store) = fixture()?;
+    let service = service.with_opponents(Arc::new(BuiltinOpponentFactory), Arc::new(ImmediateOpponentExecutor));
+    let mut options = create("counter");
+    options.seats = vec![opponent_seat(), opponent_seat()];
+    let damaged = run(service.create_match(options.clone(), Viewer::Player(0)))?;
+    let first = run(service.create_match(options, Viewer::Player(0)))?;
+    assert_eq!(first.turn, 0);
+    {
+        let mut records = store.records.lock().map_err(|_| "poisoned")?;
+        let record = records.get_mut(&damaged.match_id).ok_or("record")?;
+        if let MatchEvent::MatchCreated(origin) = &mut record.events[0] { origin.engine_version = "unavailable".into(); }
+    }
+    let page = run(service.pending_opponents(None, 1))?;
+    assert!(page.matches.is_empty());
+    assert_eq!(page.unavailable.len(), 1);
+    let page = run(service.pending_opponents(page.next.as_deref(), 1))?;
+    assert_eq!(page.matches, [first.match_id.clone()]);
+    assert_eq!(run(service.advance_opponents(&first.match_id, 1))?, 1);
+    assert_eq!(run(service.get_state(&first.match_id, Viewer::Player(0)))?.turn, 1);
+    store.append_mode.store(3, Ordering::SeqCst);
+    code(run(service.advance_opponents(&first.match_id, 1)), "STALE_TURN");
+    assert_eq!(run(service.get_state(&first.match_id, Viewer::Player(0)))?.turn, 2);
+    assert_eq!(run(service.advance_opponents(&first.match_id, 8))?, 2);
+    assert_eq!(run(service.advance_opponents(&first.match_id, 8))?, 0);
+    let states = run(service.get_replay(&first.match_id, Viewer::Player(0)))?.states;
+    assert_eq!(states.len(), 5);
+    assert!(states[4].terminated);
+    assert!(run(service.pending_opponents(None, 100))?.matches.is_empty());
+    code(run(service.advance_opponents(&first.match_id, 0)), "INVALID_CONFIG");
     Ok(())
 }

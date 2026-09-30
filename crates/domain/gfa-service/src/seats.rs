@@ -32,6 +32,11 @@ pub(crate) fn external_seat(origin: &MatchOrigin, seat: u8) -> Result<(), ApiErr
     }
 }
 
+/// Foreground creation avoids starting a long all-opponent game inside its request.
+pub(crate) fn opening_budget(origin: &MatchOrigin) -> usize {
+    if origin.seats.iter().all(|seat| matches!(seat, Seat::Opponent { .. })) { 0 } else { 8 }
+}
+
 impl GameService {
     pub(crate) fn prepare_seats(
         &self,
@@ -46,19 +51,6 @@ impl GameService {
                 "INVALID_CONFIG",
                 "Seat assignments must match the game's actual player count",
                 "Provide one seat per player, or omit seats for external play.",
-            ));
-        }
-        // Interactive matches return control to an external player. Fully automatic
-        // matches use the background runner added separately.
-        if origin
-            .seats
-            .iter()
-            .all(|seat| matches!(seat, Seat::Opponent { .. }))
-        {
-            return Err(ApiError::new(
-                "INVALID_CONFIG",
-                "An interactive match requires an external seat",
-                "Include a self, human, or open seat.",
             ));
         }
         for seat in &mut origin.seats {
@@ -81,13 +73,14 @@ impl GameService {
     pub(crate) async fn automatic_replies(
         &self,
         staged: &mut MatchRecord,
+        limit: usize,
     ) -> Result<AutomaticProgress, ApiError> {
         let origin = staged.origin().ok_or_else(error::corrupt)?.clone();
         let rebuilt = replay::reconstruct(&self.registry, staged)?;
         let mut frame = rebuilt.current()?.clone();
         let game = rebuilt.game;
         let mut replies = Vec::new();
-        for _ in 0..8 {
+        for _ in 0..limit {
             if frame.ended() {
                 return Ok(AutomaticProgress { frame, replies });
             }
@@ -145,24 +138,6 @@ impl GameService {
                 });
             }
             frame = next;
-        }
-        if !frame.ended()
-            && game
-                .current_players(&frame.state)
-                .map_err(error::engine)?
-                .iter()
-                .any(|seat| {
-                    matches!(
-                        origin.seats.get(usize::from(*seat)),
-                        Some(Seat::Opponent { .. })
-                    )
-                })
-        {
-            return Err(ApiError::new(
-                "ENGINE_UNAVAILABLE",
-                "Automatic reply chain exceeded the interactive limit",
-                "Use a shorter game or change the seat assignments.",
-            ));
         }
         Ok(AutomaticProgress { frame, replies })
     }
