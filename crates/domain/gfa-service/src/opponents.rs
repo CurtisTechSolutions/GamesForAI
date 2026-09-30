@@ -109,6 +109,13 @@ impl OpponentFactory for BuiltinOpponentFactory {
         opponent: &OpponentConfig,
         seed: u64,
     ) -> Result<(Arc<dyn Opponent>, SearchLimits), ApiError> {
+        if opponent.uci.is_some() {
+            return Err(ApiError::new(
+                "INVALID_CONFIG",
+                "This player does not accept UCI options",
+                "Omit uci or choose an installed UCI opponent.",
+            ));
+        }
         if !self
             .catalog(game.as_ref())
             .iter()

@@ -1,6 +1,8 @@
 //! Local server composition: registry, lifecycle service, persistence, and HTTP.
 mod runner;
+mod stockfish;
 mod workers;
+pub use stockfish::StockfishConfig;
 
 use gfa_service::{Clock, GameService, MatchIds, MatchStore};
 use gfa_store::SqliteMatchStore;
@@ -25,6 +27,8 @@ pub struct Config {
     pub database: Database,
     /// Loopback port. Zero lets the OS select an available port.
     pub port: u16,
+    /// Optional installed Stockfish engine and sandbox policy.
+    pub stockfish: Option<StockfishConfig>,
 }
 
 impl Default for Config {
@@ -32,6 +36,7 @@ impl Default for Config {
         Self {
             database: Database::Sqlite("gfa.sqlite".into()),
             port: 8080,
+            stockfish: None,
         }
     }
 }
@@ -122,16 +127,14 @@ struct Application {
 
 async fn application(config: &Config, address: SocketAddr) -> Result<Application, ServerError> {
     let registry = gfa_games::registry()?;
+    let opponents = stockfish::factory(config.stockfish.as_ref(), &registry).await?;
     let store = Store::open(&config.database).await?;
     let host = Arc::new(Host);
     let updates = Arc::new(gfa_http::LiveUpdates::default());
     let service = Arc::new(
         GameService::new(registry, store.port(), host.clone(), host)
             .with_observer(updates.clone())
-            .with_opponents(
-                Arc::new(gfa_service::BuiltinOpponentFactory),
-                Arc::new(workers::Workers::new(4)),
-            ),
+            .with_opponents(opponents, Arc::new(workers::Workers::new(4))),
     );
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
     Ok(Application {
@@ -227,3 +230,6 @@ mod chess_tests;
 
 #[cfg(test)]
 mod uci_tests;
+
+#[cfg(test)]
+mod stockfish_tests;

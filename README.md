@@ -102,3 +102,27 @@ new repetition history; complete played-state JSON keeps the original position
 and actions. Replay and forks retain that history. The engine accepts standard
 chess only. Generic random/search opponents are available; Stockfish integration
 is tracked separately.
+
+
+To enable a local Stockfish installation on Linux:
+
+`cargo run -p gfa-cli -- serve --stockfish /usr/games/stockfish`
+
+Install Stockfish, bubblewrap and util-linux, and allow bubblewrap to create user
+namespaces under the host's security policy. Startup verifies a sandboxed search
+before opening the database. The application never disables host sandbox policy.
+Hosts may configure the pool, CPU/address-space limits, threads and hash size
+through StockfishConfig. Engine paths and resource policy cannot be supplied by
+match participants.
+
+Chess then advertises stockfish in its opponent catalog. Select it for an
+opponent seat or POST /v1/analysis with, for example,
+{"id":"stockfish","level":3}, or
+{"id":"stockfish","uci":{"elo":1500,"multipv":3}} as the opponent.
+Explicit level, skill and Elo strength choices are mutually exclusive. Installed
+engine capability bounds are authoritative. Skill presets use levels 1–10 but
+remain uncalibrated, with null ratings, until a measured calibration is published.
+Stockfish's weaker settings may randomize play; a planning seed does not promise
+deterministic engine strength-limited decisions. Idempotent action retries reuse
+the persisted result. Analysis exposes typed centipawn/mate scores and bounded,
+rules-validated variations in advice.details.

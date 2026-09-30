@@ -28,3 +28,7 @@ jobs:
         run: cargo test -p gfa-engine-uci --lib diagnose_sandbox --locked -- --ignored --nocapture
       - name: Search inside the production sandbox
         run: cargo test -p gfa-engine-uci --test stockfish --locked -- --ignored --nocapture
+      - name: Verify real engine through REST and atomic opponent seats
+        env:
+          SQLX_OFFLINE: true
+        run: cargo test -p gfa-server --locked stockfish_http -- --ignored --nocapture

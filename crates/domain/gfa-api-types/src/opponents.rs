@@ -45,6 +45,24 @@ pub struct SearchBudget {
     pub time_ms: Option<u64>,
 }
 
+/// Bounded UCI strength and analysis settings. Only UCI players accept these options.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct UciOptions {
+    /// Engine skill, 0..20; mutually exclusive with Elo and explicit level.
+    #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(minimum = 0, maximum = 20))]
+    pub skill: Option<u8>,
+    /// Engine target Elo; the installed engine's advertised bounds apply.
+    #[serde(default)]
+    pub elo: Option<u16>,
+    /// Number of analysis lines, 1..16; defaults to one.
+    #[serde(default)]
+    #[cfg_attr(feature = "openapi", schema(minimum = 1, maximum = 16))]
+    pub multipv: Option<u8>,
+}
+
 /// Reproducible player selection, also used when assigning opponent seats.
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -59,6 +77,9 @@ pub struct OpponentConfig {
     /// Optional hard limits; seed is supplied independently from live match RNG.
     #[serde(default)]
     pub limits: SearchBudget,
+    /// Optional UCI-specific settings; rejected by other player families.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub uci: Option<UciOptions>,
 }
 
 /// Analyze one authorized position without applying moves to its match.
