@@ -57,3 +57,64 @@ pub(crate) fn corrupt() -> ApiError {
         "Use the engine version recorded with this match and check the event log.",
     )
 }
+
+pub(crate) fn opponent(error: gfa_core::OpponentError) -> ApiError {
+    use gfa_core::OpponentError;
+    let (code, message, hint) = match error {
+        OpponentError::Game(error) => return engine(error),
+        OpponentError::Busy => (
+            "ENGINE_BUSY",
+            "All opponent workers are busy",
+            "Retry after a running request finishes.",
+        ),
+        OpponentError::Timeout => (
+            "ENGINE_TIMEOUT",
+            "Opponent exceeded its time budget",
+            "Increase the move budget or select another opponent.",
+        ),
+        OpponentError::Cancelled => (
+            "ENGINE_CANCELLED",
+            "Opponent request was cancelled",
+            "Read the current match state before retrying.",
+        ),
+        OpponentError::BudgetExhausted => (
+            "BUDGET_EXHAUSTED",
+            "Opponent usage budget is exhausted",
+            "Change the configured budget before requesting another decision.",
+        ),
+        OpponentError::InvalidResponse => (
+            "ENGINE_INVALID_RESPONSE",
+            "Opponent returned an invalid recommendation",
+            "Select another opponent and report the provider failure.",
+        ),
+        _ => (
+            "ENGINE_UNAVAILABLE",
+            "Opponent is unavailable",
+            "Check the configured provider or installed engine.",
+        ),
+    };
+    ApiError::new(code, message, hint)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn operational_failures_keep_their_identity() {
+        use gfa_core::OpponentError;
+        for (input, code) in [
+            (OpponentError::Busy, "ENGINE_BUSY"),
+            (OpponentError::Unavailable, "ENGINE_UNAVAILABLE"),
+            (OpponentError::Timeout, "ENGINE_TIMEOUT"),
+            (OpponentError::Cancelled, "ENGINE_CANCELLED"),
+            (OpponentError::BudgetExhausted, "BUDGET_EXHAUSTED"),
+            (OpponentError::InvalidResponse, "ENGINE_INVALID_RESPONSE"),
+            (
+                OpponentError::Game(GameError::illegal("bad input")),
+                "ILLEGAL_ACTION",
+            ),
+        ] {
+            assert_eq!(opponent(input).code, code);
+        }
+    }
+}

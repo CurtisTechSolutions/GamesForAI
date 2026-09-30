@@ -48,7 +48,7 @@ impl OpponentJob {
     /// Execute with an injected monotonic clock. The host supplies the runtime.
     pub fn run(self, clock: &dyn Clock) -> Result<ActionChoice, ApiError> {
         self.opponent
-            .choose_action(
+            .decide(
                 &PlayerTurn {
                     seat: self.seat,
                     observation: &self.observation,
@@ -57,7 +57,7 @@ impl OpponentJob {
                 self.limits,
                 clock,
             )
-            .map_err(error::engine)
+            .map_err(error::opponent)
     }
 }
 
@@ -282,5 +282,53 @@ impl GameService {
             depth: choice.info.depth,
             budget_exhausted: choice.info.budget_exhausted,
         })
+    }
+}
+
+#[cfg(test)]
+mod failure_tests {
+    use super::*;
+    #[test]
+    fn jobs_use_the_operational_entry_point() -> Result<(), Box<dyn std::error::Error>> {
+        struct Failure;
+        impl Opponent for Failure {
+            fn choose_action(
+                &self,
+                _: &PlayerTurn<'_>,
+                _: SearchLimits,
+                _: &dyn Clock,
+            ) -> Result<ActionChoice, gfa_core::GameError> {
+                Err(gfa_core::GameError::illegal("legacy input error"))
+            }
+            fn decide(
+                &self,
+                _: &PlayerTurn<'_>,
+                _: SearchLimits,
+                _: &dyn Clock,
+            ) -> Result<ActionChoice, gfa_core::OpponentError> {
+                Err(gfa_core::OpponentError::Timeout)
+            }
+        }
+        struct Frozen;
+        impl Clock for Frozen {
+            fn now_ms(&self) -> u64 {
+                0
+            }
+        }
+        let observation: Observation = serde_json::from_value(serde_json::json!({
+            "json": {}, "text": "", "tensor": null
+        }))?;
+        let job = OpponentJob {
+            opponent: Arc::new(Failure),
+            seat: 0,
+            observation,
+            legal_actions: vec![],
+            limits: SearchLimits::for_level(1, 0)?,
+        };
+        assert_eq!(
+            job.run(&Frozen).err().ok_or("expected error")?.code,
+            "ENGINE_TIMEOUT"
+        );
+        Ok(())
     }
 }
