@@ -70,6 +70,7 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
         ("/v1/matches/{id}/state", "get"),
         ("/v1/matches/{id}/actions", "post"),
         ("/v1/matches/{id}/replay", "get"),
+        ("/v1/matches/{id}/events", "get"),
         ("/v1/matches/{id}/legal-actions", "get"),
         ("/v1/matches/{id}/stream", "get"),
         ("/v1/games/{game_id}/positions/validate", "post"),
@@ -80,7 +81,7 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
             "missing {method} {path}"
         );
     }
-    assert_eq!(doc["paths"].as_object().map(serde_json::Map::len), Some(20));
+    assert_eq!(doc["paths"].as_object().map(serde_json::Map::len), Some(21));
     let game_info = &doc["paths"]["/v1/games/{game_id}/info"]["get"];
     assert!(game_info["responses"]["200"]["content"]["text/markdown"].is_object());
     assert!(game_info["responses"]["304"].get("content").is_none());
@@ -156,7 +157,7 @@ async fn served_openapi_matches_real_requests_responses_and_conditional_formats(
         response_schema(&doc, "/v1/matches/{id}/actions", "post", "200"),
         &moved
     ));
-    for suffix in ["state", "info", "legal-actions", "replay"] {
+    for suffix in ["state", "info", "legal-actions", "replay", "events"] {
         let (_, response) = call(
             &app.router,
             "GET",
