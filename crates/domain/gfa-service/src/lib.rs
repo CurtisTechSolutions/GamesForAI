@@ -31,3 +31,6 @@ pub use opponents::{
 };
 
 mod seats;
+
+mod scheduling;
+pub use scheduling::{OpponentQueueFailure, PendingOpponents};

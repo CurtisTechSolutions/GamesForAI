@@ -64,6 +64,8 @@ worker failure or a conflicting write leaves the attempted batch unapplied.
 
 Planning seeds are materialized independently from game randomness. Replay
 reapplies recorded actions without rerunning opponents. Forks may replace
-`seats`; omitted assignments retain the parent's configuration. Interactive
-matches currently require at least one external seat; fully automatic scheduling
-is a separate increment.
+`seats`; omitted assignments retain the parent's configuration. All-opponent matches return their initial state immediately and run in the
+background. The server scans persisted matches at startup and between batches,
+so a restart resumes pending turns. Live streams receive each committed update.
+Four concurrent scheduler tasks and four search workers bound resource use.
+Interactive reply chains longer than eight moves continue through this runner.

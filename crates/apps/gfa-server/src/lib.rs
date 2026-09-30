@@ -1,4 +1,5 @@
 //! Local server composition: registry, lifecycle service, persistence, and HTTP.
+mod runner;
 mod workers;
 
 use gfa_service::{Clock, GameService, MatchIds, MatchStore};
@@ -116,7 +117,6 @@ struct Application {
     router: axum::Router,
     store: Store,
     updates: Arc<gfa_http::LiveUpdates>,
-    #[cfg(test)]
     service: Arc<GameService>,
 }
 
@@ -138,7 +138,6 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
         router,
         store,
         updates,
-        #[cfg(test)]
         service,
     })
 }
@@ -164,6 +163,9 @@ async fn serve_application(
     shutdown: impl Future<Output = ()> + Send + 'static,
 ) -> Result<(), ServerError> {
     let updates = app.updates.clone();
+    let (stop_runner, stopped) = tokio::sync::watch::channel(false);
+    let runner_task = tokio::spawn(runner::run(app.service.clone(), stopped));
+    let stop_on_shutdown = stop_runner.clone();
     let result = axum::serve(
         listener,
         app.router
@@ -171,11 +173,15 @@ async fn serve_application(
     )
     .with_graceful_shutdown(async move {
         shutdown.await;
+        let _ = stop_on_shutdown.send(true);
         updates.close();
     })
     .await;
+    let _ = stop_runner.send(true);
+    let runner_result = runner_task.await;
     app.updates.wait_closed().await;
     app.store.close().await;
+    runner_result?;
     result?;
     Ok(())
 }
@@ -209,3 +215,6 @@ mod analysis_tests;
 
 #[cfg(test)]
 mod seat_tests;
+
+#[cfg(test)]
+mod runner_tests;
