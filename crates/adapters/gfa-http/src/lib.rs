@@ -7,6 +7,7 @@ mod access;
 mod error;
 mod info;
 mod openapi;
+mod opponents;
 pub use openapi::openapi_document;
 mod stream;
 
@@ -93,6 +94,8 @@ fn build_router(
         .route("/v1/games/{game_id}", get(game))
         .route("/v1/games/{game_id}/info", get(info::game_info))
         .route("/v1/games/{game_id}/simulate", post(simulate))
+        .route("/v1/games/{game_id}/opponents", get(opponents::catalog))
+        .route("/v1/analysis", post(opponents::analyze))
         .route(
             "/v1/games/{game_id}/positions/validate",
             post(validate_position),

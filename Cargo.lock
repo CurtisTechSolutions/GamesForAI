@@ -770,6 +770,7 @@ version = "0.1.0"
 dependencies = [
  "gfa-api-types",
  "gfa-core",
+ "gfa-opponents",
  "serde",
  "serde_json",
  "sha2 0.10.9",

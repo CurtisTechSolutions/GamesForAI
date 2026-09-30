@@ -9,6 +9,8 @@ default = []
 postgres = ["gfa-store/postgres"]
 
 [dependencies]
+gfa-opponents.workspace = true
+gfa-api-types.workspace = true
 gfa-games.workspace = true
 gfa-service.workspace = true
 gfa-http.workspace = true
@@ -18,9 +20,7 @@ tokio.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-gfa-opponents.workspace = true
 jsonschema.workspace = true
-gfa-api-types.workspace = true
 gfa-core.workspace = true
 tokio-tungstenite.workspace = true
 futures-util.workspace = true

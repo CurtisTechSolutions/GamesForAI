@@ -23,3 +23,9 @@ mod position;
 mod simulation;
 
 mod fork;
+
+mod opponents;
+mod planning;
+pub use opponents::{
+    BuiltinOpponentFactory, OpponentExecutor, OpponentFactory, OpponentFuture, OpponentJob,
+};

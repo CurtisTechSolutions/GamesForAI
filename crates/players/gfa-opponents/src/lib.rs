@@ -68,7 +68,8 @@ impl SearchLimits {
         })
     }
 
-    fn validate(self) -> Result<Self, GameError> {
+    /// Reject zero or excessive resource budgets before scheduling work.
+    pub fn validate(self) -> Result<Self, GameError> {
         if self.nodes == 0
             || self.nodes > 1_000_000
             || self.depth == 0

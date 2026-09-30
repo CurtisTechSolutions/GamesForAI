@@ -1,4 +1,6 @@
 //! Local server composition: registry, lifecycle service, persistence, and HTTP.
+mod workers;
+
 use gfa_service::{Clock, GameService, MatchIds, MatchStore};
 use gfa_store::SqliteMatchStore;
 use std::{
@@ -124,7 +126,12 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
     let host = Arc::new(Host);
     let updates = Arc::new(gfa_http::LiveUpdates::default());
     let service = Arc::new(
-        GameService::new(registry, store.port(), host.clone(), host).with_observer(updates.clone()),
+        GameService::new(registry, store.port(), host.clone(), host)
+            .with_observer(updates.clone())
+            .with_opponents(
+                Arc::new(gfa_service::BuiltinOpponentFactory),
+                Arc::new(workers::Workers::new(4)),
+            ),
     );
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
     Ok(Application {
@@ -196,3 +203,6 @@ mod fork_tests;
 
 #[cfg(test)]
 mod sudoku_tests;
+
+#[cfg(test)]
+mod analysis_tests;
