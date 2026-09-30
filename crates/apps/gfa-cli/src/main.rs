@@ -26,13 +26,13 @@ fn parse_with_env(
     while let Some(option) = args.next() {
         match option.as_str() {
             "--help" | "-h" => return Ok(None),
-            "--sqlite" if !sqlite_seen => {
+            "--sqlite" if !database_seen => {
                 let path = args.next().ok_or("--sqlite requires a path")?;
                 if path.is_empty() || path.starts_with("--") {
                     return Err("--sqlite requires a path".into());
                 }
                 config.database = Database::Sqlite(PathBuf::from(path));
-                sqlite_seen = true;
+                database_seen = true;
             }
             #[cfg(feature = "postgres")]
             "--postgres-env" if !database_seen => {

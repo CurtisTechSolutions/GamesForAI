@@ -26,3 +26,18 @@ PostgreSQL, require server certificate verification with `sslmode=verify-full`.
 SQLite is the default. The storage flags are mutually exclusive. Both backends
 persist moves and idempotency receipts atomically and recover replays after a
 graceful shutdown and restart.
+
+## Opponents and analysis
+
+`GET /v1/games/{game_id}/opponents` lists installed players. Random is available
+for every game. Deterministic, sequential games with perfect information also
+have MCTS; two-player games have alpha-beta minimax. Search levels are resource
+budgets until calibration results are published; the API reports null ratings.
+
+`POST /v1/analysis` accepts `game_id`, `from` (a match/seat/optional turn, or a
+standalone position/state), `opponent` (id, optional level and limits), and an
+independent `seed`. It returns legal recommendations, evaluation, principal
+variation, node count, depth and whether the budget was exhausted. Match analysis
+requires `assists.allow_analysis: true`. A standalone copy of an active position
+cannot bypass that policy. Searches run in four bounded workers and receive
+only the authorized observation and legal actions.

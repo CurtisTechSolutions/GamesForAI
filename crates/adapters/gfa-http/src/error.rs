@@ -37,7 +37,7 @@ impl From<ApiError> for HttpError {
                 StatusCode::CONFLICT
             }
             "UNAUTHORIZED" | "ASSIST_NOT_ALLOWED" | "FORBIDDEN" => StatusCode::FORBIDDEN,
-            "ENGINE_UNAVAILABLE" | "STORAGE_UNAVAILABLE" => StatusCode::SERVICE_UNAVAILABLE,
+            "ENGINE_UNAVAILABLE" | "ENGINE_BUSY" | "STORAGE_UNAVAILABLE" => StatusCode::SERVICE_UNAVAILABLE,
             "INVALID_EVENT_LOG" | "INVALID_BRIEFING" => StatusCode::INTERNAL_SERVER_ERROR,
             _ => StatusCode::UNPROCESSABLE_ENTITY,
         };
