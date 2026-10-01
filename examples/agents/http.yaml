@@ -1,0 +1,8 @@
+id: my-http-model-checkpoint-001
+type: chat
+base_url: http://127.0.0.1:8000/v1
+model: my-model
+api_key_env: MY_MODEL_TOKEN
+max_tokens: 128
+timeout: 60
+structured: true

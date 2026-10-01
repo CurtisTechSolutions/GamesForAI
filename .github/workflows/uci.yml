@@ -43,6 +43,10 @@ jobs:
           import glob
           import subprocess
           import sys
-          subprocess.check_call([sys.executable, "-m", "pip", "install", *glob.glob("dist/*.whl")])
+          subprocess.check_call([sys.executable, "-m", "pip", "install", *[wheel + "[tournaments]" for wheel in glob.glob("dist/*.whl")]])
           PY
       - run: python .github/scripts/python-stockfish-smoke.py
+      - name: Verify tournament CLI against the installed SDK and real engine
+        env:
+          SQLX_OFFLINE: true
+        run: python .github/scripts/tournament-cli-smoke.py

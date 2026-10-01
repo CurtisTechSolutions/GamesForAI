@@ -35,7 +35,7 @@ jobs:
           import glob
           import subprocess
           import sys
-          subprocess.check_call([sys.executable, "-m", "pip", "install", *[wheel + "[datasets]" for wheel in glob.glob("dist/*.whl")]])
+          subprocess.check_call([sys.executable, "-m", "pip", "install", *[wheel + "[datasets,tournaments]" for wheel in glob.glob("dist/*.whl")]])
           PY
       - run: python .github/scripts/check-position-sets.py
         env:
