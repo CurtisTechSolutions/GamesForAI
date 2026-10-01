@@ -41,6 +41,11 @@ jobs:
         env:
           POSITION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
       - run: python -m pytest python/tests -q
+      - run: python examples/vector_throughput.py --output vector-benchmark.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vector-throughput-${{ matrix.os }}
+          path: vector-benchmark.json
       - uses: actions/upload-artifact@v4
         with:
           name: gamesforai-wheel-${{ matrix.os }}
