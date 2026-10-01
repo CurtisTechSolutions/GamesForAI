@@ -1,0 +1,49 @@
+name: PPO strength evaluation
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ppo-strength.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ppo-strength-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  connect4-level-three:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: python -m pip install "torch>=2.3,<3" --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install "maturin>=1.9,<2" "pytest>=8,<9" "numpy>=1.24,<3"
+      - run: maturin build --release --locked --out dist
+      - name: Install wheel with training dependencies
+        run: |
+          python - <<'PY'
+          import glob
+          import subprocess
+          import sys
+          subprocess.check_call([sys.executable, "-m", "pip", "install", glob.glob("dist/*.whl")[0] + "[training]"])
+          PY
+      - run: python examples/train_ppo.py --steps 250000 --envs 8 --rollout 128 --epochs 4 --opponent minimax:3 --eval-opponent minimax:3 --eval-games 200 --output training-output
+      - name: Verify level-three playing strength
+        run: |
+          python - <<'PY'
+          import json
+          report = json.load(open("training-output/report.json"))
+          result = next(row for row in report["after"] if row["opponent"] == "minimax:3")
+          assert result["win_rate_wilson95"][0] > 0.5, "Level-three strength criterion is not met"
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: connect4-ppo-strength
+          path: training-output/
