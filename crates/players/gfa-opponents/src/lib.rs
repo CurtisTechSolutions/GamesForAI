@@ -113,6 +113,7 @@ impl Opponent for SearchOpponent {
             limits.seed,
         )?;
         if self.game.is_terminal(&state)?
+            || self.game.is_truncated(&state)?
             || self.game.current_players(&state)? != [turn.seat]
             || self.game.legal_actions(&state, turn.seat)? != turn.legal_actions
         {
