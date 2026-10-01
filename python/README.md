@@ -110,3 +110,20 @@ Use `env.reset(seed=42, options={"position_set": "chess-endgames-basic@1"})` wit
 Use `make("connect4", opponent="minimax:3")` or `opponent="mcts:3"` for the native built-in search algorithms at levels 1–10. Training uses fixed node/depth budgets and RNG seeds, so choices do not depend on machine speed. Search reconstructs a planning state from the opponent seat’s observation and never mutates the live environment. Gymnasium checkpoints preserve the opponent seed stream. These are the existing provisional resource levels; their playing strength has not yet been calibrated.
 
 For an independent native environment, `builtin_action(seat, algorithm, level, seed)` returns a legal index without stepping it. Search supports the same perfect-information sequential games as the shared opponent implementation. External Stockfish training integration is a separate adapter.
+
+## Your own HTTP model
+
+```python
+from gamesforai import ChatPolicy, make
+
+policy = ChatPolicy("http://localhost:8000/v1", "your-model", api_key_env="MY_MODEL_KEY")
+env = make("connect4", opponent=policy)
+obs, info = env.reset(seed=42)
+# Or choose learner moves directly with policy(obs, info).
+```
+
+ChatPolicy uses the chat-completions protocol implemented by servers such as [vLLM](https://docs.vllm.ai/en/latest/serving/online_serving/). It sends only seat-visible text, rules, and canonical legal moves. The model returns `{"action":"4"}` for Connect Four column 4, or `{"action":"e2e4"}` for a chess move. The adapter validates the move and converts it to the native index.
+
+Credentials are read from the named environment variable on each call; omit `api_key_env` for a server without authentication. No model or provider account is required by the engine. Structured output uses a JSON Schema with the legal moves as an enum, as supported by [vLLM structured outputs](https://docs.vllm.ai/en/latest/features/structured_outputs/). Set `structured=False` for a server that accepts the chat protocol but not that parameter; the reply must still be the exact JSON object.
+
+Requests and replies are capped at 64 KiB; output tokens and the socket timeout are configurable. Calls do not retry or follow redirects. `PolicyError.code` distinguishes malformed/illegal replies, authentication, rate limits, timeouts, and connection failures without exposing response bodies or credentials. A Gymnasium opponent failure rolls back the complete learner/opponent exchange. This synchronous adapter is for local training/evaluation code; durable server-side LLM transcripts and budgets are a separate integration.
