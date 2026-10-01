@@ -40,6 +40,8 @@ class Agent:
             raise ValueError("fixed anchors require an explicit calibrated initial_rating")
         if self.initial_rating is not None and not isinstance(self.initial_rating, Rating):
             raise ValueError("initial_rating must be a Rating")
+        if self.initial_rating is not None and self.initial_rating.rd == 0 and not self.fixed:
+            raise ValueError("zero rating deviation requires a fixed calibrated anchor")
         if (self.policy_factory is None) == (self.opponent is None):
             raise ValueError("choose a policy factory or built-in opponent")
         if self.policy_factory is not None and not callable(self.policy_factory):
