@@ -1,14 +1,16 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
-mod briefing;
 mod history;
+mod planning;
 mod play;
 mod play_types;
 mod resources;
 mod types;
+mod briefing;
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
 use history::{HistoryArgs, HistoryOutput, ReplayArgs, ReplayOutput};
+use planning::{Analysis, AnalysisArgs, Simulation, SimulationArgs};
 use play_types::*;
 use rmcp::{
     model::{
@@ -53,6 +55,8 @@ impl McpServer {
             tool::<MatchArgs, StateOutput>("resign", "Concede the current match and read its final outcome. Example: resign({\"match_id\":\"MATCH_ID\"}).")?,
             tool::<HistoryArgs, HistoryOutput>("get_match_history", "Find past matches in this trusted local host's database; follow next even for empty pages. Example: get_match_history({\"game_id\":\"chess\",\"limit\":10}).")?,
             tool::<ReplayArgs, ReplayOutput>("get_replay", "Read recorded moves and visible reasoning in bounded pages. Example: get_replay({\"match_id\":\"MATCH_ID\",\"limit\":25}).")?,
+            tool::<SimulationArgs, Simulation>("simulate_moves", "Explore hypothetical continuations when match simulation is enabled; never applies moves. Example: simulate_moves({\"match_id\":\"MATCH_ID\",\"lines\":[[\"e2e4\",\"e7e5\"]]}).")?,
+            tool::<AnalysisArgs, Analysis>("analyze_position", "Request engine recommendations only when match analysis is enabled. Example: analyze_position({\"match_id\":\"MATCH_ID\",\"nodes\":1000}).")?,
         ]) })
     }
 
@@ -82,6 +86,8 @@ impl McpServer {
             "list_games" => self.games(arguments),
             "list_opponents" => self.opponents(arguments),
             "get_game_info" => self.info(arguments).await,
+            "simulate_moves" => self.simulate_tool(arguments).await,
+            "analyze_position" => self.analyze_tool(arguments).await,
             "get_match_history" => self.history_tool(arguments).await,
             "get_replay" => self.replay_tool(arguments).await,
             "create_match" | "get_state" | "get_legal_actions" | "make_move" | "resign" => {
@@ -319,7 +325,7 @@ fn success<T: Serialize>(data: T, text: String) -> Result<CallToolResult, ApiErr
     result.structured_content = Some(value);
     Ok(result)
 }
-fn failure(mut error: ApiError) -> CallToolResult {
+fn compact_failure(mut error: ApiError) -> Failure {
     if let Some(actions) = error
         .details
         .get_mut("legal_actions")
@@ -333,6 +339,15 @@ fn failure(mut error: ApiError) -> CallToolResult {
         strings.sort();
         *actions = strings.into_iter().map(Value::String).collect();
     }
+    Failure {
+        code: error.code,
+        message: error.message,
+        hint: error.hint,
+        details: error.details,
+    }
+}
+fn failure(error: ApiError) -> CallToolResult {
+    let error = compact_failure(error);
     let mut text = format!("{}: {}\n{}", error.code, error.message, error.hint);
     if !error.details.is_null() {
         text.push_str(&format!("\nContext: {}", error.details));

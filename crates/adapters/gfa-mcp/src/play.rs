@@ -13,7 +13,7 @@ impl McpServer {
             .await
             .unwrap_or_else(failure)
     }
-    fn player(&self) -> Result<u8, ApiError> {
+    pub(crate) fn player(&self) -> Result<u8, ApiError> {
         match self.viewer {
             Viewer::Player(seat) => Ok(seat),
             _ => Err(ApiError::new(
