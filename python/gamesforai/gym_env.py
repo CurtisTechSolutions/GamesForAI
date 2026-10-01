@@ -41,6 +41,7 @@ class GameEnv(gym.Env):
         self.native = NativeEnv(game, json.dumps(config or {}))
         if isinstance(seat, bool) or not isinstance(seat, int) or not 0 <= seat < self.native.num_players:
             raise ValueError("seat is outside this game's player range")
+        self._spec = json.loads(self.native.spec_json())
         self.seat = seat
         self.opponent = opponent
         self.render_mode = render_mode
@@ -56,6 +57,10 @@ class GameEnv(gym.Env):
         terminated, truncated = self.native.flags()
         info = {
             "action_mask": frame["action_mask"],
+            "legal_actions": frame["legal_actions"],
+            "game_id": self._spec["id"],
+            "rules": self._spec["rules_markdown"],
+            "action_notation": self._spec["action_notation"],
             "text": frame["text"],
             "board": json.loads(frame["board_json"]),
             "seat": seat,

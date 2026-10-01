@@ -90,3 +90,7 @@ Native work releases the interpreter and uses a bounded [Rayon thread pool](http
 This API batches game turns, not learner/opponent exchanges from the single-agent
 Gymnasium wrapper. It supports 1–4096 rows, at most 64 workers, and at most 128 MiB
 of numeric output per batch. Throughput still needs measurement against the PRD target.
+
+## Readable actions for model policies
+
+Native frames include `legal_actions` as `(index, canonical_notation)` pairs in stable notation order. Gymnasium info includes the same catalog plus the game ID, rules, and action notation for learner and opponent policies. The catalog contains only actions available to that seat and matches its numeric mask. `NativeEnv.spec_json()` returns the static game contract. Vector batches keep their numeric-only output.

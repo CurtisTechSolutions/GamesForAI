@@ -65,6 +65,10 @@ impl NativeEnv {
         Ok((step.rewards, step.terminated, step.truncated))
     }
 
+    fn spec_json(&self) -> PyResult<String> {
+        serde_json::to_string(&self.inner.spec()).map_err(error)
+    }
+
     fn current_players(&self) -> Vec<usize> {
         self.inner
             .current_players()
@@ -82,11 +86,12 @@ impl NativeEnv {
     }
 
     fn frame<'py>(&self, py: Python<'py>, seat: u8) -> PyResult<Bound<'py, PyDict>> {
-        let (observation, mask) = py
+        let (observation, mask, actions) = py
             .detach(|| {
                 Ok::<_, GameError>((
                     self.inner.observe(Viewer::Player(seat))?,
                     self.inner.action_mask(seat)?,
+                    self.inner.action_catalog(seat)?,
                 ))
             })
             .map_err(error)?;
@@ -106,6 +111,7 @@ impl NativeEnv {
             ),
         )?;
         dict.set_item("text", observation.text)?;
+        dict.set_item("legal_actions", actions.into_iter().map(|action| (action.index, action.string)).collect::<Vec<_>>())?;
         dict.set_item(
             "board_json",
             serde_json::to_string(&observation.json).map_err(error)?,
