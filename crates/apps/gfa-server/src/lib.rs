@@ -263,3 +263,6 @@ pub use mcp_host::serve_stdio;
 
 #[cfg(test)]
 mod mcp_history_tests;
+
+#[cfg(test)]
+mod mcp_resource_tests;
