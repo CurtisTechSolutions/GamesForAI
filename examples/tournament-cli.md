@@ -27,7 +27,7 @@ Each file has a unique frozen snapshot `id` and one of:
 - `type: builtin`, `opponent: random|minimax:3|mcts:5|stockfish:5`.
 - `type: chat`, `base_url`, `model`, optional `api_key_env`, `timeout`,
   `max_tokens`, `temperature` and `structured`. This uses the
-  [HTTP policy](http-policy.md); no request is made while loading configuration.
+  [HTTP policy](../python/README.md); no request is made while loading configuration.
 - `type: python`, `factory: my_package.models:load_policy`, optional
   `params: {checkpoint: weights/model.pt}`.
 

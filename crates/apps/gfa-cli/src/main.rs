@@ -202,7 +202,10 @@ fn tournament() -> ! {
 }
 
 fn main() -> Result<(), ServerError> {
-    if std::env::args_os().nth(1).is_some_and(|arg| arg == "tournament") {
+    if std::env::args_os()
+        .nth(1)
+        .is_some_and(|arg| arg == "tournament")
+    {
         tournament();
     }
     let runtime = tokio::runtime::Builder::new_multi_thread()
