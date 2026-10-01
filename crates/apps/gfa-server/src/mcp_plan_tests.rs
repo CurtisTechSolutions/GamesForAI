@@ -131,10 +131,7 @@ async fn mcp_planning_obeys_assists_and_rejects_seat_overrides() -> Result<(), S
             ("simulate_moves", json!({"match_id":id,"lines":[["r1c1"]]})),
             ("analyze_position", json!({"match_id":id})),
         ] {
-            assert_eq!(
-                invoke(adapter, name, args, true).await?["code"],
-                code
-            );
+            assert_eq!(invoke(adapter, name, args, true).await?["code"], code);
         }
     }
     for (name, args) in [
