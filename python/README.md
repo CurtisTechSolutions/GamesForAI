@@ -42,3 +42,22 @@ The default opponent samples legal actions from the environment's seeded random 
 Masks are required: a fixed action space includes actions that are illegal in a particular position. Invalid actions raise `ValueError` without committing a learner/opponent exchange. Call `reset` after termination or truncation. Position curricula can use `reset(options={"position": notation})`.
 
 Wrapper checkpoints include native state and the environment RNG, so random-opponent continuations repeat exactly. A cloned wrapper owns independent game, RNG, and action-space state. A custom policy callable and its model state remain caller-owned; checkpoint those separately for reproducible self-play.
+
+## PettingZoo self-play
+
+```python
+import gamesforai
+
+env = gamesforai.aec("connect4")
+env.reset(seed=42)
+for agent in env.agent_iter():
+    obs, reward, terminated, truncated, info = env.last()
+    action = None if terminated or truncated else policies[agent](
+        obs["observation"], obs["action_mask"]
+    )
+    env.step(action)
+```
+
+Agents are named `player_0`, `player_1`, and so on. Each policy sees only its seat's observation. The AEC interface preserves accumulated rewards and gives every agent its final transition before `step(None)` removes it. Numeric spaces and masks stay fixed through an episode. `clone()` copies native and AEC bookkeeping for independent search; rendering uses the public spectator view.
+
+CI runs [PettingZoo's API test](https://pettingzoo.farama.org/content/environment_tests/) against every installed game in addition to full-game reward and truncation tests.

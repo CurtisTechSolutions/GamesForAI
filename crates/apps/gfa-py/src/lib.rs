@@ -111,6 +111,11 @@ impl NativeEnv {
         Ok(dict)
     }
 
+    fn public_text(&self, py: Python<'_>) -> PyResult<String> {
+        py.detach(|| self.inner.observe(Viewer::Spectator).map(|observation| observation.text))
+            .map_err(error)
+    }
+
     fn clone(&self) -> Self {
         Self {
             inner: self.inner.clone(),
