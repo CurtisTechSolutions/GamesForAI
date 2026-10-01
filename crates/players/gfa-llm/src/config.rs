@@ -74,7 +74,9 @@ impl Default for PlayerConfig {
 fn identifier(value: &str, max: usize) -> bool {
     !value.is_empty()
         && value.len() <= max
-        && value.bytes().all(|byte| byte.is_ascii_alphanumeric() || b"._:-".contains(&byte))
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || b"._:-".contains(&byte))
 }
 impl PlayerConfig {
     /// Validate limits before allocating work or contacting a provider.

@@ -63,15 +63,16 @@ impl Pricing {
             self.cache_write_5m,
             self.cache_write_1h,
         ];
-        let numerator = usage.counts().into_iter().zip(rates).try_fold(
-            0_u128,
-            |sum, (tokens, rate)| {
-                sum.checked_add(u128::from(tokens) * u128::from(rate))
-                    .ok_or(ProviderError::InvalidResponse)
-            },
-        )?;
-        u64::try_from(numerator.div_ceil(1_000_000))
-            .map_err(|_| ProviderError::InvalidResponse)
+        let numerator =
+            usage
+                .counts()
+                .into_iter()
+                .zip(rates)
+                .try_fold(0_u128, |sum, (tokens, rate)| {
+                    sum.checked_add(u128::from(tokens) * u128::from(rate))
+                        .ok_or(ProviderError::InvalidResponse)
+                })?;
+        u64::try_from(numerator.div_ceil(1_000_000)).map_err(|_| ProviderError::InvalidResponse)
     }
 }
 
