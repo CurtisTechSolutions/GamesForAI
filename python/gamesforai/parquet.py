@@ -20,14 +20,14 @@ def trajectory_schema():
         "format_version": pa.int32(), "episode_id": pa.string(), "game": pa.string(),
         "engine_version": pa.string(), "config_json": pa.string(), "seed": pa.string(),
         "created_at": pa.string(), "ply": pa.int32(), "seat": pa.int32(), "agent": pa.string(),
-        "agent_rating": pa.float64(), "observation": pa.list_(pa.float32()),
-        "observation_shape": pa.list_(pa.int32()), "action_mask": pa.list_(pa.bool_()),
+        "agent_rating": pa.float64(), "observation": pa.list_(pa.field("element", pa.float32())),
+        "observation_shape": pa.list_(pa.field("element", pa.int32())), "action_mask": pa.list_(pa.field("element", pa.bool_())),
         "observation_text": pa.string(), "action": pa.string(), "action_index": pa.int32(),
-        "reasoning": pa.string(), "transcript_json": pa.string(), "rewards": pa.list_(pa.float64()),
-        "reward": pa.float64(), "next_observation": pa.list_(pa.float32()),
-        "next_action_mask": pa.list_(pa.bool_()), "next_to_act": pa.list_(pa.int32()),
+        "reasoning": pa.string(), "transcript_json": pa.string(), "rewards": pa.list_(pa.field("element", pa.float64())),
+        "reward": pa.float64(), "next_observation": pa.list_(pa.field("element", pa.float32())),
+        "next_action_mask": pa.list_(pa.field("element", pa.bool_())), "next_to_act": pa.list_(pa.field("element", pa.int32())),
         "terminated": pa.bool_(), "truncated": pa.bool_(),
-        "outcome": pa.string(), "episode_returns": pa.list_(pa.float64()),
+        "outcome": pa.string(), "episode_returns": pa.list_(pa.field("element", pa.float64())),
     }
     for name, dtype in types.items():
         fields.append(pa.field(name, dtype, nullable=name in {"agent_rating", "reasoning", "transcript_json"}))
@@ -61,8 +61,11 @@ def _validate(row, names):
             type(v) not in (int, float) or not math.isfinite(v) for v in values
         ):
             raise ValueError("trajectory numeric arrays must contain finite numbers")
-        if field in ("observation", "next_observation") and len(values) != length:
-            raise ValueError("observation length does not match shape")
+        if field in ("observation", "next_observation"):
+            if len(values) != length:
+                raise ValueError("observation length does not match shape")
+            if any(abs(value) > 3.4028234663852886e38 for value in values):
+                raise ValueError("observation exceeds finite float32 range")
     for field in ("action_mask", "next_action_mask"):
         if not isinstance(row[field], list) or any(type(value) is not bool for value in row[field]):
             raise ValueError("action masks must be boolean lists")
