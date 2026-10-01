@@ -11,6 +11,7 @@ mod openapi;
 mod opponents;
 pub use openapi::openapi_document;
 mod stream;
+mod training;
 
 pub use stream::LiveUpdates;
 
@@ -114,6 +115,14 @@ fn build_router(
         .route(
             "/v1/games/{game_id}/positions/validate",
             post(validate_position),
+        )
+        .route(
+            "/v1/batch/step",
+            post(training::batch)
+                .layer::<_, std::convert::Infallible>(DefaultBodyLimit::max(4 * 1024 * 1024))
+                .layer(axum::Extension(training::TrainingWorkers(Arc::new(
+                    tokio::sync::Semaphore::new(4),
+                )))),
         )
         .route("/v1/matches", post(create).get(history))
         .route("/v1/matches/{id}", get(metadata))

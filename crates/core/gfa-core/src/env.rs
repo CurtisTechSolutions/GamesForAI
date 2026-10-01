@@ -21,8 +21,10 @@ impl<G: Game> Clone for Env<G> {
 }
 
 /// Versioned full-state checkpoint, including private information and engine RNG.
-/// Never return this object through a player's observation or a public API.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+/// Never return it through a player/spectator projection or a ranked-match API.
+/// A trusted training host may return caller-owned checkpoints only to their owner.
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, crate::schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct EnvSnapshot {
     /// Snapshot format version.
