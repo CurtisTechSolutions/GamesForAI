@@ -85,3 +85,24 @@ def test_aec_curricula_clone_and_failed_reset_are_reproducible():
     env.reset(seed=91)
     assert env.infos[env.agent_selection]["curriculum"] == origin
     assert "expected" not in json.dumps(env.infos)
+
+
+def test_opponent_opening_sees_current_origin_and_failure_rolls_back():
+    received = []
+    fail = False
+
+    def policy(obs, info):
+        received.append(info.get("curriculum"))
+        if fail:
+            raise ValueError("opponent failure")
+        return int(np.flatnonzero(info["action_mask"])[0])
+
+    env = make("connect4", seat=1, opponent=policy)
+    env.reset(seed=8, options={"position_set": "connect4-solved-positions@1"})
+    assert received[-1]["position_set"] == "connect4-solved-positions@1"
+    assert received[-1]["position_id"] == env.get_state()["curriculum"]["position_id"]
+    before = env.get_state()
+    fail = True
+    with pytest.raises(ValueError, match="opponent failure"):
+        env.reset(seed=999)
+    assert env.get_state() == before

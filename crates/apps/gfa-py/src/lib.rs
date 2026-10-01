@@ -1,4 +1,6 @@
 //! Native Python training bridge. Typed engine states stay in Rust between steps.
+mod vector;
+
 use gfa_core::{EnvSnapshot, GameError, TrainingEnv, Viewer};
 use numpy::{ndarray::IxDyn, PyArray1, PyArrayMethods};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
@@ -160,7 +162,6 @@ fn games() -> PyResult<Vec<String>> {
         .collect())
 }
 
-
 /// Bundled, versioned position datasets; manifests pin the exact UTF-8 bytes.
 #[pyfunction]
 fn position_set_data(name: &str) -> PyResult<(String, String)> {
@@ -182,5 +183,5 @@ fn position_set_data(name: &str) -> PyResult<(String, String)> {
 #[pymodule]
 mod _native {
     #[pymodule_export]
-    use super::{games, position_set_data, NativeEnv};
+    use super::{games, position_set_data, vector::NativeVectorEnv, NativeEnv};
 }

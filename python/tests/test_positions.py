@@ -64,8 +64,8 @@ def test_hash_counts_ids_and_all_positions_are_validated():
 def test_custom_dataset_files_and_checkpoint_roundtrip(tmp_path):
     manifest, data = custom([{"id": "start", "position": '{"boards":[0,0],"to_move":0}'}])
     meta, rows = tmp_path / "set.json", tmp_path / "set.jsonl"
-    meta.write_text(manifest, encoding="utf-8")
-    rows.write_text(data, encoding="utf-8")
+    meta.write_bytes(manifest.encode("utf-8"))
+    rows.write_bytes(data.encode("utf-8"))
     dataset = PositionSet.from_files(meta, rows)
     snapshot = dataset.checkpoint()
     restored = PositionSet.from_jsonl(snapshot["manifest"], snapshot["data"])

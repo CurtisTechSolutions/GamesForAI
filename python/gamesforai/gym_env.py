@@ -99,6 +99,7 @@ class GameEnv(gym.Env):
         if set(options) - {"position", "position_set"}:
             raise ValueError("supported reset options: position, position_set")
         saved_native = self.native
+        saved_curriculum = self._position_set, self._position_id
         saved_rng = copy.deepcopy(self._np_random)
         saved_rng_seed = self._np_random_seed
         try:
@@ -109,9 +110,11 @@ class GameEnv(gym.Env):
             native_seed = int(self.np_random.integers(0, 2**64, dtype=np.uint64)) if seed is None else seed
             self.native = self.native.clone()
             self.native.reset(native_seed, position)
+            self._position_set, self._position_id = dataset, position_id
             self._opponents()
         except Exception:
             self.native = saved_native
+            self._position_set, self._position_id = saved_curriculum
             self._np_random = saved_rng
             self._np_random_seed = saved_rng_seed
             raise
