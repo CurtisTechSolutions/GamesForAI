@@ -13,3 +13,19 @@ for ply in range(8):
     env.step(seat, action)
 assert env.flags() == (False, True)
 print("Python Stockfish: 8 legal plies, unchanged planning state, bounded truncation")
+
+import numpy as np
+from gamesforai import StockfishPool, make
+
+shared = StockfishPool("/usr/games/stockfish", workers=1)
+for learner in (0, 1):
+    gym = make("chess", config={"max_plies": 4}, seat=learner,
+               opponent="stockfish:5", stockfish_pool=shared)
+    obs, info = gym.reset(seed=42)
+    for _ in range(2):
+        obs, reward, terminated, truncated, info = gym.step(int(np.flatnonzero(info["action_mask"])[0]))
+        if terminated or truncated:
+            break
+    assert truncated and not terminated
+    assert gym.get_state()["opponent"]["engine_sha256"] == shared.identity()["engine_sha256"]
+print("Gym Stockfish: both learner seats complete bounded episodes")
