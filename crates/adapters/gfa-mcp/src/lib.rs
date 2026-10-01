@@ -4,6 +4,7 @@ mod play;
 mod play_types;
 mod resources;
 mod types;
+mod briefing;
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
@@ -187,6 +188,11 @@ impl McpServer {
                 seat,
                 args.detail.into(),
             )?
+        };
+        let briefing = if matches!(args.detail, Detail::Compact) {
+            briefing::compact(briefing, self.viewer)?
+        } else {
+            briefing
         };
         let text = briefing.markdown().map_err(|_| internal())?;
         success(BriefingOutput::from(briefing), text)

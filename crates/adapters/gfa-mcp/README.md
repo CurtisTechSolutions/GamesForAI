@@ -34,3 +34,6 @@ EOF and process signals stop MCP and background play, then close the database. T
 
 
 The resource catalog lists each installed game's compact rules. URI templates expose `gfa://games/{game_id}/info` and `gfa://matches/{match_id}/{info,state,replay}` with the same host-authorized view as tools. Live resource results are private and immediately stale; no viewer override is accepted in a URI. Replay resources return the first 100 projected events plus a continuation cursor; use `get_replay` for later pages. `play_game(game_id)` embeds compact rules and the tool loop in a user-invoked MCP prompt. Live subscriptions are a separate implementation unit.
+
+
+Compact match briefings use the same text-board and canonical-move state as `get_state` across creation, `get_game_info`, and the match info resource. Full-detail tool briefings retain the service's full observation for clients that explicitly request it.
