@@ -1,4 +1,5 @@
 //! Native Python training bridge. Typed engine states stay in Rust between steps.
+mod ratings;
 mod vector;
 
 use gfa_core::{EnvSnapshot, GameError, TrainingEnv, Viewer};
@@ -246,6 +247,8 @@ fn position_set_data(name: &str) -> PyResult<(String, String)> {
 /// GamesForAI's native engine bridge.
 #[pymodule]
 mod _native {
+    #[pymodule_export]
+    use super::ratings::{rating_pair_json, rating_period_json, rating_validate_json};
     #[pymodule_export]
     use super::{games, position_set_data, vector::NativeVectorEnv, NativeEnv};
 }
