@@ -13,7 +13,7 @@ async fn mcp_discovery_output_schemas_match_success_and_error_results() -> Resul
     let app = fixture(&config(&directory)).await?;
     let adapter = McpServer::new(app.service.clone(), Viewer::Player(0))?;
     let tools = adapter.tool_definitions();
-    assert_eq!(tools.len(), 8);
+    assert_eq!(tools.len(), 10);
     for tool in tools.iter().filter(|tool| {
         matches!(
             tool.name.as_ref(),
@@ -83,7 +83,7 @@ async fn mcp_official_client_negotiates_and_reads_the_real_catalog() -> Result<(
         tokio::time::timeout(std::time::Duration::from_secs(10), ().serve(client_io)).await??;
     let server = server.await??;
     let tools = client.list_all_tools().await?;
-    assert_eq!(tools.len(), 8);
+    assert_eq!(tools.len(), 10);
     let result = client
         .call_tool(CallToolRequestParams::new("list_games"))
         .await?;

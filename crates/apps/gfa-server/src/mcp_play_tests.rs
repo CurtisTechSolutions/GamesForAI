@@ -6,7 +6,7 @@ use gfa_core::Viewer;
 use gfa_mcp::McpServer;
 use serde_json::{json, Value};
 
-async fn invoke(
+pub(super) async fn invoke(
     adapter: &McpServer,
     name: &str,
     args: Value,

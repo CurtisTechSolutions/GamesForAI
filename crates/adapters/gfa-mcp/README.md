@@ -30,4 +30,10 @@ Launch a local client with `gfa mcp --sqlite ./gfa.sqlite`. Standard output is r
 EOF and process signals stop MCP and background play, then close the database. The CLI bounds runtime shutdown because Tokio's stdin reader uses a blocking read that a client may leave open after a signal.
 
 
+`get_match_history` scans bounded pages of the trusted local user's database; follow `next` even when a game filter produces an empty page. `get_replay` returns paginated viewer-scoped events with canonical moves, visible reasoning, and control outcomes. It omits raw initial states and seeds, and preserves the service's rule that another seat's reasoning stays hidden during active play. A future multiuser host must restrict match history and access to its authenticated principal.
+
+
+The resource catalog lists each installed game's compact rules. URI templates expose `gfa://games/{game_id}/info` and `gfa://matches/{match_id}/{info,state,replay}` with the same host-authorized view as tools. Live resource results are private and immediately stale; no viewer override is accepted in a URI. Replay resources return the first 100 projected events plus a continuation cursor; use `get_replay` for later pages. `play_game(game_id)` embeds compact rules and the tool loop in a user-invoked MCP prompt. Live subscriptions are a separate implementation unit.
+
+
 `gfa serve` also serves streamable MCP at `/mcp` on the same loopback listener. `--mcp-seat 1` selects a player and `--mcp-spectator` selects read-only access; seat 0 is the default. This remains single-user local mode and shares REST's strict peer, Host, Origin, and response-header policy. SDK request bodies are limited to 64 KiB. Transport responses are stateless JSON when possible, with SDK protocol negotiation for legacy and current clients. No legacy session table is retained. Shutdown cancels SDK streams before HTTP drains. rmcp's streamable HTTP feature supplies protocol handling and SSE framing rather than a separate RPC implementation.
