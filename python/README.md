@@ -127,3 +127,7 @@ ChatPolicy uses the chat-completions protocol implemented by servers such as [vL
 Credentials are read from the named environment variable on each call; omit `api_key_env` for a server without authentication. No model or provider account is required by the engine. Structured output uses a JSON Schema with the legal moves as an enum, as supported by [vLLM structured outputs](https://docs.vllm.ai/en/latest/features/structured_outputs/). Set `structured=False` for a server that accepts the chat protocol but not that parameter; the reply must still be the exact JSON object.
 
 Requests and replies are capped at 64 KiB; output tokens and the socket timeout are configurable. Calls do not retry or follow redirects. `PolicyError.code` distinguishes malformed/illegal replies, authentication, rate limits, timeouts, and connection failures without exposing response bodies or credentials. A Gymnasium opponent failure rolls back the complete learner/opponent exchange. This synchronous adapter is for local training/evaluation code; durable server-side LLM transcripts and budgets are a separate integration.
+
+## Remote environments
+
+Use `client = gamesforai.connect(server_url)` and `client.make(...)` or `client.aec(...)` for the same wrapper API over stateless REST training. See [remote training](../examples/remote-training.md) for checkpoint ownership, batch calls, limits and current server mode.

@@ -75,7 +75,10 @@ async fn training_batches_create_step_reset_branch_and_never_persist() -> TestRe
     assert_eq!(frames["results"][2]["checkpoint"], checkpoint);
     assert!(frames["results"][3]["frame"]["seat"].is_null());
     assert_eq!(frames["results"][3]["frame"]["legal_actions"], json!([]));
-    assert_eq!(frames["results"][3]["frame"]["action_mask"], json!(vec![false; 9]));
+    assert_eq!(
+        frames["results"][3]["frame"]["action_mask"],
+        json!(vec![false; 9])
+    );
     assert!(frames["results"][0]["frame"].get("checkpoint").is_none());
     let (_, history) = call(&app.router, "GET", "/v1/matches", Value::Null, None).await?;
     assert_eq!(history["matches"], json!([]));

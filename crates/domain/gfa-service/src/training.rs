@@ -102,7 +102,9 @@ impl GameService {
         let returns = env.returns();
         let frame = TrainingFrame {
             seat,
-            observation: env.observe(seat.map_or(Viewer::Spectator, Viewer::Player)).map_err(error::engine)?,
+            observation: env
+                .observe(seat.map_or(Viewer::Spectator, Viewer::Player))
+                .map_err(error::engine)?,
             legal_actions: match seat {
                 Some(seat) => env.action_catalog(seat).map_err(error::engine)?,
                 None => vec![],
