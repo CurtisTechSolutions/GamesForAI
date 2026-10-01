@@ -3,9 +3,9 @@ mod dynamic;
 mod env;
 mod error;
 mod game;
-mod training;
 mod player;
 mod rng;
+mod training;
 mod types;
 
 pub use dynamic::{DynGame, GameAdapter, GameRegistry};
