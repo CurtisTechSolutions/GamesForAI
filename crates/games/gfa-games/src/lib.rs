@@ -47,3 +47,6 @@ mod tests {
         Ok(())
     }
 }
+
+#[cfg(all(test, feature = "tictactoe", feature = "chess", feature = "sudoku"))]
+mod env_tests;

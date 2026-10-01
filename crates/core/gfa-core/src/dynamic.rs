@@ -83,6 +83,10 @@ pub trait DynGame: Send + Sync {
     ) -> Result<(Value, StepEvents), GameError>;
     /// Whether the rules have ended play.
     fn is_terminal(&self, state: &Value) -> Result<bool, GameError>;
+    /// Whether a valid state stopped before a rules ending.
+    fn is_truncated(&self, state: &Value) -> Result<bool, GameError> {
+        Ok(!self.is_terminal(state)? && self.current_players(state)?.is_empty())
+    }
     /// Per-player returns.
     fn returns(&self, state: &Value) -> Result<Vec<f64>, GameError>;
     /// Viewer-scoped state.
@@ -295,6 +299,10 @@ impl<G: Game> DynGame for GameAdapter<G> {
 
     fn is_terminal(&self, state: &Value) -> Result<bool, GameError> {
         Ok(G::is_terminal(&Self::state(state)?))
+    }
+
+    fn is_truncated(&self, state: &Value) -> Result<bool, GameError> {
+        Ok(G::is_truncated(&Self::state(state)?))
     }
 
     fn returns(&self, state: &Value) -> Result<Vec<f64>, GameError> {
