@@ -4,7 +4,7 @@ use gfa_core::serde::{Deserialize, Serialize};
 use gfa_core::serde_json;
 use gfa_core::{
     schema, ErrorCode, Game, GameError, GameSpec, Information, Observation, PlayerId, StepEvents,
-    TurnStructure, Viewer,
+    Tensor, TurnStructure, Viewer,
 };
 use std::collections::HashSet;
 
@@ -96,7 +96,7 @@ impl Game for Connect4 {
             name: "Connect Four".into(),
             summary: "Drop discs into seven columns and connect four in any direction.".into(),
             engine_version: env!("CARGO_PKG_VERSION").into(),
-            info_version: "1.0.0".into(),
+            info_version: "1.1.0".into(),
             num_players: [2, 2],
             seat_names: vec!["Red".into(), "Yellow".into()],
             turn_structure: TurnStructure::Sequential,
@@ -118,7 +118,7 @@ impl Game for Connect4 {
         Some(gfa_core::PlayGuide {
             objective: "Connect four of your discs horizontally, vertically, or diagonally to win. A full board without a winner draws. Play stops immediately on a win.".into(),
             observation: "Text and JSON rows run top to bottom; columns 1..7 run left to right. R is Red (seat 0), Y is Yellow (seat 1), and . is empty. JSON rows contains six rows of seven cells (null, 0, or 1); to_move is the next seat. Both seats and spectators see the entire board.".into(),
-            tensor: "No tensor representation is supplied by this engine.".into(),
+            tensor: "Float32 [3,6,7], planes first, rows top to bottom: Red discs, Yellow discs, and next seat (all 0 for Red or 1 for Yellow).".into(),
             rewards: "Terminal returns are +1 for the winner, -1 for the loser, and 0 each for a draw. Returns before termination are 0. Shaped rewards are not supported.".into(),
             config: "No configurable fields. Use {} for the standard 7-column, 6-row board.".into(),
             solved: "Solved: the first player can force a win on the standard board.".into(),
@@ -304,13 +304,26 @@ impl Game for Connect4 {
         } else {
             "Yellow to move (seat 1)."
         });
+        let values = (0..3)
+            .flat_map(|plane| {
+                rows.iter().flatten().map(move |cell| {
+                    if plane == 2 {
+                        f32::from(state.to_move)
+                    } else if *cell == Some(plane as PlayerId) {
+                        1.0
+                    } else {
+                        0.0
+                    }
+                })
+            })
+            .collect();
         Observation {
             text,
             json: serde_json::json!(Board {
                 rows,
                 to_move: state.to_move
             }),
-            tensor: None,
+            tensor: Some(Tensor { shape: vec![3, 6, 7], values }),
         }
     }
 
@@ -407,6 +420,42 @@ mod tests {
         assert_eq!(Connect4::returns(&state), vec![1.0, -1.0]);
         Connect4::validate_state(&state)?;
         assert!(Connect4::legal_actions(&state, 1).is_empty());
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tensor_tests {
+    use super::*;
+
+    #[test]
+    fn planes_match_public_board_orientation_and_turn() -> Result<(), GameError> {
+        let mut state = Connect4::new_initial_state(&Config::default(), 0)?;
+        for column in [1, 2, 1] {
+            let seat = Connect4::current_players(&state)[0];
+            Connect4::apply(&mut state, seat, &Action { column })?;
+        }
+        let observation = Connect4::observe(&state, Viewer::Spectator);
+        assert_eq!(observation, Connect4::observe(&state, Viewer::Player(0)));
+        assert_eq!(observation, Connect4::observe(&state, Viewer::Player(1)));
+        let board: Board = serde_json::from_value(observation.json)?;
+        let tensor = observation.tensor.ok_or_else(|| GameError::position("missing tensor"))?;
+        assert_eq!(tensor.shape, vec![3, 6, 7]);
+        assert_eq!(tensor.values.len(), 126);
+        assert_eq!(tensor.values[4 * 7], 1.0);
+        assert_eq!(tensor.values[5 * 7], 1.0);
+        assert_eq!(tensor.values[42 + 5 * 7 + 1], 1.0);
+        for (row, cells) in board.rows.iter().enumerate() {
+            for (col, cell) in cells.iter().enumerate() {
+                for plane in 0..2 {
+                    assert_eq!(
+                        tensor.values[plane * 42 + row * 7 + col],
+                        if *cell == Some(plane as PlayerId) { 1.0 } else { 0.0 }
+                    );
+                }
+            }
+        }
+        assert!(tensor.values[84..].iter().all(|value| *value == 1.0));
         Ok(())
     }
 }

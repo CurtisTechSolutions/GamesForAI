@@ -21,3 +21,5 @@ Replace the action selection with your own policy. `frame(seat)` contains a floa
 This unit exposes the native bridge. Gymnasium/AEC convenience wrappers and parallel batch stepping follow separately.
 
 The new PyO3 and rust-numpy dependencies provide the CPython ABI boundary and owned NumPy buffers; no hand-written unsafe code is needed. Packaging follows [Maturin's mixed project layout](https://www.maturin.rs/project_layout.html). Native calls use [PyO3 interpreter detachment](https://pyo3.rs/v0.29.2/parallelism), and arrays use [rust-numpy ownership transfer](https://docs.rs/numpy/0.29.0/numpy/array/struct.PyArray.html).
+
+PyO3's target detection uses target-lexicon, licensed under Apache-2.0 with the LLVM exception; the dependency allowlist records that exact expression.

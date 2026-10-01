@@ -63,8 +63,12 @@ impl NativeEnv {
         Ok((step.rewards, step.terminated, step.truncated))
     }
 
-    fn current_players(&self) -> Vec<u8> {
-        self.inner.current_players()
+    fn current_players(&self) -> Vec<usize> {
+        self.inner
+            .current_players()
+            .into_iter()
+            .map(usize::from)
+            .collect()
     }
 
     fn flags(&self) -> (bool, bool) {
