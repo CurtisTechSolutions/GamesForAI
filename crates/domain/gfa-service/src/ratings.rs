@@ -21,7 +21,12 @@ pub struct Rating {
 }
 impl Default for Rating {
     fn default() -> Self {
-        Self { rating: 1500.0, rd: 350.0, volatility: 0.06, games_played: 0 }
+        Self {
+            rating: 1500.0,
+            rd: 350.0,
+            volatility: 0.06,
+            games_played: 0,
+        }
     }
 }
 
@@ -55,9 +60,12 @@ fn valid_score(score: f64) -> bool {
 impl Rating {
     /// Validate supported numeric bounds without changing a value.
     pub fn validate(self) -> Result<Self, RatingError> {
-        if !self.rating.is_finite() || !(-10_000.0..=10_000.0).contains(&self.rating)
-            || !self.rd.is_finite() || !(0.0..=10_000.0).contains(&self.rd)
-            || !self.volatility.is_finite() || !(0.000001..=10.0).contains(&self.volatility)
+        if !self.rating.is_finite()
+            || !(-10_000.0..=10_000.0).contains(&self.rating)
+            || !self.rd.is_finite()
+            || !(0.0..=10_000.0).contains(&self.rd)
+            || !self.volatility.is_finite()
+            || !(0.000001..=10.0).contains(&self.volatility)
         {
             return Err(RatingError::InvalidInput);
         }
@@ -74,15 +82,26 @@ impl Rating {
     /// tau is the volatility constraint, 0.2..=1.2; use 0.5 unless calibrated.
     pub fn update_period(self, results: &[RatedResult], tau: f64) -> Result<Self, RatingError> {
         self.validate()?;
-        if self.rd == 0.0 || !tau.is_finite() || !(0.2..=1.2).contains(&tau) || results.len() > 1_000_000 {
+        if self.rd == 0.0
+            || !tau.is_finite()
+            || !(0.2..=1.2).contains(&tau)
+            || results.len() > 1_000_000
+        {
             return Err(RatingError::InvalidInput);
         }
         let count = u64::try_from(results.len()).map_err(|_| RatingError::CounterOverflow)?;
-        let games_played = self.games_played.checked_add(count).ok_or(RatingError::CounterOverflow)?;
+        let games_played = self
+            .games_played
+            .checked_add(count)
+            .ok_or(RatingError::CounterOverflow)?;
         let mu = (self.rating - 1500.0) / SCALE;
         let phi = self.rd / SCALE;
         if results.is_empty() {
-            return Self { rd: phi.hypot(self.volatility) * SCALE, ..self }.validate();
+            return Self {
+                rd: phi.hypot(self.volatility) * SCALE,
+                ..self
+            }
+            .validate();
         }
         let mut information = 0.0;
         let mut improvement = 0.0;
@@ -97,10 +116,17 @@ impl Rating {
             let x = g * (mu - opponent_mu);
             // Computing p*(1-p) from the exponential avoids cancellation when p rounds to 1.
             let z = (-x.abs()).exp();
-            let (p, q) = if x >= 0.0 { (1.0 / (1.0 + z), z / (1.0 + z)) }
-                         else { (z / (1.0 + z), 1.0 / (1.0 + z)) };
+            let (p, q) = if x >= 0.0 {
+                (1.0 / (1.0 + z), z / (1.0 + z))
+            } else {
+                (z / (1.0 + z), 1.0 / (1.0 + z))
+            };
             information += g * g * z / (1.0 + z).powi(2);
-            let residual = if result.score == 1.0 { q } else { result.score - p };
+            let residual = if result.score == 1.0 {
+                q
+            } else {
+                result.score - p
+            };
             improvement += g * residual;
         }
         if !information.is_finite() || information <= 0.0 {
@@ -116,16 +142,24 @@ impl Rating {
             rd: SCALE * next_phi,
             volatility: sigma,
             games_played,
-        }.validate()
+        }
+        .validate()
     }
 }
 
-fn volatility(phi: f64, sigma: f64, variance: f64, delta: f64, tau: f64) -> Result<f64, RatingError> {
+fn volatility(
+    phi: f64,
+    sigma: f64,
+    variance: f64,
+    delta: f64,
+    tau: f64,
+) -> Result<f64, RatingError> {
     let a = (sigma * sigma).ln();
     let f = |x: f64| {
         let ex = x.exp();
         ex * (delta * delta - phi * phi - variance - ex)
-            / (2.0 * (phi * phi + variance + ex).powi(2)) - (x - a) / (tau * tau)
+            / (2.0 * (phi * phi + variance + ex).powi(2))
+            - (x - a) / (tau * tau)
     };
     let mut left = a;
     let mut right = if delta * delta > phi * phi + variance {
@@ -146,7 +180,10 @@ fn volatility(phi: f64, sigma: f64, variance: f64, delta: f64, tau: f64) -> Resu
     for _ in 0..MAX_ITERATIONS {
         if (right - left).abs() <= EPSILON {
             let result = (left / 2.0).exp();
-            return result.is_finite().then_some(result).ok_or(RatingError::NonConvergence);
+            return result
+                .is_finite()
+                .then_some(result)
+                .ok_or(RatingError::NonConvergence);
         }
         let denominator = fb - fa;
         if !denominator.is_finite() || denominator == 0.0 {
@@ -172,7 +209,12 @@ fn volatility(phi: f64, sigma: f64, variance: f64, delta: f64, tau: f64) -> Resu
 /// Update both sides from their original ratings, independent of update order.
 /// Fixed calibrated anchors retain strength, RD and volatility but count games.
 pub fn rate_pair(
-    left: Rating, right: Rating, left_score: f64, fixed_left: bool, fixed_right: bool, tau: f64,
+    left: Rating,
+    right: Rating,
+    left_score: f64,
+    fixed_left: bool,
+    fixed_right: bool,
+    tau: f64,
 ) -> Result<[Rating; 2], RatingError> {
     left.validate()?;
     right.validate()?;
@@ -181,12 +223,21 @@ pub fn rate_pair(
     }
     let update = |rating: Rating, opponent, score, fixed| {
         if fixed {
-            Ok(Rating { games_played: rating.games_played.checked_add(1).ok_or(RatingError::CounterOverflow)?, ..rating })
+            Ok(Rating {
+                games_played: rating
+                    .games_played
+                    .checked_add(1)
+                    .ok_or(RatingError::CounterOverflow)?,
+                ..rating
+            })
         } else {
             rating.update_period(&[RatedResult { opponent, score }], tau)
         }
     };
-    Ok([update(left, right, left_score, fixed_left)?, update(right, left, 1.0 - left_score, fixed_right)?])
+    Ok([
+        update(left, right, left_score, fixed_left)?,
+        update(right, left, 1.0 - left_score, fixed_right)?,
+    ])
 }
 
 #[cfg(test)]
