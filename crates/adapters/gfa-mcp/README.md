@@ -34,3 +34,6 @@ EOF and process signals stop MCP and background play, then close the database. T
 
 
 The resource catalog lists each installed game's compact rules. URI templates expose `gfa://games/{game_id}/info` and `gfa://matches/{match_id}/{info,state,replay}` with the same host-authorized view as tools. Live resource results are private and immediately stale; no viewer override is accepted in a URI. Replay resources return the first 100 projected events plus a continuation cursor; use `get_replay` for later pages. `play_game(game_id)` embeds compact rules and the tool loop in a user-invoked MCP prompt. Live subscriptions are a separate implementation unit.
+
+
+`simulate_moves` returns compact final states for independent lines and the first illegal action in each line. `analyze_position` returns ranked recommendations with labeled provider advice and expected game returns kept separate from engine scores. Both use the host-selected seat, honor the match's stored assist permissions, and support historical turns without changing live state. Simulation usage is durably accounted by the service. Optional analysis budgets go through the same validated worker limits as REST.
