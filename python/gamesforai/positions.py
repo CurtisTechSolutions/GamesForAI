@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -31,6 +32,8 @@ class Position:
     position: str
     config_json: str
     tags: tuple[str, ...]
+    difficulty: str | None
+    rating: float | None
     expected_json: str | None
     source: str
 
@@ -109,6 +112,11 @@ class PositionSet:
             tags = row.get("tags", [])
             if not isinstance(tags, list) or not all(isinstance(tag, str) for tag in tags):
                 raise ValueError("tags must be a list of strings")
+            difficulty, rating = row.get("difficulty"), row.get("rating")
+            if difficulty is not None and not isinstance(difficulty, str):
+                raise ValueError("difficulty must be a string")
+            if rating is not None and (type(rating) not in (int, float) or not math.isfinite(rating)):
+                raise ValueError("rating must be finite numeric metadata")
             source = row.get("source", manifest["source"])
             if not isinstance(source, str) or not source.strip():
                 raise ValueError("entry source must be nonempty")
@@ -120,7 +128,7 @@ class PositionSet:
             normalized = json.loads(env.get_state())["config"]
             entries.append(Position(
                 row["id"], row["position"], json.dumps(normalized, sort_keys=True),
-                tuple(tags), json.dumps(row["expected"], allow_nan=False) if "expected" in row else None, source
+                tuple(tags), difficulty, rating, json.dumps(row["expected"], allow_nan=False) if "expected" in row else None, source
             ))
             ids.add(row["id"])
         return cls(

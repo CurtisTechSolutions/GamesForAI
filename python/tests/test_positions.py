@@ -70,3 +70,13 @@ def test_custom_dataset_files_and_checkpoint_roundtrip(tmp_path):
     snapshot = dataset.checkpoint()
     restored = PositionSet.from_jsonl(snapshot["manifest"], snapshot["data"])
     assert restored == dataset
+
+
+def test_difficulty_rating_and_answers_are_retained_as_metadata():
+    row = {"id": "start", "position": '{"boards":[0,0],"to_move":0}', "difficulty": "easy", "rating": 1200, "expected": {"hint": "center"}}
+    entry = PositionSet.from_jsonl(*custom([row])).entries[0]
+    assert entry.difficulty == "easy" and entry.rating == 1200
+    assert json.loads(entry.expected_json) == {"hint": "center"}
+    row["rating"] = True
+    with pytest.raises(ValueError, match="rating"):
+        PositionSet.from_jsonl(*custom([row]))
