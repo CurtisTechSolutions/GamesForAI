@@ -13,6 +13,7 @@ members = [
     "crates/adapters/gfa-mcp",
     "crates/apps/gfa-server",
     "crates/apps/gfa-cli",
+    "crates/apps/gfa-py",
     "xtask",
     "crates/domain/gfa-api-types",
     "crates/domain/gfa-service",
@@ -28,6 +29,8 @@ license = "GPL-3.0-only"
 repository = "https://github.com/CurtisTechSolutions/GamesForAI"
 
 [workspace.dependencies]
+pyo3 = { version = "0.29.2", features = ["abi3-py310"] }
+numpy = "0.29.0"
 gfa-core = { version = "0.1.0", path = "crates/core/gfa-core" }
 gfa-testkit = { version = "0.1.0", path = "crates/core/gfa-testkit" }
 gfa-game-tictactoe = { version = "0.1.0", path = "crates/games/gfa-game-tictactoe" }

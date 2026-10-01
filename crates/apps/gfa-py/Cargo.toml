@@ -1,0 +1,24 @@
+[package]
+name = "gfa-py"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "_native"
+crate-type = ["cdylib", "rlib"]
+test = false
+doctest = false
+
+[features]
+extension-module = ["pyo3/extension-module"]
+
+[dependencies]
+gfa-core.workspace = true
+gfa-games.workspace = true
+pyo3.workspace = true
+numpy.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true

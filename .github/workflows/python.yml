@@ -1,0 +1,42 @@
+name: Python CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: python-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  native-wheel:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: python -m pip install "maturin>=1.9,<2" "pytest>=8,<9" "numpy>=1.24,<3"
+      - run: maturin build --release --locked --out dist
+      - name: Install built wheel
+        run: |
+          python - <<'PY'
+          import glob
+          import subprocess
+          import sys
+          subprocess.check_call([sys.executable, "-m", "pip", "install", *glob.glob("dist/*.whl")])
+          PY
+      - run: python -m pytest python/tests -q
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gamesforai-wheel-${{ matrix.os }}
+          path: dist/*.whl
