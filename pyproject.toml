@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Native game environments for model training and evaluation"
 requires-python = ">=3.10"
 license = "GPL-3.0-only"
-dependencies = ["numpy>=1.24,<3"]
+dependencies = ["numpy>=1.24,<3", "gymnasium>=1.2,<2"]
 
 [project.optional-dependencies]
 test = ["pytest>=8,<9"]

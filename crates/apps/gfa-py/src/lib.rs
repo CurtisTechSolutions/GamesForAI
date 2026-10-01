@@ -27,7 +27,8 @@ impl NativeEnv {
             return Err(error("configuration exceeds 64 KiB"));
         }
         let config = serde_json::from_str(config_json).map_err(error)?;
-        let inner = py.detach(|| gfa_games::registry()?.training_env(game_id, &config, seed))
+        let inner = py
+            .detach(|| gfa_games::registry()?.training_env(game_id, &config, seed))
             .map_err(error)?;
         Ok(Self {
             action_space_size: inner.spec().action_space_size,
@@ -39,16 +40,26 @@ impl NativeEnv {
 
     #[pyo3(signature = (seed=0, position=None))]
     fn reset(&mut self, py: Python<'_>, seed: u64, position: Option<&str>) -> PyResult<()> {
-        py.detach(|| self.inner.reset(seed, position)).map_err(error)
+        py.detach(|| self.inner.reset(seed, position))
+            .map_err(error)
     }
 
     fn step(&mut self, py: Python<'_>, seat: u8, action: u32) -> PyResult<(Vec<f64>, bool, bool)> {
-        let step = py.detach(|| self.inner.step_index(seat, action)).map_err(error)?;
+        let step = py
+            .detach(|| self.inner.step_index(seat, action))
+            .map_err(error)?;
         Ok((step.rewards, step.terminated, step.truncated))
     }
 
-    fn step_string(&mut self, py: Python<'_>, seat: u8, action: &str) -> PyResult<(Vec<f64>, bool, bool)> {
-        let step = py.detach(|| self.inner.step_string(seat, action)).map_err(error)?;
+    fn step_string(
+        &mut self,
+        py: Python<'_>,
+        seat: u8,
+        action: &str,
+    ) -> PyResult<(Vec<f64>, bool, bool)> {
+        let step = py
+            .detach(|| self.inner.step_string(seat, action))
+            .map_err(error)?;
         Ok((step.rewards, step.terminated, step.truncated))
     }
 
@@ -65,19 +76,34 @@ impl NativeEnv {
     }
 
     fn frame<'py>(&self, py: Python<'py>, seat: u8) -> PyResult<Bound<'py, PyDict>> {
-        let (observation, mask) = py.detach(|| {
-            Ok::<_, GameError>((
-                self.inner.observe(Viewer::Player(seat))?,
-                self.inner.action_mask(seat)?,
-            ))
-        }).map_err(error)?;
-        let tensor = observation.tensor.ok_or_else(|| error("game has no numeric observation"))?;
+        let (observation, mask) = py
+            .detach(|| {
+                Ok::<_, GameError>((
+                    self.inner.observe(Viewer::Player(seat))?,
+                    self.inner.action_mask(seat)?,
+                ))
+            })
+            .map_err(error)?;
+        let tensor = observation
+            .tensor
+            .ok_or_else(|| error("game has no numeric observation"))?;
         let dict = PyDict::new(py);
         let array = PyArray1::from_vec(py, tensor.values).reshape(IxDyn(&tensor.shape))?;
         dict.set_item("observation", array)?;
-        dict.set_item("action_mask", PyArray1::from_vec(py, mask.into_iter().map(|legal| if legal { 1_i8 } else { 0 }).collect()))?;
+        dict.set_item(
+            "action_mask",
+            PyArray1::from_vec(
+                py,
+                mask.into_iter()
+                    .map(|legal| if legal { 1_i8 } else { 0 })
+                    .collect(),
+            ),
+        )?;
         dict.set_item("text", observation.text)?;
-        dict.set_item("board_json", serde_json::to_string(&observation.json).map_err(error)?)?;
+        dict.set_item(
+            "board_json",
+            serde_json::to_string(&observation.json).map_err(error)?,
+        )?;
         Ok(dict)
     }
 
@@ -94,7 +120,8 @@ impl NativeEnv {
         py.detach(|| {
             let snapshot = self.inner.get_state()?;
             serde_json::to_string(&snapshot).map_err(GameError::from)
-        }).map_err(error)
+        })
+        .map_err(error)
     }
 
     fn set_state(&mut self, py: Python<'_>, snapshot: &str) -> PyResult<()> {
@@ -104,14 +131,20 @@ impl NativeEnv {
         py.detach(|| {
             let snapshot: EnvSnapshot = serde_json::from_str(snapshot)?;
             self.inner.set_state(&snapshot)
-        }).map_err(error)
+        })
+        .map_err(error)
     }
 }
 
 /// Installed native games in stable identifier order.
 #[pyfunction]
 fn games() -> PyResult<Vec<String>> {
-    Ok(gfa_games::registry().map_err(error)?.specs().into_iter().map(|spec| spec.id).collect())
+    Ok(gfa_games::registry()
+        .map_err(error)?
+        .specs()
+        .into_iter()
+        .map(|spec| spec.id)
+        .collect())
 }
 
 /// GamesForAI's native engine bridge.
