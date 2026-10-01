@@ -1,6 +1,6 @@
 //! Native Python training bridge. Typed engine states stay in Rust between steps.
-mod vector;
 mod uci;
+mod vector;
 
 use gfa_core::{EnvSnapshot, GameError, TrainingEnv, Viewer};
 use numpy::{ndarray::IxDyn, PyArray1, PyArrayMethods};
