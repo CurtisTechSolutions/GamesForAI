@@ -141,13 +141,26 @@ async fn components(config: &Config) -> Result<Components, ServerError> {
             .with_observer(updates.clone())
             .with_opponents(opponents, Arc::new(workers::Workers::new(4))),
     );
-    Ok(Components { store, updates, service })
+    Ok(Components {
+        store,
+        updates,
+        service,
+    })
 }
 
 async fn application(config: &Config, address: SocketAddr) -> Result<Application, ServerError> {
-    let Components { store, updates, service } = components(config).await?;
+    let Components {
+        store,
+        updates,
+        service,
+    } = components(config).await?;
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
-    Ok(Application { router, store, updates, service })
+    Ok(Application {
+        router,
+        store,
+        updates,
+        service,
+    })
 }
 
 /// Bind loopback, migrate the database, and serve until shutdown completes.
