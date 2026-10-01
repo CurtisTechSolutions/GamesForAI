@@ -264,13 +264,21 @@ pub fn validate_analysis(
         let mut details = selected.info.clone();
         details.depth = u8::try_from(info.depth.unwrap_or(0)).unwrap_or(u8::MAX);
         // Reuse the already validated prefix, including episode-cap truncation.
-        details.principal_variation = selected.info.advice.as_ref()
+        details.principal_variation = selected
+            .info
+            .advice
+            .as_ref()
             .and_then(|advice| advice.details["variations"].as_array())
             .and_then(|lines| lines.iter().find(|line| line["rank"] == rank))
             .and_then(|line| line["principal_variation"].as_array())
             .ok_or(OpponentError::InvalidResponse)?
             .iter()
-            .map(|token| token.as_str().map(str::to_owned).ok_or(OpponentError::InvalidResponse))
+            .map(|token| {
+                token
+                    .as_str()
+                    .map(str::to_owned)
+                    .ok_or(OpponentError::InvalidResponse)
+            })
             .collect::<Result<Vec<_>, _>>()?;
         if let Some(advice) = &mut details.advice {
             advice.summary = format!(
