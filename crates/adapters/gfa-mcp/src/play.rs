@@ -141,21 +141,7 @@ impl McpServer {
             )
             .await?;
         let state = StateOutput::from_state(created.state, self.viewer)?;
-        let mut info = created.info.ok_or_else(internal)?;
-        // Match briefing's live state uses the same compact projection as the tool.
-        if let Some(section) = info
-            .sections
-            .iter_mut()
-            .find(|section| section.id == "match")
-        {
-            if let Some(data) = section.data.as_object_mut() {
-                data.insert(
-                    "state".into(),
-                    serde_json::to_value(&state).map_err(|_| internal())?,
-                );
-            }
-        }
-        info.estimate_tokens().map_err(|_| internal())?;
+        let info = crate::briefing::compact(created.info.ok_or_else(internal)?, self.viewer)?;
         let text = format!(
             "{}\n\n{}",
             info.markdown().map_err(|_| internal())?,

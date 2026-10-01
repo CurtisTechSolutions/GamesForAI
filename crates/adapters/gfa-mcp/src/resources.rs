@@ -114,6 +114,7 @@ impl McpServer {
                     .get_match_info(id, self.viewer, InfoDetail::Compact)
                     .await
                     .map_err(protocol)?;
+                let info = crate::briefing::compact(info, self.viewer).map_err(protocol)?;
                 (
                     info.markdown().map_err(|_| protocol(crate::internal()))?,
                     "text/markdown",

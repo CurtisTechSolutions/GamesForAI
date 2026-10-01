@@ -37,3 +37,6 @@ The resource catalog lists each installed game's compact rules. URI templates ex
 
 
 `simulate_moves` returns compact final states for independent lines and the first illegal action in each line. `analyze_position` returns ranked recommendations with labeled provider advice and expected game returns kept separate from engine scores. Both use the host-selected seat, honor the match's stored assist permissions, and support historical turns without changing live state. Simulation usage is durably accounted by the service. Optional analysis budgets go through the same validated worker limits as REST.
+
+
+Compact match briefings use the same text-board and canonical-move state as `get_state` across creation, `get_game_info`, and the match info resource. Full-detail tool briefings retain the service's full observation for clients that explicitly request it.
