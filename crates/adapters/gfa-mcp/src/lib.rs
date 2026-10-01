@@ -1,14 +1,15 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
-mod planning;
+mod history;
 mod play;
 mod play_types;
+mod resources;
 mod types;
-mod history;
-use history::{HistoryArgs, HistoryOutput, ReplayArgs, ReplayOutput};
+mod planning;
+use planning::{Analysis, AnalysisArgs, Simulation, SimulationArgs};
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
-use planning::{Analysis, AnalysisArgs, Simulation, SimulationArgs};
+use history::{HistoryArgs, HistoryOutput, ReplayArgs, ReplayOutput};
 use play_types::*;
 use rmcp::{
     model::{
@@ -51,10 +52,10 @@ impl McpServer {
             tool::<MatchArgs, LegalOutput>("get_legal_actions", "Get canonical move strings when choosing or correcting a move. Example: get_legal_actions({\"match_id\":\"MATCH_ID\"}).")?,
             tool::<MoveArgs, MovedOutput>("make_move", "Play one legal action; returns the automatic replies and new board. Example: make_move({\"match_id\":\"MATCH_ID\",\"action\":\"e2e4\",\"reasoning\":\"control the center\"}).")?,
             tool::<MatchArgs, StateOutput>("resign", "Concede the current match and read its final outcome. Example: resign({\"match_id\":\"MATCH_ID\"}).")?,
-            tool::<SimulationArgs, Simulation>("simulate_moves", "Explore hypothetical continuations when match simulation is enabled; never applies moves. Example: simulate_moves({\"match_id\":\"MATCH_ID\",\"lines\":[[\"e2e4\",\"e7e5\"]]}).")?,
-            tool::<AnalysisArgs, Analysis>("analyze_position", "Request engine recommendations only when match analysis is enabled. Example: analyze_position({\"match_id\":\"MATCH_ID\",\"nodes\":1000}).")?,
             tool::<HistoryArgs, HistoryOutput>("get_match_history", "Find past matches in this trusted local host's database; follow next even for empty pages. Example: get_match_history({\"game_id\":\"chess\",\"limit\":10}).")?,
             tool::<ReplayArgs, ReplayOutput>("get_replay", "Read recorded moves and visible reasoning in bounded pages. Example: get_replay({\"match_id\":\"MATCH_ID\",\"limit\":25}).")?,
+            tool::<SimulationArgs, Simulation>("simulate_moves", "Explore hypothetical continuations when match simulation is enabled; never applies moves. Example: simulate_moves({\"match_id\":\"MATCH_ID\",\"lines\":[[\"e2e4\",\"e7e5\"]]}).")?,
+            tool::<AnalysisArgs, Analysis>("analyze_position", "Request engine recommendations only when match analysis is enabled. Example: analyze_position({\"match_id\":\"MATCH_ID\",\"nodes\":1000}).")?,
         ]) })
     }
 
@@ -84,10 +85,10 @@ impl McpServer {
             "list_games" => self.games(arguments),
             "list_opponents" => self.opponents(arguments),
             "get_game_info" => self.info(arguments).await,
-            "get_match_history" => self.history_tool(arguments).await,
-            "get_replay" => self.replay_tool(arguments).await,
             "simulate_moves" => self.simulate_tool(arguments).await,
             "analyze_position" => self.analyze_tool(arguments).await,
+            "get_match_history" => self.history_tool(arguments).await,
+            "get_replay" => self.replay_tool(arguments).await,
             "create_match" | "get_state" | "get_legal_actions" | "make_move" | "resign" => {
                 Ok(self.play(name, arguments).await)
             }
@@ -199,11 +200,57 @@ impl McpServer {
 }
 impl ServerHandler for McpServer {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(Implementation::new("GamesForAI", env!("CARGO_PKG_VERSION")))
-            .with_instructions(
-                "Read get_game_info before playing. Tool errors include recovery hints.",
-            )
+        ServerConfig::new(
+            ServerCapabilities::builder()
+                .enable_tools()
+                .enable_resources()
+                .enable_prompts()
+                .build(),
+        )
+        .with_server_info(Implementation::new("GamesForAI", env!("CARGO_PKG_VERSION")))
+        .with_instructions("Read get_game_info before playing. Tool errors include recovery hints.")
+    }
+    async fn list_resources(
+        &self,
+        request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::ListResourcesResult, ErrorData> {
+        resources::no_cursor(request)?;
+        Ok(self.resources())
+    }
+    async fn list_resource_templates(
+        &self,
+        request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::ListResourceTemplatesResult, ErrorData> {
+        resources::no_cursor(request)?;
+        Ok(self.templates())
+    }
+    async fn read_resource(
+        &self,
+        request: rmcp::model::ReadResourceRequestParams,
+        _: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::ReadResourceResponse, ErrorData> {
+        self.resource(&request.uri).await.map(Into::into)
+    }
+    async fn list_prompts(
+        &self,
+        request: Option<PaginatedRequestParams>,
+        _: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::ListPromptsResult, ErrorData> {
+        resources::no_cursor(request)?;
+        Ok(self.prompts())
+    }
+    async fn get_prompt(
+        &self,
+        request: rmcp::model::GetPromptRequestParams,
+        _: RequestContext<RoleServer>,
+    ) -> Result<rmcp::model::GetPromptResponse, ErrorData> {
+        self.play_prompt(
+            &request.name,
+            Value::Object(request.arguments.unwrap_or_default()),
+        )
+        .map(Into::into)
     }
     fn get_tool(&self, name: &str) -> Option<Tool> {
         self.tools.iter().find(|tool| tool.name == name).cloned()
