@@ -17,7 +17,9 @@ impl NativeUciPool {
     #[pyo3(signature = (engine_path, workers=1))]
     fn new(engine_path: &str, workers: u8) -> PyResult<Self> {
         if !cfg!(target_os = "linux") {
-            return Err(error("Stockfish training requires the Linux engine sandbox"));
+            return Err(error(
+                "Stockfish training requires the Linux engine sandbox",
+            ));
         }
         let mut config = SandboxConfig::linux(engine_path);
         config.workers = workers;
@@ -47,17 +49,27 @@ impl NativeUciPool {
             };
             let player = UciOpponent::new(
                 self.inner.clone(),
-                gfa_games::registry().map_err(error)?.get(&env.game_id).map_err(error)?,
+                gfa_games::registry()
+                    .map_err(error)?
+                    .get(&env.game_id)
+                    .map_err(error)?,
                 env.config.clone(),
                 settings,
-            ).map_err(error)?;
+            )
+            .map_err(error)?;
             let observation = env.inner.observe(Viewer::Player(seat)).map_err(error)?;
             let actions = env.inner.action_catalog(seat).map_err(error)?;
-            let result = player.decide(
-                &PlayerTurn { seat, observation: &observation, legal_actions: &actions },
-                limits,
-                &gfa_opponents::SystemClock::default(),
-            ).map_err(error)?;
+            let result = player
+                .decide(
+                    &PlayerTurn {
+                        seat,
+                        observation: &observation,
+                        legal_actions: &actions,
+                    },
+                    limits,
+                    &gfa_opponents::SystemClock::default(),
+                )
+                .map_err(error)?;
             Ok(result.action.index)
         })
     }

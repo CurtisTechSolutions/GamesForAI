@@ -14,6 +14,7 @@ from gymnasium.error import ResetNeeded
 
 from ._native import NativeEnv
 from . import curriculum
+from .stockfish import StockfishPool
 
 Policy = Callable[[np.ndarray, dict[str, Any]], int]
 
@@ -34,18 +35,31 @@ class GameEnv(gym.Env):
         config: dict[str, Any] | None = None,
         seat: int = 0,
         opponent: str | Policy = "random",
+        stockfish_pool: StockfishPool | None = None,
         render_mode: str | None = None,
     ) -> None:
         if render_mode not in (None, "ansi"):
             raise ValueError("render_mode must be None or 'ansi'")
         self._builtin = None
+        self._stockfish = None
+        self._stockfish_level = None
         if isinstance(opponent, str) and opponent != "random":
-            match = re.fullmatch(r"(minimax|mcts):([1-9]|10)", opponent)
+            match = re.fullmatch(r"(minimax|mcts|stockfish):([1-9]|10)", opponent)
             if not match:
-                raise ValueError("opponent must be random, minimax:1..10, mcts:1..10, or a callable")
-            self._builtin = match[1], int(match[2])
+                raise ValueError("opponent must be random, minimax:1..10, mcts:1..10, stockfish:1..10, or a callable")
+            if match[1] == "stockfish":
+                if game != "chess":
+                    raise ValueError("Stockfish requires a chess environment")
+                if stockfish_pool is not None and not isinstance(stockfish_pool, StockfishPool):
+                    raise ValueError("stockfish_pool must be a StockfishPool")
+                self._stockfish = stockfish_pool or StockfishPool()
+                self._stockfish_level = int(match[2])
+            else:
+                self._builtin = match[1], int(match[2])
         elif opponent != "random" and not callable(opponent):
             raise ValueError("opponent must be a supported name or Python policy callable")
+        if stockfish_pool is not None and self._stockfish is None:
+            raise ValueError("stockfish_pool requires a stockfish opponent")
         self.native = NativeEnv(game, json.dumps(config or {}))
         if isinstance(seat, bool) or not isinstance(seat, int) or not 0 <= seat < self.native.num_players:
             raise ValueError("seat is outside this game's player range")
@@ -96,7 +110,10 @@ class GameEnv(gym.Env):
             if seat == self.seat:
                 break
             observation, info = self._frame(seat)
-            if self._builtin:
+            if self._stockfish is not None:
+                seed = int(self.np_random.integers(0, 2**64, dtype=np.uint64))
+                action = self._stockfish.choose(self.native, seat, self._stockfish_level, seed)
+            elif self._builtin:
                 algorithm, level = self._builtin
                 seed = int(self.np_random.integers(0, 2**64, dtype=np.uint64))
                 action = self.native.builtin_action(seat, algorithm, level, seed)
@@ -186,11 +203,16 @@ class GameEnv(gym.Env):
         result.observation_space = copy.deepcopy(self.observation_space)
         return result
 
+    def _opponent_identity(self):
+        if self._stockfish is not None:
+            return {"kind": "stockfish", "level": self._stockfish_level, **self._stockfish.identity()}
+        return self.opponent if isinstance(self.opponent, str) else "python"
+
     def get_state(self) -> dict[str, Any]:
         """Trusted checkpoint containing private engine state and environment RNG."""
         return {
             "version": 3,
-            "opponent": self.opponent if isinstance(self.opponent, str) else "python",
+            "opponent": self._opponent_identity(),
             "seat": self.seat,
             "native": json.loads(self.native.get_state()),
             "rng": copy.deepcopy(self.np_random.bit_generator.state),
@@ -215,7 +237,7 @@ class GameEnv(gym.Env):
             or type(state["rng_seed"]) is not int or state["rng_seed"] < -1
         ):
             raise ValueError("incompatible environment checkpoint")
-        identity = self.opponent if isinstance(self.opponent, str) else "python"
+        identity = self._opponent_identity()
         # Old checkpoints did not bind an opponent; their original default was random.
         if (version == 3 and state["opponent"] != identity) or (
             version < 3 and identity != "random"
