@@ -1,15 +1,15 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
 mod history;
+mod planning;
 mod play;
 mod play_types;
 mod resources;
 mod types;
-mod planning;
-use planning::{Analysis, AnalysisArgs, Simulation, SimulationArgs};
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
 use history::{HistoryArgs, HistoryOutput, ReplayArgs, ReplayOutput};
+use planning::{Analysis, AnalysisArgs, Simulation, SimulationArgs};
 use play_types::*;
 use rmcp::{
     model::{

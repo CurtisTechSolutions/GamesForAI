@@ -18,7 +18,11 @@ async fn mcp_discovery_output_schemas_match_success_and_error_results() -> Resul
         .all(|name| tools.iter().any(|tool| tool.name == *name)));
     assert_eq!(
         tools.len(),
-        tools.iter().map(|tool| tool.name.as_ref()).collect::<std::collections::BTreeSet<_>>().len()
+        tools
+            .iter()
+            .map(|tool| tool.name.as_ref())
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
     );
     for tool in tools.iter().filter(|tool| {
         matches!(
@@ -94,7 +98,11 @@ async fn mcp_official_client_negotiates_and_reads_the_real_catalog() -> Result<(
         .all(|name| tools.iter().any(|tool| tool.name == *name)));
     assert_eq!(
         tools.len(),
-        tools.iter().map(|tool| tool.name.as_ref()).collect::<std::collections::BTreeSet<_>>().len()
+        tools
+            .iter()
+            .map(|tool| tool.name.as_ref())
+            .collect::<std::collections::BTreeSet<_>>()
+            .len()
     );
     let result = client
         .call_tool(CallToolRequestParams::new("list_games"))
