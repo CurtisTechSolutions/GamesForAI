@@ -13,6 +13,7 @@ from gymnasium import spaces
 from gymnasium.error import ResetNeeded
 
 from ._native import NativeEnv
+from . import curriculum
 
 Policy = Callable[[np.ndarray, dict[str, Any]], int]
 
@@ -64,6 +65,8 @@ class GameEnv(gym.Env):
             -np.inf, np.inf, shape=frame["observation"].shape, dtype=np.float32
         )
         self._needs_reset = True
+        self._position_set = None
+        self._position_id = None
 
     def _frame(self, seat: int) -> tuple[np.ndarray, dict[str, Any]]:
         frame = self.native.frame(seat)
@@ -80,6 +83,7 @@ class GameEnv(gym.Env):
             "to_act": self.native.current_players(),
             "terminated": terminated,
             "truncated": truncated,
+            **curriculum.origin_info(self._position_set, self._position_id),
         }
         return frame["observation"], info
 
@@ -114,15 +118,29 @@ class GameEnv(gym.Env):
         self, *, seed: int | None = None, options: dict[str, Any] | None = None
     ) -> tuple[np.ndarray, dict[str, Any]]:
         options = options or {}
-        if set(options) - {"position"}:
-            raise ValueError("supported reset option: position")
-        position = options.get("position")
-        if position is not None and not isinstance(position, str):
-            raise ValueError("position must be a notation string")
-        super().reset(seed=seed)
-        native_seed = int(self.np_random.integers(0, 2**64, dtype=np.uint64)) if seed is None else seed
-        self.native.reset(native_seed, position)
-        self._opponents()
+        if set(options) - {"position", "position_set"}:
+            raise ValueError("supported reset options: position, position_set")
+        saved_native = self.native
+        saved_curriculum = self._position_set, self._position_id
+        saved_rng = copy.deepcopy(self._np_random)
+        saved_rng_seed = self._np_random_seed
+        try:
+            super().reset(seed=seed)
+            position, dataset, position_id = curriculum.resolve_start(
+                self.native, options, self.np_random, self._position_set
+            )
+            native_seed = int(self.np_random.integers(0, 2**64, dtype=np.uint64)) if seed is None else seed
+            self.native = self.native.clone()
+            self.native.reset(native_seed, position)
+            self._position_set, self._position_id = dataset, position_id
+            self._opponents()
+        except Exception:
+            self.native = saved_native
+            self._position_set, self._position_id = saved_curriculum
+            self._np_random = saved_rng
+            self._np_random_seed = saved_rng_seed
+            raise
+        self._position_set, self._position_id = dataset, position_id
         self._needs_reset = any(self.native.flags())
         return self._frame(self.seat)
 
@@ -171,18 +189,21 @@ class GameEnv(gym.Env):
     def get_state(self) -> dict[str, Any]:
         """Trusted checkpoint containing private engine state and environment RNG."""
         return {
-            "version": 1,
+            "version": 2,
             "seat": self.seat,
             "native": json.loads(self.native.get_state()),
             "rng": copy.deepcopy(self.np_random.bit_generator.state),
             "rng_seed": self.np_random_seed,
             "needs_reset": self._needs_reset,
+            "curriculum": curriculum.checkpoint(self._position_set, self._position_id),
         }
 
     def set_state(self, state: dict[str, Any]) -> None:
         """Atomically restore this wrapper; external policy state is not included."""
         required = {"version", "seat", "native", "rng", "rng_seed", "needs_reset"}
-        if set(state) != required or state["version"] != 1 or state["seat"] != self.seat:
+        if state.get("version") == 2:
+            required.add("curriculum")
+        if set(state) != required or state["version"] not in (1, 2) or state["seat"] != self.seat:
             raise ValueError("incompatible environment checkpoint")
         if not isinstance(state["needs_reset"], bool):
             raise ValueError("invalid checkpoint episode flag")
@@ -190,12 +211,14 @@ class GameEnv(gym.Env):
         candidate.set_state(json.dumps(state["native"]))
         if any(candidate.flags()) and not state["needs_reset"]:
             raise ValueError("finished checkpoint cannot be marked active")
+        dataset, position_id = curriculum.restore(state.get("curriculum"), candidate)
         generator = np.random.default_rng()
         generator.bit_generator.state = copy.deepcopy(state["rng"])
         self.native = candidate
         self._np_random = generator
         self._np_random_seed = state["rng_seed"]
         self._needs_reset = state["needs_reset"]
+        self._position_set, self._position_id = dataset, position_id
 
 
 def make(game: str, **kwargs: Any) -> GameEnv:
