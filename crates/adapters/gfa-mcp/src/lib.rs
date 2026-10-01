@@ -1,4 +1,5 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
+mod briefing;
 mod history;
 mod planning;
 mod play;
@@ -193,6 +194,11 @@ impl McpServer {
                 seat,
                 args.detail.into(),
             )?
+        };
+        let briefing = if matches!(args.detail, Detail::Compact) {
+            briefing::compact(briefing, self.viewer)?
+        } else {
+            briefing
         };
         let text = briefing.markdown().map_err(|_| internal())?;
         success(BriefingOutput::from(briefing), text)
