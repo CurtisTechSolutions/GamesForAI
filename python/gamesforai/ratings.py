@@ -37,6 +37,8 @@ class Rating:
 
 def rate_pair(left, right, score, *, fixed_left=False, fixed_right=False, tau=0.5):
     """Return both new ratings without mutating either pre-match rating."""
+    if isinstance(score, bool):
+        raise ValueError("score must be numeric 0, 0.5 or 1")
     if type(fixed_left) is not bool or type(fixed_right) is not bool:
         raise ValueError("fixed anchor flags must be boolean")
     result = json.loads(rating_pair_json(
