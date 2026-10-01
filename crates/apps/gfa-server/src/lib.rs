@@ -239,3 +239,6 @@ mod mcp_tests;
 
 #[cfg(test)]
 mod mcp_play_tests;
+
+mod mcp_host;
+pub use mcp_host::serve_stdio;

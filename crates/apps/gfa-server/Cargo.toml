@@ -9,6 +9,8 @@ default = []
 postgres = ["gfa-store/postgres"]
 
 [dependencies]
+gfa-mcp.workspace = true
+rmcp.workspace = true
 gfa-engine-uci.workspace = true
 gfa-core.workspace = true
 gfa-opponents.workspace = true
@@ -22,7 +24,6 @@ tokio.workspace = true
 uuid.workspace = true
 
 [dev-dependencies]
-gfa-mcp.workspace = true
 rmcp = { workspace = true, features = ["client"] }
 gfa-game-chess.workspace = true
 jsonschema.workspace = true

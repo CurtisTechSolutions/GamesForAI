@@ -23,3 +23,8 @@ Reference: https://github.com/modelcontextprotocol/rust-sdk
 Match controls: `create_match`, `get_state`, `get_legal_actions`, `make_move`, and `resign` use the host-authorized viewer. A spectator can read public state but cannot create or control a player. `play_as` must agree with the host-selected player seat. This local composition is not multiuser authorization; a hosted deployment needs a match-access policy before granting a viewer.
 
 States contain the engine text board and sorted canonical action strings, without tensors, action masks, or duplicate JSON boards. Move errors retain legal actions and recovery context. Supply both `turn` and `idempotency_key` for safe retries; without an explicit turn, the adapter reads the current turn and the service still rejects concurrent changes. Opponent replies and the resulting state arrive in the same move result. Reasoning is stored through the normal service command.
+
+
+Launch a local client with `gfa mcp --sqlite ./gfa.sqlite`. Standard output is reserved for MCP JSON-RPC; diagnostics go to stderr. `--seat 1` authorizes the second player (for example Black); `--spectator` is read-only. Database and Stockfish options are shared with `gfa serve`. No TCP listener is opened in stdio mode. The launcher controls access to the local database and selected seat; this mode is intended for one trusted local user.
+
+EOF and process signals stop MCP and background play, then close the database. The CLI bounds runtime shutdown because Tokio's stdin reader uses a blocking read that a client may leave open after a signal.

@@ -30,7 +30,9 @@ pub(crate) struct CreateArgs {
     #[serde(default = "yes")]
     pub allow_simulation: bool,
 }
-fn yes() -> bool { true }
+fn yes() -> bool {
+    true
+}
 #[derive(Deserialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
 #[serde(deny_unknown_fields)]
@@ -61,14 +63,36 @@ pub(crate) struct StateOutput {
     pub draw_offer: Option<u8>,
 }
 impl StateOutput {
-    pub fn from_state(state: gfa_api_types::MatchState, viewer: gfa_core::Viewer) -> Result<Self, gfa_api_types::ApiError> {
-        let mut legal_actions = state.legal_actions.into_iter().map(|action| action.string).collect::<Vec<_>>();
+    pub fn from_state(
+        state: gfa_api_types::MatchState,
+        viewer: gfa_core::Viewer,
+    ) -> Result<Self, gfa_api_types::ApiError> {
+        let mut legal_actions = state
+            .legal_actions
+            .into_iter()
+            .map(|action| action.string)
+            .collect::<Vec<_>>();
         legal_actions.sort();
-        let outcome = state.outcome.map(serde_json::to_value).transpose().map_err(|_| crate::internal())?;
+        let outcome = state
+            .outcome
+            .map(serde_json::to_value)
+            .transpose()
+            .map_err(|_| crate::internal())?;
         Ok(Self {
-            match_id: state.match_id, you: match viewer { gfa_core::Viewer::Player(seat) => Some(seat), _ => None },
-            turn:state.turn,to_act:state.to_act,board:state.observation.text,legal_actions,
-            returns:state.returns,terminated:state.terminated,truncated:state.truncated,outcome,draw_offer:state.draw_offer,
+            match_id: state.match_id,
+            you: match viewer {
+                gfa_core::Viewer::Player(seat) => Some(seat),
+                _ => None,
+            },
+            turn: state.turn,
+            to_act: state.to_act,
+            board: state.observation.text,
+            legal_actions,
+            returns: state.returns,
+            terminated: state.terminated,
+            truncated: state.truncated,
+            outcome,
+            draw_offer: state.draw_offer,
         })
     }
     pub fn text(&self) -> String {
