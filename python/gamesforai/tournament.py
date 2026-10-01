@@ -16,6 +16,7 @@ import numpy as np
 from ._native import NativeEnv
 from .positions import PositionSet
 from .ratings import Rating
+from .stockfish import StockfishPool
 from .trajectories import EpisodeRecorder, _time
 
 
@@ -32,6 +33,7 @@ class Agent:
     opponent: str | None = None
     initial_rating: Rating | None = None
     fixed: bool = False
+    stockfish_pool: StockfishPool | None = None
 
     def __post_init__(self):
         if not isinstance(self.id, str) or not self.id or len(self.id.encode("utf-8")) > 256:
@@ -48,9 +50,14 @@ class Agent:
             raise ValueError("policy_factory must be callable")
         if self.opponent is not None and (
             not isinstance(self.opponent, str)
-            or (self.opponent != "random" and not re.fullmatch(r"(minimax|mcts):([1-9]|10)", self.opponent))
+            or (self.opponent != "random" and not re.fullmatch(r"(minimax|mcts|stockfish):([1-9]|10)", self.opponent))
         ):
-            raise ValueError("opponent must be random, minimax:1..10, or mcts:1..10")
+            raise ValueError("opponent must be random, minimax:1..10, mcts:1..10, or stockfish:1..10")
+        is_stockfish = self.opponent is not None and self.opponent.startswith("stockfish:")
+        if self.stockfish_pool is not None and (not is_stockfish or not isinstance(self.stockfish_pool, StockfishPool)):
+            raise ValueError("stockfish_pool is only valid for a Stockfish opponent")
+        if is_stockfish and self.stockfish_pool is None:
+            object.__setattr__(self, "stockfish_pool", StockfishPool())
 
 
 def _wilson(wins, games):
@@ -61,12 +68,13 @@ def _wilson(wins, games):
     denominator = 1 + z * z / games
     center = (p + z * z / (2 * games)) / denominator
     radius = z * math.sqrt(p * (1 - p) / games + z * z / (4 * games * games)) / denominator
-    return [max(0.0, center - radius), min(1.0, center + radius)]
+    return [0.0 if wins == 0 else max(0.0, center - radius),
+            1.0 if wins == games else min(1.0, center + radius)]
 
 
 def run_round_robin(
     game, agents, *, games_per_pair=2, seed=42, config=None, position_set=None,
-    tau=0.5, run_id=None, created_at=None, on_episode=None,
+    tau=0.5, run_id=None, created_at=None, on_episode=None, matchups=None,
 ):
     """Run balanced seats and rate completed games as one Glicko-2 period.
 
@@ -81,7 +89,21 @@ def run_round_robin(
         raise ValueError("agent snapshot ids must be unique")
     if type(games_per_pair) is not int or not 2 <= games_per_pair <= 1000 or games_per_pair % 2:
         raise ValueError("games_per_pair must be even, 2..1000, for balanced seats")
-    total = len(agents) * (len(agents) - 1) // 2 * games_per_pair
+    schedule = list(itertools.combinations(agents, 2))
+    if matchups is not None:
+        lookup, seen, schedule = {agent.id: agent for agent in agents}, set(), []
+        for pair in matchups:
+            if (
+                not isinstance(pair, (list, tuple)) or len(pair) != 2
+                or any(not isinstance(name, str) or name not in lookup for name in pair)
+                or pair[0] == pair[1] or frozenset(pair) in seen
+            ):
+                raise ValueError("matchups must name unique pairs of distinct registered agents")
+            seen.add(frozenset(pair))
+            schedule.append((lookup[pair[0]], lookup[pair[1]]))
+        if not schedule:
+            raise ValueError("matchups must include at least one pair")
+    total = len(schedule) * games_per_pair
     if total > 10000 or type(seed) is not int or not 0 <= seed <= 2**64 - total:
         raise ValueError("tournament exceeds 10000 games or the 64-bit seed range")
     if isinstance(tau, bool) or not isinstance(tau, (int, float)) or not 0.2 <= tau <= 1.2:
@@ -91,6 +113,8 @@ def run_round_robin(
     if prototype.num_players != 2 or spec["turn_structure"] != "sequential":
         raise ValueError("round robin currently requires a sequential two-player game")
     for agent in agents:
+        if agent.stockfish_pool is not None and game != "chess":
+            raise ValueError("Stockfish matchups require chess")
         if agent.opponent not in (None, "random") and (
             spec["information"] != "perfect" or spec["stochastic"]
         ):
@@ -112,7 +136,7 @@ def run_round_robin(
     totals = {agent.id: {"wins": 0, "draws": 0, "losses": 0, "truncated": 0, "failed": 0,
                         "invalid_starts": 0, "seats": [0, 0]} for agent in agents}
     matches = []
-    for left, right in itertools.combinations(agents, 2):
+    for left, right in schedule:
         for repetition in range(games_per_pair):
             order = (left, right) if repetition % 2 == 0 else (right, left)
             match_seed = seed + len(matches)
@@ -154,8 +178,11 @@ def run_round_robin(
                         action = int(rng.choice(np.flatnonzero(info["action_mask"])))
                     elif agent.opponent is not None:
                         algorithm, level = agent.opponent.split(":")
-                        action = episode.builtin_action(seat, algorithm, int(level),
-                                                        int(rng.integers(0, 2**64, dtype=np.uint64)))
+                        planning_seed = int(rng.integers(0, 2**64, dtype=np.uint64))
+                        if algorithm == "stockfish":
+                            action = episode.stockfish_action(agent.stockfish_pool, seat, int(level), planning_seed)
+                        else:
+                            action = episode.builtin_action(seat, algorithm, int(level), planning_seed)
                     else:
                         action = policies[seat](obs, info)
                 except Exception:
@@ -222,5 +249,10 @@ def run_round_robin(
         "seed": str(seed), "created_at": created_at, "games_per_pair": games_per_pair,
         "rating_system": {"name": "glicko2", "tau": tau, "period": "whole_tournament"},
         "position_set": None if dataset is None else {"id": dataset.identifier, "sha256": dataset.sha256},
+        "agent_specs": [{
+            "id": agent.id, "opponent": agent.opponent,
+            "stockfish": None if agent.stockfish_pool is None else agent.stockfish_pool.identity(),
+        } for agent in agents],
+        "matchups": [[left.id, right.id] for left, right in schedule],
         "standings": standings, "matches": matches,
     }
