@@ -236,3 +236,6 @@ mod stockfish_tests;
 
 #[cfg(test)]
 mod mcp_tests;
+
+#[cfg(test)]
+mod mcp_play_tests;

@@ -1,5 +1,8 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
 mod types;
+mod play;
+mod play_types;
+use play_types::*;
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
@@ -39,6 +42,11 @@ impl McpServer {
             tool::<Empty, GamesOutput>("list_games", "Discover installed games before choosing one. Example: list_games({}).")?,
             tool::<InfoArgs, BriefingOutput>("get_game_info", "Read rules and the API loop before playing; use match_id for an existing match. Example: get_game_info({\"game_id\":\"chess\",\"detail\":\"compact\"}).")?,
             tool::<GameArgs, OpponentsOutput>("list_opponents", "Find installed opponents and their measured levels before creating a match. Example: list_opponents({\"game_id\":\"chess\"}).")?,
+            tool::<CreateArgs, CreatedOutput>("create_match", "Start playing after reading get_game_info; choose an installed opponent for automatic replies. Example: create_match({\"game_id\":\"chess\",\"opponent\":\"random\",\"seed\":7}).")?,
+            tool::<MatchArgs, StateOutput>("get_state", "Read the current board and whose turn it is before acting. Example: get_state({\"match_id\":\"MATCH_ID\"}).")?,
+            tool::<MatchArgs, LegalOutput>("get_legal_actions", "Get canonical move strings when choosing or correcting a move. Example: get_legal_actions({\"match_id\":\"MATCH_ID\"}).")?,
+            tool::<MoveArgs, MovedOutput>("make_move", "Play one legal action; returns the automatic replies and new board. Example: make_move({\"match_id\":\"MATCH_ID\",\"action\":\"e2e4\",\"reasoning\":\"control the center\"}).")?,
+            tool::<MatchArgs, StateOutput>("resign", "Concede the current match and read its final outcome. Example: resign({\"match_id\":\"MATCH_ID\"}).")?,
         ]) })
     }
 
@@ -68,6 +76,7 @@ impl McpServer {
             "list_games" => self.games(arguments),
             "list_opponents" => self.opponents(arguments),
             "get_game_info" => self.info(arguments).await,
+            "create_match" | "get_state" | "get_legal_actions" | "make_move" | "resign" => Ok(self.play(name, arguments).await),
             _ => {
                 return Err(ErrorData::new(
                     rmcp::model::ErrorCode::METHOD_NOT_FOUND,
@@ -249,20 +258,28 @@ fn success<T: Serialize>(data: T, text: String) -> Result<CallToolResult, ApiErr
     result.structured_content = Some(value);
     Ok(result)
 }
-fn failure(error: ApiError) -> CallToolResult {
-    let mut result = CallToolResult::error(vec![ContentBlock::text(format!(
-        "{}: {}\n{}",
-        error.code, error.message, error.hint
-    ))]);
+fn failure(mut error: ApiError) -> CallToolResult {
+    if let Some(actions) = error.details.get_mut("legal_actions").and_then(Value::as_array_mut) {
+        let mut strings = actions.iter().filter_map(|action| action["string"].as_str()).map(str::to_owned).collect::<Vec<_>>();
+        strings.sort();
+        *actions = strings.into_iter().map(Value::String).collect();
+    }
+    let mut text = format!("{}: {}\n{}", error.code, error.message, error.hint);
+    if !error.details.is_null() {
+        text.push_str(&format!("\nContext: {}", error.details));
+    }
+    let mut result = CallToolResult::error(vec![ContentBlock::text(text)]);
     result.structured_content = Some(json!(Output::<Value>::Failure {
         error: Failure {
             code: error.code,
             message: error.message,
             hint: error.hint,
+            details: error.details,
         }
     }));
     result
 }
+
 fn internal() -> ApiError {
     ApiError::new(
         "INVALID_MCP_RESPONSE",
