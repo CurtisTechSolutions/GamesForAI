@@ -22,6 +22,10 @@ pub trait TrainingEnv: Send + Sync {
     fn returns(&self) -> Vec<f64>;
     /// Information-set projection.
     fn observe(&self, viewer: Viewer) -> Result<Observation, GameError>;
+    /// Optional optimized numeric projection, preserving the viewer's scope.
+    fn observe_tensor(&self, viewer: Viewer) -> Result<Option<crate::Tensor>, GameError> {
+        Ok(self.observe(viewer)?.tensor)
+    }
     /// Fixed discrete action mask.
     fn action_mask(&self, player: PlayerId) -> Result<Vec<bool>, GameError>;
     /// Optional readable actions for text policies, scoped to the selected seat.
@@ -71,6 +75,9 @@ where
     }
     fn observe(&self, viewer: Viewer) -> Result<Observation, GameError> {
         Env::observe(self, viewer)
+    }
+    fn observe_tensor(&self, viewer: Viewer) -> Result<Option<crate::Tensor>, GameError> {
+        Env::observe_tensor(self, viewer)
     }
     fn action_mask(&self, player: PlayerId) -> Result<Vec<bool>, GameError> {
         Env::action_mask(self, player)

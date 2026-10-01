@@ -104,6 +104,14 @@ impl<G: Game> Env<G> {
         Ok(G::observe(&self.state, viewer))
     }
 
+    /// Numeric observation with the same information-set boundary as observe().
+    pub fn observe_tensor(&self, viewer: Viewer) -> Result<Option<crate::Tensor>, GameError> {
+        if let Viewer::Player(seat) = viewer {
+            self.validate_seat(seat)?;
+        }
+        Ok(G::observe_tensor(&self.state, viewer))
+    }
+
     /// Legal typed actions for the selected seat; empty when that seat cannot act.
     pub fn legal_actions(&self, player: PlayerId) -> Result<Vec<G::Action>, GameError> {
         self.validate_seat(player)?;
