@@ -7,3 +7,5 @@ Load a bundled set with `gamesforai.PositionSet.load("chess-endgames-basic@1")`.
 The starter sets contain six elementary chess endgames and seven immediate-win Connect Four positions. Connect Four answers are verified by playing the specified action and checking the terminal return. Chess entries describe study positions without claiming engine-evaluated outcomes. Generated data is dedicated under [CC0-1.0](https://creativecommons.org/publicdomain/zero/1.0/); source code retains the repository license.
 
 Entries support `id`, `position`, optional `config`, `tags`, `difficulty`, `rating`, `expected`, and `source`. Preserve imported source IDs and licenses. Expected answers are dataset metadata for trusted training/evaluation code and must not be added to policy observations. These are public starter datasets; no hidden benchmark split is bundled.
+
+Bundled datasets use UTF-8 with LF line endings, enforced by Git attributes. When writing a custom set, hash the exact bytes written to disk; newline conversion changes the content hash.
