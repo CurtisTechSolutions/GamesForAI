@@ -13,12 +13,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
       - run: pnpm install --frozen-lockfile
+      - name: Verify generated API contracts
+        env:
+          SQLX_OFFLINE: true
+        run: |
+          python3 .github/scripts/test-api-types.py
+          cargo run -p gfa-http --example export-openapi --locked > /tmp/gfa-openapi.json
+          python3 .github/scripts/generate-api-types.py /tmp/gfa-openapi.json web/packages/api-client/src/generated.ts --check
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm format:check
       - run: pnpm build
+      - name: Show formatter corrections after a failure
+        if: failure()
+        run: |
+          pnpm exec prettier --write 'web/**/*.{ts,tsx,css,html,json}'
+          git diff -- web
