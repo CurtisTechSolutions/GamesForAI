@@ -56,8 +56,7 @@ class AECGameEnv(AECEnv):
 
     def reset(self, seed=None, options=None):
         options = options or {}
-        if set(options) - {"position"}:
-            raise ValueError("supported reset option: position")
+        # PettingZoo callers may pass options intended for other wrappers.
         position = options.get("position")
         if position is not None and not isinstance(position, str):
             raise ValueError("position must be a notation string")

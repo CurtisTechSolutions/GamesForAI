@@ -68,3 +68,12 @@ def test_seeded_self_play_and_cap_endings():
     assert not any(first.terminations.values())
     assert first.native.get_state() == second.native.get_state()
     assert first.render() == first.native.public_text()
+
+
+def test_reset_accepts_framework_options_and_validates_position():
+    env = aec("tictactoe")
+    env.reset(seed=4, options={"options": 1})
+    before = env.native.get_state()
+    with pytest.raises(ValueError, match="notation string"):
+        env.reset(seed=4, options={"position": 12})
+    assert env.native.get_state() == before
