@@ -18,6 +18,7 @@ members = [
     "crates/domain/gfa-service",
     "crates/players/gfa-opponents",
     "crates/players/gfa-engine-uci",
+    "crates/players/gfa-llm",
 ]
 
 [workspace.package]
@@ -38,6 +39,7 @@ shakmaty = "0.30.1"
 gfa-api-types = { version = "0.1.0", path = "crates/domain/gfa-api-types" }
 gfa-opponents = { version = "0.1.0", path = "crates/players/gfa-opponents" }
 gfa-engine-uci = { version = "0.1.0", path = "crates/players/gfa-engine-uci" }
+gfa-llm = { version = "0.1.0", path = "crates/players/gfa-llm" }
 gfa-service = { version = "0.1.0", path = "crates/domain/gfa-service" }
 gfa-http = { version = "0.1.0", path = "crates/adapters/gfa-http" }
 gfa-mcp = { version = "0.1.0", path = "crates/adapters/gfa-mcp" }

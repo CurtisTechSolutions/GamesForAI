@@ -834,6 +834,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "gfa-llm"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror",
+]
+
+[[package]]
 name = "gfa-mcp"
 version = "0.1.0"
 dependencies = [
