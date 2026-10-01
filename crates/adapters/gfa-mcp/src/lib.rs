@@ -1,10 +1,12 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
+mod history;
 mod play;
 mod play_types;
 mod types;
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
+use history::{HistoryArgs, HistoryOutput, ReplayArgs, ReplayOutput};
 use play_types::*;
 use rmcp::{
     model::{
@@ -47,6 +49,8 @@ impl McpServer {
             tool::<MatchArgs, LegalOutput>("get_legal_actions", "Get canonical move strings when choosing or correcting a move. Example: get_legal_actions({\"match_id\":\"MATCH_ID\"}).")?,
             tool::<MoveArgs, MovedOutput>("make_move", "Play one legal action; returns the automatic replies and new board. Example: make_move({\"match_id\":\"MATCH_ID\",\"action\":\"e2e4\",\"reasoning\":\"control the center\"}).")?,
             tool::<MatchArgs, StateOutput>("resign", "Concede the current match and read its final outcome. Example: resign({\"match_id\":\"MATCH_ID\"}).")?,
+            tool::<HistoryArgs, HistoryOutput>("get_match_history", "Find past matches in this trusted local host's database; follow next even for empty pages. Example: get_match_history({\"game_id\":\"chess\",\"limit\":10}).")?,
+            tool::<ReplayArgs, ReplayOutput>("get_replay", "Read recorded moves and visible reasoning in bounded pages. Example: get_replay({\"match_id\":\"MATCH_ID\",\"limit\":25}).")?,
         ]) })
     }
 
@@ -76,6 +80,8 @@ impl McpServer {
             "list_games" => self.games(arguments),
             "list_opponents" => self.opponents(arguments),
             "get_game_info" => self.info(arguments).await,
+            "get_match_history" => self.history_tool(arguments).await,
+            "get_replay" => self.replay_tool(arguments).await,
             "create_match" | "get_state" | "get_legal_actions" | "make_move" | "resign" => {
                 Ok(self.play(name, arguments).await)
             }

@@ -28,3 +28,6 @@ States contain the engine text board and sorted canonical action strings, withou
 Launch a local client with `gfa mcp --sqlite ./gfa.sqlite`. Standard output is reserved for MCP JSON-RPC; diagnostics go to stderr. `--seat 1` authorizes the second player (for example Black); `--spectator` is read-only. Database and Stockfish options are shared with `gfa serve`. No TCP listener is opened in stdio mode. The launcher controls access to the local database and selected seat; this mode is intended for one trusted local user.
 
 EOF and process signals stop MCP and background play, then close the database. The CLI bounds runtime shutdown because Tokio's stdin reader uses a blocking read that a client may leave open after a signal.
+
+
+`get_match_history` scans bounded pages of the trusted local user's database; follow `next` even when a game filter produces an empty page. `get_replay` returns paginated viewer-scoped events with canonical moves, visible reasoning, and control outcomes. It omits raw initial states and seeds, and preserves the service's rule that another seat's reasoning stays hidden during active play. A future multiuser host must restrict match history and access to its authenticated principal.
