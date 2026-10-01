@@ -22,6 +22,11 @@ test("typed browser client uses real catalog, briefing, play and replay contract
   expect(replay.events.some((entry) => JSON.stringify(entry).includes("browser-client-test"))).toBe(true);
   const events = await api.events(created.match_id, 0);
   expect(events.events.length).toBeGreaterThan(0);
+  const first = await api.events(created.match_id, 0, undefined, undefined, 1);
+  expect(first.events.map((event) => event.sequence)).toEqual([0]);
+  expect(first.next).toBe(0);
+  const second = await api.events(created.match_id, 0, first.next, undefined, 1);
+  expect(second.events.map((event) => event.sequence)).toEqual([1]);
   let failure;
   try {
     await api.move(created.match_id, { seat: 0, turn: 0, action: "r1c1" }, "client-test-stale");

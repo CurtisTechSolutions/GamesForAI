@@ -213,11 +213,18 @@ export class ApiClient {
       signal,
     });
   }
-  events(id: string, seat?: number, after?: number, signal?: AbortSignal) {
+  events(
+    id: string,
+    seat?: number,
+    since?: number,
+    signal?: AbortSignal,
+    limit?: number,
+  ) {
     return this.request<Schemas["EventPage"]>(
       query("/v1/matches/" + encodeURIComponent(id) + "/events", {
         seat,
-        after,
+        since,
+        limit,
       }),
       { signal },
     );
