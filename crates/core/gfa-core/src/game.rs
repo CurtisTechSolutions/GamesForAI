@@ -95,6 +95,12 @@ pub trait Game: Send + Sync + 'static {
     ) -> Result<StepEvents, GameError>;
     /// Whether the rules have ended play.
     fn is_terminal(state: &Self::State) -> bool;
+    /// A valid state stopped by a length/time cap, distinct from a rules ending.
+    /// Engines resolve chance internally, so a nonterminal state with no actors
+    /// is truncated. Override this only for another explicitly modeled lifecycle.
+    fn is_truncated(state: &Self::State) -> bool {
+        !Self::is_terminal(state) && Self::current_players(state).is_empty()
+    }
     /// Per-seat returns in seat order.
     fn returns(state: &Self::State) -> Vec<f64>;
     /// Project state into the viewer's information set.

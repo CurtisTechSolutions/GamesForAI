@@ -1,5 +1,6 @@
 //! Pure, deterministic contracts shared by every GamesForAI engine.
 mod dynamic;
+mod env;
 mod error;
 mod game;
 mod player;
@@ -7,6 +8,7 @@ mod rng;
 mod types;
 
 pub use dynamic::{DynGame, GameAdapter, GameRegistry};
+pub use env::{Env, EnvSnapshot, EnvStep};
 pub use error::{ErrorCode, GameError};
 pub use game::Game;
 pub use player::{
