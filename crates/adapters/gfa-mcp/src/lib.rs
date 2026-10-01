@@ -2,6 +2,8 @@
 mod play;
 mod play_types;
 mod types;
+mod planning;
+use planning::{Analysis, AnalysisArgs, Simulation, SimulationArgs};
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
@@ -47,6 +49,8 @@ impl McpServer {
             tool::<MatchArgs, LegalOutput>("get_legal_actions", "Get canonical move strings when choosing or correcting a move. Example: get_legal_actions({\"match_id\":\"MATCH_ID\"}).")?,
             tool::<MoveArgs, MovedOutput>("make_move", "Play one legal action; returns the automatic replies and new board. Example: make_move({\"match_id\":\"MATCH_ID\",\"action\":\"e2e4\",\"reasoning\":\"control the center\"}).")?,
             tool::<MatchArgs, StateOutput>("resign", "Concede the current match and read its final outcome. Example: resign({\"match_id\":\"MATCH_ID\"}).")?,
+            tool::<SimulationArgs, Simulation>("simulate_moves", "Explore hypothetical continuations when match simulation is enabled; never applies moves. Example: simulate_moves({\"match_id\":\"MATCH_ID\",\"lines\":[[\"e2e4\",\"e7e5\"]]}).")?,
+            tool::<AnalysisArgs, Analysis>("analyze_position", "Request engine recommendations only when match analysis is enabled. Example: analyze_position({\"match_id\":\"MATCH_ID\",\"nodes\":1000}).")?,
         ]) })
     }
 
@@ -76,6 +80,8 @@ impl McpServer {
             "list_games" => self.games(arguments),
             "list_opponents" => self.opponents(arguments),
             "get_game_info" => self.info(arguments).await,
+            "simulate_moves" => self.simulate_tool(arguments).await,
+            "analyze_position" => self.analyze_tool(arguments).await,
             "create_match" | "get_state" | "get_legal_actions" | "make_move" | "resign" => {
                 Ok(self.play(name, arguments).await)
             }
@@ -260,7 +266,7 @@ fn success<T: Serialize>(data: T, text: String) -> Result<CallToolResult, ApiErr
     result.structured_content = Some(value);
     Ok(result)
 }
-fn failure(mut error: ApiError) -> CallToolResult {
+fn compact_failure(mut error: ApiError) -> Failure {
     if let Some(actions) = error
         .details
         .get_mut("legal_actions")
@@ -274,6 +280,10 @@ fn failure(mut error: ApiError) -> CallToolResult {
         strings.sort();
         *actions = strings.into_iter().map(Value::String).collect();
     }
+    Failure { code:error.code, message:error.message, hint:error.hint, details:error.details }
+}
+fn failure(error: ApiError) -> CallToolResult {
+    let error = compact_failure(error);
     let mut text = format!("{}: {}\n{}", error.code, error.message, error.hint);
     if !error.details.is_null() {
         text.push_str(&format!("\nContext: {}", error.details));
