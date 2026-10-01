@@ -66,7 +66,9 @@ impl GameService {
         detail: gfa_api_types::InfoDetail,
     ) -> Result<gfa_api_types::Briefing, ApiError> {
         let game = self.registry.get(game_id).map_err(error::engine)?;
-        crate::briefing::game_info(game.as_ref(), config, seat, detail)
+        let mut info = crate::briefing::game_info(game.as_ref(), config, seat, detail)?;
+        self.briefing_opponents(&mut info, game.as_ref(), detail, None)?;
+        Ok(info)
     }
 
     /// Validate a standalone position and return canonical encodings without persistence.
@@ -174,17 +176,18 @@ impl GameService {
             .await?;
         let state = progress.frame.project(&id, game.as_ref(), viewer)?;
         let info = if include_info {
-            Some(
-                crate::briefing::MatchBrief {
-                    game: game.as_ref(),
-                    origin: &origin,
-                    initial: &frame,
-                    current: &progress.frame,
-                    id: &id,
-                    viewer,
-                }
-                .build(gfa_api_types::InfoDetail::Compact)?,
-            )
+            let detail = gfa_api_types::InfoDetail::Compact;
+            let mut info = crate::briefing::MatchBrief {
+                game: game.as_ref(),
+                origin: &origin,
+                initial: &frame,
+                current: &progress.frame,
+                id: &id,
+                viewer,
+            }
+            .build(detail)?;
+            self.briefing_opponents(&mut info, game.as_ref(), detail, Some(&origin.assists))?;
+            Some(info)
         } else {
             None
         };
@@ -205,7 +208,7 @@ impl GameService {
         let Some(origin) = record.origin() else {
             return Err(error::corrupt());
         };
-        crate::briefing::MatchBrief {
+        let mut info = crate::briefing::MatchBrief {
             game: replay.game.as_ref(),
             origin,
             initial: replay.frames.first().ok_or_else(error::corrupt)?,
@@ -213,7 +216,14 @@ impl GameService {
             id,
             viewer,
         }
-        .build(detail)
+        .build(detail)?;
+        self.briefing_opponents(
+            &mut info,
+            replay.game.as_ref(),
+            detail,
+            Some(&origin.assists),
+        )?;
+        Ok(info)
     }
 
     /// Read public metadata from one consistent event snapshot.
