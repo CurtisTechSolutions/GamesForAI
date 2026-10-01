@@ -5,6 +5,7 @@ mod play;
 mod play_types;
 mod resources;
 mod types;
+mod live;
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
@@ -32,6 +33,7 @@ pub struct McpServer {
     service: Arc<GameService>,
     viewer: Viewer,
     tools: Arc<Vec<Tool>>,
+    watches: Arc<live::Watches>,
 }
 impl McpServer {
     /// Build the game-discovery tools. Hosts must authorize the supplied viewer first.
@@ -43,7 +45,7 @@ impl McpServer {
                 "Select an authorized player or spectator view.",
             ));
         }
-        Ok(Self { service, viewer, tools: Arc::new(vec![
+        Ok(Self { service, viewer, watches: Arc::new(live::Watches::default()), tools: Arc::new(vec![
             tool::<Empty, GamesOutput>("list_games", "Discover installed games before choosing one. Example: list_games({}).")?,
             tool::<InfoArgs, BriefingOutput>("get_game_info", "Read rules and the API loop before playing; use match_id for an existing match. Example: get_game_info({\"game_id\":\"chess\",\"detail\":\"compact\"}).")?,
             tool::<GameArgs, OpponentsOutput>("list_opponents", "Find installed opponents and their measured levels before creating a match. Example: list_opponents({\"game_id\":\"chess\"}).")?,
@@ -204,6 +206,7 @@ impl ServerHandler for McpServer {
             ServerCapabilities::builder()
                 .enable_tools()
                 .enable_resources()
+                .enable_resources_subscribe()
                 .enable_prompts()
                 .build(),
         )
@@ -251,6 +254,18 @@ impl ServerHandler for McpServer {
             Value::Object(request.arguments.unwrap_or_default()),
         )
         .map(Into::into)
+    }
+    fn accepted_subscription_filter(&self, requested: &rmcp::model::SubscriptionFilter) -> Option<rmcp::model::SubscriptionFilter> {
+        Some(self.accepted_watches(requested))
+    }
+    async fn listen(&self, context: rmcp::service::SubscriptionContext) -> Result<(),ErrorData> {
+        self.listen_states(context).await
+    }
+    async fn subscribe(&self, request: rmcp::model::SubscribeRequestParams, context: RequestContext<RoleServer>) -> Result<(),ErrorData> {
+        self.subscribe_state(request.uri,context).await
+    }
+    async fn unsubscribe(&self, request: rmcp::model::UnsubscribeRequestParams, context: RequestContext<RoleServer>) -> Result<(),ErrorData> {
+        self.unsubscribe_state(&request.uri,context).await
     }
     fn get_tool(&self, name: &str) -> Option<Tool> {
         self.tools.iter().find(|tool| tool.name == name).cloned()

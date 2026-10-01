@@ -269,3 +269,6 @@ mod mcp_resource_tests;
 
 #[cfg(test)]
 mod mcp_plan_tests;
+
+#[cfg(test)]
+mod mcp_live_tests;
