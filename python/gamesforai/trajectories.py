@@ -149,6 +149,10 @@ class EpisodeRecorder:
         self._bytes += size
         return list(rewards), terminated, truncated
 
+    def builtin_action(self, seat, algorithm, level, seed):
+        """Choose a built-in action through the engine's observation-only planner."""
+        return self._native.builtin_action(seat, algorithm, level, seed)
+
     def records(self):
         """Finalized rows with the eventual outcome for each acting seat."""
         terminated, truncated = self.flags
