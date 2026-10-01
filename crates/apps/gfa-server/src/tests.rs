@@ -48,6 +48,7 @@ pub(super) fn config(directory: &tempfile::TempDir) -> Config {
         database: Database::Sqlite(directory.path().join("matches.sqlite")),
         port: 8080,
         stockfish: None,
+        mcp_seat: Some(0),
     }
 }
 pub(super) async fn fixture(config: &Config) -> Result<Application, ServerError> {

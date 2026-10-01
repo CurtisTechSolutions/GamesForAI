@@ -10,7 +10,7 @@ postgres = ["gfa-store/postgres"]
 
 [dependencies]
 gfa-mcp.workspace = true
-rmcp.workspace = true
+rmcp = { workspace = true, features = ["transport-streamable-http-server"] }
 gfa-engine-uci.workspace = true
 gfa-core.workspace = true
 gfa-opponents.workspace = true

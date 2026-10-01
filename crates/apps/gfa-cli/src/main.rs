@@ -2,7 +2,7 @@
 use gfa_server::{Config, Database, ServerError};
 use std::path::PathBuf;
 
-const USAGE: &str = "Usage: gfa mcp [--sqlite PATH | --postgres-env VARIABLE] [--seat SEAT | --spectator] [--stockfish PATH]\n       gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT] [--stockfish PATH]\n\nmcp serves a trusted local client over stdin/stdout; seat defaults to 0. No TCP port is opened.\nserve starts a local API on 127.0.0.1 (default port 8080).\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.\nStockfish requires an absolute binary path, Linux, bubblewrap and working user namespaces.";
+const USAGE: &str = "Usage: gfa mcp [--sqlite PATH | --postgres-env VARIABLE] [--seat SEAT | --spectator] [--stockfish PATH]\n       gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT] [--stockfish PATH] [--mcp-seat SEAT | --mcp-spectator]\n\nmcp serves a trusted local client over stdin/stdout; seat defaults to 0. No TCP port is opened.\nserve starts a local API on 127.0.0.1 (default port 8080).\nHTTP /mcp defaults to seat 0; use --mcp-seat or --mcp-spectator to change it.\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.\nStockfish requires an absolute binary path, Linux, bubblewrap and working user namespaces.";
 
 fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Config>, String> {
     parse_with_env(args, |name| std::env::var(name).ok())
@@ -24,6 +24,7 @@ fn parse_with_env(
     let mut database_seen = false;
     let mut port_seen = false;
     let mut stockfish_seen = false;
+    let mut mcp_viewer_seen = false;
     while let Some(option) = args.next() {
         match option.as_str() {
             "--help" | "-h" => return Ok(None),
@@ -57,6 +58,14 @@ fn parse_with_env(
             #[cfg(not(feature = "postgres"))]
             "--postgres-env" => {
                 return Err("PostgreSQL requires a build with --features postgres".into())
+            }
+            "--mcp-seat" if !mcp_viewer_seen => {
+                config.mcp_seat = Some(args.next().ok_or("--mcp-seat requires a seat")?.parse().map_err(|_|"MCP seat must be an integer from 0 to 255")?);
+                mcp_viewer_seen = true;
+            }
+            "--mcp-spectator" if !mcp_viewer_seen => {
+                config.mcp_seat = None;
+                mcp_viewer_seen = true;
             }
             "--stockfish" if !stockfish_seen => {
                 let path = PathBuf::from(
@@ -114,6 +123,7 @@ fn command(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, St
                 viewer_seen = true;
             }
             "--seat" | "--spectator" => return Err("Choose --seat or --spectator once".into()),
+            "--mcp-seat" | "--mcp-spectator" => return Err("Use --seat or --spectator for mcp stdio".into()),
             "--port" => return Err("mcp uses stdin/stdout and does not accept --port".into()),
             // Preserve values even when a filesystem path equals another option.
             "--sqlite" | "--postgres-env" | "--stockfish" => {
@@ -195,6 +205,7 @@ mod tests {
                 database: Database::Sqlite("matches.sqlite".into()),
                 port: 0,
                 stockfish: None,
+                mcp_seat: Some(0),
             })
         );
         let configured =
@@ -336,6 +347,24 @@ mod mcp_command_tests {
         ] {
             assert!(parsed(&args).is_err(), "{args:?}");
         }
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod http_mcp_options_tests {
+    use super::*;
+    #[test]
+    fn validates_http_mcp_viewer_options() -> Result<(),String> {
+        let config=parse(["serve","--mcp-seat","1"].map(str::to_owned))?.ok_or("config")?;
+        assert_eq!(config.mcp_seat,Some(1));
+        assert_eq!(parse(["serve","--mcp-spectator"].map(str::to_owned))?.ok_or("config")?.mcp_seat,None);
+        for args in [
+            vec!["serve","--mcp-seat"],vec!["serve","--mcp-seat","256"],
+            vec!["serve","--mcp-seat","0","--mcp-spectator"],
+            vec!["serve","--mcp-spectator","--mcp-seat","0"],
+            vec!["mcp","--mcp-seat","1"],vec!["mcp","--mcp-spectator"],
+        ] { assert!(command(args.into_iter().map(str::to_owned)).is_err()); }
         Ok(())
     }
 }
