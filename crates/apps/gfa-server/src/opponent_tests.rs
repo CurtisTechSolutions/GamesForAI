@@ -216,3 +216,34 @@ fn players_reject_invalid_limits_and_inconsistent_turns() -> TestResult {
     );
     Ok(())
 }
+
+#[test]
+fn search_treats_length_caps_as_leaves_without_changing_game_endings() -> TestResult {
+    let game = game("chess")?;
+    for max_plies in [1, 2] {
+        let config = json!({"max_plies": max_plies});
+        for algorithm in [Algorithm::Minimax, Algorithm::Mcts] {
+            let player = SearchOpponent::new(game.clone(), config.clone(), algorithm)?;
+            let mut state = game.initial_state(&config, 0)?;
+            for _ in 0..max_plies {
+                let budget = SearchLimits {
+                    nodes: 128,
+                    depth: 4,
+                    ..limits()
+                };
+                let first = choose(game.as_ref(), &player, &state, budget, &Fixed)?;
+                assert_eq!(
+                    first,
+                    choose(game.as_ref(), &player, &state, budget, &Fixed)?
+                );
+                assert!(first.info.nodes <= budget.nodes);
+                let seat = game.current_players(&state)?[0];
+                state = game.apply(&state, seat, &first.action.json)?.0;
+            }
+            assert!(game.is_truncated(&state)?);
+            assert!(!game.is_terminal(&state)?);
+            assert_eq!(game.returns(&state)?, vec![0.0, 0.0]);
+        }
+    }
+    Ok(())
+}
