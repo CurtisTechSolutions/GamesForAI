@@ -30,10 +30,10 @@ async fn mcp_discovery_output_schemas_match_success_and_error_results() -> Resul
         assert_eq!(result.is_error, Some(false));
         validator
             .validate(
-            result
-                .structured_content
-                .as_ref()
-                .ok_or("structured output")?,
+                result
+                    .structured_content
+                    .as_ref()
+                    .ok_or("structured output")?,
             )
             .map_err(|error| error.to_string())?;
         assert!(!result.content.is_empty());
@@ -41,10 +41,10 @@ async fn mcp_discovery_output_schemas_match_success_and_error_results() -> Resul
         assert_eq!(error.is_error, Some(true));
         validator
             .validate(
-            error
-                .structured_content
-                .as_ref()
-                .ok_or("structured error")?,
+                error
+                    .structured_content
+                    .as_ref()
+                    .ok_or("structured error")?,
             )
             .map_err(|error| error.to_string())?;
         assert!(!error.content.is_empty());
