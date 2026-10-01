@@ -6,5 +6,9 @@ function subscribe(callback: () => void) {
 }
 
 export function useRoute() {
-  return useSyncExternalStore(subscribe, () => window.location.hash.slice(1) || "/", () => "/");
+  return useSyncExternalStore(
+    subscribe,
+    () => window.location.hash.slice(1) || "/",
+    () => "/",
+  );
 }
