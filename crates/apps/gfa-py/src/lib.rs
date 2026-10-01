@@ -1,4 +1,6 @@
 //! Native Python training bridge. Typed engine states stay in Rust between steps.
+mod vector;
+
 use gfa_core::{EnvSnapshot, GameError, TrainingEnv, Viewer};
 use numpy::{ndarray::IxDyn, PyArray1, PyArrayMethods};
 use pyo3::{exceptions::PyValueError, prelude::*, types::PyDict};
@@ -164,5 +166,5 @@ fn games() -> PyResult<Vec<String>> {
 #[pymodule]
 mod _native {
     #[pymodule_export]
-    use super::{games, NativeEnv};
+    use super::{games, vector::NativeVectorEnv, NativeEnv};
 }
