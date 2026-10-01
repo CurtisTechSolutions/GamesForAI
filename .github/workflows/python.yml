@@ -26,6 +26,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - run: python -m pip install "maturin>=1.9,<2" "pytest>=8,<9" "numpy>=1.24,<3"
+      - name: Resolve new native batch dependencies
+        run: |
+          cargo update --workspace
+          python - <<'PY'
+          import json
+          print("GFA_LOCK_JSON:" + json.dumps({"content": open("Cargo.lock").read()}))
+          PY
       - run: maturin build --release --locked --out dist
       - name: Install built wheel
         run: |
