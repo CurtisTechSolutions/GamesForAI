@@ -119,7 +119,7 @@ fn build_router(
         .route(
             "/v1/batch/step",
             post(training::batch)
-                .layer(DefaultBodyLimit::max(4 * 1024 * 1024))
+                .layer::<_, std::convert::Infallible>(DefaultBodyLimit::max(4 * 1024 * 1024))
                 .layer(axum::Extension(training::TrainingWorkers(Arc::new(
                     tokio::sync::Semaphore::new(4),
                 )))),

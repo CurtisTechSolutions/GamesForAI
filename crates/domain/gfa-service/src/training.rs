@@ -9,7 +9,11 @@ const MAX_ROW_BYTES: usize = 1024 * 1024;
 const MAX_RESULT_BYTES: usize = 8 * 1024 * 1024;
 
 fn limit(message: &str) -> ApiError {
-    ApiError::new("BATCH_LIMIT", message, "Split the batch into smaller requests.")
+    ApiError::new(
+        "BATCH_LIMIT",
+        message,
+        "Split the batch into smaller requests.",
+    )
 }
 
 impl GameService {
@@ -37,14 +41,16 @@ impl GameService {
                 };
             }
             remaining -= serde_json::to_vec(&result)
-                .map_err(|error| error::engine(error.into()))?.len();
+                .map_err(|error| error::engine(error.into()))?
+                .len();
             results.push(result);
         }
         Ok(TrainingBatchResult { results })
     }
 
     fn restore_training(&self, checkpoint: &EnvSnapshot) -> Result<Box<dyn TrainingEnv>, ApiError> {
-        let mut env = self.registry
+        let mut env = self
+            .registry
             .training_env(&checkpoint.game_id, &checkpoint.config, 0)
             .map_err(error::engine)?;
         env.set_state(checkpoint).map_err(error::engine)?;
@@ -53,22 +59,41 @@ impl GameService {
 
     fn training_operation(&self, operation: TrainingOperation) -> Result<TrainingResult, ApiError> {
         let (env, seat, rewards) = match operation {
-            TrainingOperation::Create { game_id, config, seed, position, seat } => {
-                let mut env = self.registry.training_env(&game_id, &config, seed).map_err(error::engine)?;
+            TrainingOperation::Create {
+                game_id,
+                config,
+                seed,
+                position,
+                seat,
+            } => {
+                let mut env = self
+                    .registry
+                    .training_env(&game_id, &config, seed)
+                    .map_err(error::engine)?;
                 if let Some(position) = position {
                     env.reset(seed, Some(&position)).map_err(error::engine)?;
                 }
-                (env, seat, None)
+                (env, Some(seat), None)
             }
-            TrainingOperation::Reset { checkpoint, seed, position, seat } => {
+            TrainingOperation::Reset {
+                checkpoint,
+                seed,
+                position,
+                seat,
+            } => {
                 let mut env = self.restore_training(&checkpoint)?;
-                env.reset(seed, position.as_deref()).map_err(error::engine)?;
-                (env, seat, None)
+                env.reset(seed, position.as_deref())
+                    .map_err(error::engine)?;
+                (env, Some(seat), None)
             }
-            TrainingOperation::Step { checkpoint, seat, action } => {
+            TrainingOperation::Step {
+                checkpoint,
+                seat,
+                action,
+            } => {
                 let mut env = self.restore_training(&checkpoint)?;
                 let result = env.step_index(seat, action).map_err(error::engine)?;
-                (env, seat, Some(result.rewards))
+                (env, Some(seat), Some(result.rewards))
             }
             TrainingOperation::Observe { checkpoint, seat } => {
                 (self.restore_training(&checkpoint)?, seat, None)
@@ -77,15 +102,24 @@ impl GameService {
         let returns = env.returns();
         let frame = TrainingFrame {
             seat,
-            observation: env.observe(Viewer::Player(seat)).map_err(error::engine)?,
-            legal_actions: env.action_catalog(seat).map_err(error::engine)?,
-            action_mask: env.action_mask(seat).map_err(error::engine)?,
+            observation: env.observe(seat.map_or(Viewer::Spectator, Viewer::Player)).map_err(error::engine)?,
+            legal_actions: match seat {
+                Some(seat) => env.action_catalog(seat).map_err(error::engine)?,
+                None => vec![],
+            },
+            action_mask: match seat {
+                Some(seat) => env.action_mask(seat).map_err(error::engine)?,
+                None => vec![false; env.spec().action_space_size as usize],
+            },
             to_act: env.current_players(),
             rewards: rewards.unwrap_or_else(|| vec![0.0; returns.len()]),
             returns,
             terminated: env.terminated(),
             truncated: env.truncated(),
         };
-        Ok(TrainingResult::Ok { checkpoint: env.get_state().map_err(error::engine)?, frame })
+        Ok(TrainingResult::Ok {
+            checkpoint: env.get_state().map_err(error::engine)?,
+            frame,
+        })
     }
 }

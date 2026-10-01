@@ -2,7 +2,7 @@
 use gfa_server::{Config, Database, ServerError};
 use std::path::PathBuf;
 
-const USAGE: &str = "Usage: gfa mcp [--sqlite PATH | --postgres-env VARIABLE] [--seat SEAT | --spectator] [--stockfish PATH]\n       gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT] [--stockfish PATH] [--mcp-seat SEAT | --mcp-spectator]\n\nmcp serves a trusted local client over stdin/stdout; seat defaults to 0. No TCP port is opened.\nserve starts a local API on 127.0.0.1 (default port 8080).\nHTTP /mcp defaults to seat 0; use --mcp-seat or --mcp-spectator to change it.\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.\nStockfish requires an absolute binary path, Linux, bubblewrap and working user namespaces.";
+const USAGE: &str = "Usage: gfa mcp [--sqlite PATH | --postgres-env VARIABLE] [--seat SEAT | --spectator] [--stockfish PATH]\n       gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT] [--stockfish PATH] [--mcp-seat SEAT | --mcp-spectator]\n       gfa tournament --game GAME --agents FILES [--opponents LADDER] [--games COUNT] [--report PATH]\n\nmcp serves a trusted local client over stdin/stdout; seat defaults to 0. No TCP port is opened.\nserve starts a local API on 127.0.0.1 (default port 8080).\nHTTP /mcp defaults to seat 0; use --mcp-seat or --mcp-spectator to change it.\ntournament uses gamesforai[tournaments] in GFA_PYTHON (default python3; python on Windows).\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.\nStockfish requires an absolute binary path, Linux, bubblewrap and working user namespaces.";
 
 fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Config>, String> {
     parse_with_env(args, |name| std::env::var(name).ok())
@@ -184,7 +184,30 @@ async fn run() -> Result<(), ServerError> {
         }
     }
 }
+fn tournament() -> ! {
+    let python = std::env::var_os("GFA_PYTHON")
+        .unwrap_or_else(|| if cfg!(windows) { "python" } else { "python3" }.into());
+    let result = std::process::Command::new(python)
+        .args(["-m", "gamesforai.tournament_cli"])
+        .args(std::env::args_os().skip(2))
+        .status();
+    let code = match result {
+        Ok(status) => status.code().unwrap_or(1),
+        Err(_) => {
+            eprintln!("Cannot start tournament Python. Install gamesforai[tournaments] and set GFA_PYTHON to its Python executable.");
+            1
+        }
+    };
+    std::process::exit(code);
+}
+
 fn main() -> Result<(), ServerError> {
+    if std::env::args_os()
+        .nth(1)
+        .is_some_and(|arg| arg == "tournament")
+    {
+        tournament();
+    }
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;

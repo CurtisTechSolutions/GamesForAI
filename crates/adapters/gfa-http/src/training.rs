@@ -1,5 +1,8 @@
 use crate::error::HttpError;
-use axum::{extract::{rejection::JsonRejection, State}, Extension, Json};
+use axum::{
+    extract::{rejection::JsonRejection, State},
+    Extension, Json,
+};
 use gfa_api_types::{ApiError, TrainingBatch, TrainingBatchResult};
 use gfa_service::GameService;
 use std::sync::Arc;
@@ -22,14 +25,24 @@ pub(crate) async fn batch(
     body: Result<Json<TrainingBatch>, JsonRejection>,
 ) -> Result<Json<TrainingBatchResult>, HttpError> {
     let Json(request) = body?;
-    let permit = workers.0.try_acquire_owned().map_err(|_| ApiError::new(
-        "ENGINE_BUSY", "All training workers are busy", "Retry this stateless batch later.",
-    ))?;
+    let permit = workers.0.try_acquire_owned().map_err(|_| {
+        ApiError::new(
+            "ENGINE_BUSY",
+            "All training workers are busy",
+            "Retry this stateless batch later.",
+        )
+    })?;
     let result = tokio::task::spawn_blocking(move || {
         let _permit = permit;
         service.training_batch(request)
     })
     .await
-    .map_err(|_| ApiError::new("ENGINE_UNAVAILABLE", "Training worker failed", "Retry this stateless batch."))??;
+    .map_err(|_| {
+        ApiError::new(
+            "ENGINE_UNAVAILABLE",
+            "Training worker failed",
+            "Retry this stateless batch.",
+        )
+    })??;
     Ok(Json(result))
 }

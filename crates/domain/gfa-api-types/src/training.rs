@@ -49,8 +49,9 @@ pub enum TrainingOperation {
     Observe {
         /// Caller-owned private checkpoint.
         checkpoint: EnvSnapshot,
-        /// Seat whose observation is returned.
-        seat: PlayerId,
+        /// Seat whose observation is returned; omit for a public spectator projection.
+        #[serde(default)]
+        seat: Option<PlayerId>,
     },
 }
 
@@ -67,8 +68,8 @@ pub struct TrainingBatch {
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct TrainingFrame {
-    /// Selected seat.
-    pub seat: PlayerId,
+    /// Selected seat, or None for a public spectator projection.
+    pub seat: Option<PlayerId>,
     /// Only that seat's visible information.
     pub observation: Observation,
     /// Seat-scoped legal catalog.
