@@ -146,6 +146,12 @@ class GameEnv(gym.Env):
         observation, info = self._frame(self.seat)
         return observation, float(reward), terminated, truncated, info
 
+    def action_masks(self) -> np.ndarray:
+        """Boolean legal-action mask used by MaskablePPO and other trainers."""
+        if self._needs_reset:
+            raise ResetNeeded("Call reset before requesting an active policy mask")
+        return self.native.action_mask(self.seat)
+
     def render(self) -> str:
         return self.native.frame(self.seat)["text"]
 
