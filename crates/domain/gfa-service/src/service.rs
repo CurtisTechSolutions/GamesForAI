@@ -217,7 +217,12 @@ impl GameService {
             viewer,
         }
         .build(detail)?;
-        self.briefing_opponents(&mut info, replay.game.as_ref(), detail, Some(&origin.assists))?;
+        self.briefing_opponents(
+            &mut info,
+            replay.game.as_ref(),
+            detail,
+            Some(&origin.assists),
+        )?;
         Ok(info)
     }
 

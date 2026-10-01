@@ -433,35 +433,74 @@ async fn briefings_use_installed_catalog_and_match_assists() -> TestResult {
     let directory = tempfile::tempdir()?;
     let app = fixture(&config(&directory)).await?;
     for game in ["tictactoe", "connect4", "sudoku", "chess"] {
-        let full = app.service.get_game_info(game, &json!({}), None, gfa_api_types::InfoDetail::Full)?;
+        let full =
+            app.service
+                .get_game_info(game, &json!({}), None, gfa_api_types::InfoDetail::Full)?;
         let expected = serde_json::to_value(app.service.list_opponents(game)?)?;
         assert_eq!(data(&full, "opponents")?["available"], expected);
         assert_eq!(data(&full, "opponents")?["analysis"], true);
-        let compact = app.service.get_game_info(game, &json!({}), None, gfa_api_types::InfoDetail::Compact)?;
+        let compact = app.service.get_game_info(
+            game,
+            &json!({}),
+            None,
+            gfa_api_types::InfoDetail::Compact,
+        )?;
         let ids = |value: &Value| -> Vec<String> {
-            value.as_array().into_iter().flatten().filter_map(|entry| entry["id"].as_str().map(str::to_owned)).collect()
+            value
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter_map(|entry| entry["id"].as_str().map(str::to_owned))
+                .collect()
         };
-        assert_eq!(ids(&data(&compact, "opponents")?["available"]), ids(&expected));
-        assert!(compact.approx_tokens < 1500, "{game}: {}", compact.approx_tokens);
+        assert_eq!(
+            ids(&data(&compact, "opponents")?["available"]),
+            ids(&expected)
+        );
+        assert!(
+            compact.approx_tokens < 1500,
+            "{game}: {}",
+            compact.approx_tokens
+        );
     }
     for allowed in [false, true] {
         let request = serde_json::from_value(json!({
             "game_id":"tictactoe","seed":4,
             "assists":{"allow_analysis":allowed,"allow_simulation":allowed}
         }))?;
-        let created = app.service.create_match_with_info(request, gfa_core::Viewer::Player(0)).await?;
+        let created = app
+            .service
+            .create_match_with_info(request, gfa_core::Viewer::Player(0))
+            .await?;
         let creation = created.info.ok_or("creation briefing")?;
-        let read = app.service.get_match_info(&created.state.match_id, gfa_core::Viewer::Player(0), gfa_api_types::InfoDetail::Compact).await?;
+        let read = app
+            .service
+            .get_match_info(
+                &created.state.match_id,
+                gfa_core::Viewer::Player(0),
+                gfa_api_types::InfoDetail::Compact,
+            )
+            .await?;
         assert_eq!(creation, read);
         for info in [&creation, &read] {
             assert_eq!(data(info, "opponents")?["analysis_available"], true);
             assert_eq!(data(info, "opponents")?["analysis"], allowed);
             assert_eq!(data(info, "opponents")?["simulation"], allowed);
         }
-        let (status, forked) = call(&app.router, "POST", &format!("/v1/matches/{}/fork?seat=0", created.state.match_id), json!({"turn":0}), None).await?;
+        let (status, forked) = call(
+            &app.router,
+            "POST",
+            &format!("/v1/matches/{}/fork?seat=0", created.state.match_id),
+            json!({"turn":0}),
+            None,
+        )
+        .await?;
         assert_eq!(status, StatusCode::CREATED);
         let fork_info: Briefing = serde_json::from_value(forked["info"].clone())?;
-        assert_eq!(data(&fork_info, "opponents")?, data(&creation, "opponents")?);
+        assert_eq!(
+            data(&fork_info, "opponents")?,
+            data(&creation, "opponents")?
+        );
     }
     app.store.close().await;
     Ok(())
