@@ -29,3 +29,14 @@ for learner in (0, 1):
     assert truncated and not terminated
     assert gym.get_state()["opponent"]["engine_sha256"] == shared.identity()["engine_sha256"]
 print("Gym Stockfish: both learner seats complete bounded episodes")
+
+from gamesforai.tournament import Agent, run_round_robin
+
+report = run_round_robin("chess", [
+    Agent("random", opponent="random"),
+    Agent("stockfish-five", opponent="stockfish:5", stockfish_pool=shared),
+], config={"max_plies": 4}, seed=42)
+assert len(report["matches"]) == 2
+assert all(match["status"] == "truncated" for match in report["matches"])
+assert all(row["rated_games"] == 0 for row in report["standings"])
+print("Tournament Stockfish: balanced real-engine games, truncated results unrated")
