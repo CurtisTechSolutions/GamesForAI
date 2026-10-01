@@ -37,3 +37,6 @@ mod scheduling;
 pub use scheduling::{OpponentQueueFailure, PendingOpponents};
 
 mod events;
+
+/// Pure Glicko-2 rating periods and fixed calibration anchors.
+pub mod ratings;
