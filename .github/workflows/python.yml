@@ -20,6 +20,8 @@ jobs:
         shell: bash
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -35,6 +37,9 @@ jobs:
           import sys
           subprocess.check_call([sys.executable, "-m", "pip", "install", *glob.glob("dist/*.whl")])
           PY
+      - run: python .github/scripts/check-position-sets.py
+        env:
+          POSITION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
       - run: python -m pytest python/tests -q
       - uses: actions/upload-artifact@v4
         with:

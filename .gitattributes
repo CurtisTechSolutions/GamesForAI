@@ -1,0 +1,4 @@
+
+# Position hashes pin exact bytes on every platform.
+/positions/*.jsonl text eol=lf
+/positions/*.manifest.json text eol=lf

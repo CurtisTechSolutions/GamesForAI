@@ -91,6 +91,10 @@ This API batches game turns, not learner/opponent exchanges from the single-agen
 Gymnasium wrapper. It supports 1–4096 rows, at most 64 workers, and at most 128 MiB
 of numeric output per batch. Throughput still needs measurement against the PRD target.
 
+## Versioned positions
+
+`PositionSet.load("chess-endgames-basic@1")` loads a bundled, hash-verified dataset and validates every entry using the native engine. `PositionSet.from_files(manifest_path, jsonl_path)` loads a custom set with the same checks. Entries are immutable; use `sample(numpy_rng)` to choose a deterministic starting position. Pass its `position` to a native or Gymnasium reset. Expected puzzle answers stay in trusted dataset metadata, outside policy observations. See [position data](../positions/README.md) for the format and provenance.
+
 ## Readable actions for model policies
 
 Native frames include `legal_actions` as `(index, canonical_notation)` pairs in stable notation order. Gymnasium info includes the same catalog plus the game ID, rules, and action notation for learner and opponent policies. The catalog contains only actions available to that seat and matches its numeric mask. `NativeEnv.spec_json()` returns the static game contract. Vector batches keep their numeric-only output.

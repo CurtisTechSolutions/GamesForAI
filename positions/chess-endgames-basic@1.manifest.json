@@ -1,0 +1,9 @@
+{
+  "name": "chess-endgames-basic",
+  "version": 1,
+  "game": "chess",
+  "sha256": "a62a8fd6eeca692934ffcde709553989abb919f85c912033d2c54ef6b91d71c9",
+  "source": "Generated elementary chess endgames; no external position data",
+  "license": "CC0-1.0",
+  "count": 6
+}
