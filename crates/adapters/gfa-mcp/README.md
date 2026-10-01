@@ -30,4 +30,7 @@ Launch a local client with `gfa mcp --sqlite ./gfa.sqlite`. Standard output is r
 EOF and process signals stop MCP and background play, then close the database. The CLI bounds runtime shutdown because Tokio's stdin reader uses a blocking read that a client may leave open after a signal.
 
 
+`get_match_history` scans bounded pages of the trusted local user's database; follow `next` even when a game filter produces an empty page. `get_replay` returns paginated viewer-scoped events with canonical moves, visible reasoning, and control outcomes. It omits raw initial states and seeds, and preserves the service's rule that another seat's reasoning stays hidden during active play. A future multiuser host must restrict match history and access to its authenticated principal.
+
+
 `simulate_moves` returns compact final states for independent lines and the first illegal action in each line. `analyze_position` returns ranked recommendations with labeled provider advice and expected game returns kept separate from engine scores. Both use the host-selected seat, honor the match's stored assist permissions, and support historical turns without changing live state. Simulation usage is durably accounted by the service. Optional analysis budgets go through the same validated worker limits as REST.

@@ -3,6 +3,8 @@ mod planning;
 mod play;
 mod play_types;
 mod types;
+mod history;
+use history::{HistoryArgs, HistoryOutput, ReplayArgs, ReplayOutput};
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
@@ -51,6 +53,8 @@ impl McpServer {
             tool::<MatchArgs, StateOutput>("resign", "Concede the current match and read its final outcome. Example: resign({\"match_id\":\"MATCH_ID\"}).")?,
             tool::<SimulationArgs, Simulation>("simulate_moves", "Explore hypothetical continuations when match simulation is enabled; never applies moves. Example: simulate_moves({\"match_id\":\"MATCH_ID\",\"lines\":[[\"e2e4\",\"e7e5\"]]}).")?,
             tool::<AnalysisArgs, Analysis>("analyze_position", "Request engine recommendations only when match analysis is enabled. Example: analyze_position({\"match_id\":\"MATCH_ID\",\"nodes\":1000}).")?,
+            tool::<HistoryArgs, HistoryOutput>("get_match_history", "Find past matches in this trusted local host's database; follow next even for empty pages. Example: get_match_history({\"game_id\":\"chess\",\"limit\":10}).")?,
+            tool::<ReplayArgs, ReplayOutput>("get_replay", "Read recorded moves and visible reasoning in bounded pages. Example: get_replay({\"match_id\":\"MATCH_ID\",\"limit\":25}).")?,
         ]) })
     }
 
@@ -80,6 +84,8 @@ impl McpServer {
             "list_games" => self.games(arguments),
             "list_opponents" => self.opponents(arguments),
             "get_game_info" => self.info(arguments).await,
+            "get_match_history" => self.history_tool(arguments).await,
+            "get_replay" => self.replay_tool(arguments).await,
             "simulate_moves" => self.simulate_tool(arguments).await,
             "analyze_position" => self.analyze_tool(arguments).await,
             "create_match" | "get_state" | "get_legal_actions" | "make_move" | "resign" => {
