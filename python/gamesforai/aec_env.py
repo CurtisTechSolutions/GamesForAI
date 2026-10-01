@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import json
+import math
 from typing import Any
 
 import numpy as np
@@ -37,6 +38,14 @@ class AECGameEnv(AECEnv):
                 "action_mask": spaces.MultiBinary(self.native.action_space_size),
             })
         self.agents = []
+        self.rewards = {}
+        self._cumulative_rewards = {}
+        self.terminations = {}
+        self.truncations = {}
+        self.infos = {}
+        self.agent_selection = None
+        self._skip_agent_selection = None
+        self._initialized = False
         self._position_set = None
         self._position_id = None
         self._rng, _ = seeding.np_random(None)
@@ -74,6 +83,7 @@ class AECGameEnv(AECEnv):
         self.native, self._rng = candidate, rng
         self._position_set, self._position_id = dataset, position_id
         self.agents = self.possible_agents[:]
+        self._initialized = True
         self.rewards = {agent: 0.0 for agent in self.agents}
         self._cumulative_rewards = self.rewards.copy()
         terminated, truncated = self.native.flags()
@@ -110,6 +120,96 @@ class AECGameEnv(AECEnv):
 
     def close(self):
         pass
+
+    def get_state(self) -> dict[str, Any]:
+        """Private, JSON-compatible checkpoint including pending AEC rewards."""
+        return {
+            "version": 1,
+            "native": json.loads(self.native.get_state()),
+            "rng": copy.deepcopy(self._rng.bit_generator.state),
+            "curriculum": curriculum.checkpoint(self._position_set, self._position_id),
+            "initialized": self._initialized,
+            "agents": self.agents[:],
+            "agent_selection": self.agent_selection,
+            "skip_agent_selection": self._skip_agent_selection,
+            "rewards": self.rewards.copy(),
+            "cumulative_rewards": self._cumulative_rewards.copy(),
+            "terminations": self.terminations.copy(),
+            "truncations": self.truncations.copy(),
+        }
+
+    def set_state(self, state: dict[str, Any]) -> None:
+        """Validate a checkpoint completely before replacing any live state."""
+        required = {
+            "version", "native", "rng", "curriculum", "initialized", "agents",
+            "agent_selection", "skip_agent_selection", "rewards",
+            "cumulative_rewards", "terminations", "truncations",
+        }
+        if (
+            not isinstance(state, dict) or set(state) != required
+            or type(state["version"]) is not int or state["version"] != 1
+            or type(state["initialized"]) is not bool
+        ):
+            raise ValueError("incompatible AEC checkpoint")
+        agents = state["agents"]
+        if (
+            not isinstance(agents, list)
+            or any(not isinstance(agent, str) or agent not in self._seats for agent in agents)
+            or agents != [agent for agent in self.possible_agents if agent in agents]
+        ):
+            raise ValueError("invalid AEC checkpoint agents")
+        for field in ("rewards", "cumulative_rewards", "terminations", "truncations"):
+            values = state[field]
+            if not isinstance(values, dict) or set(values) != set(agents):
+                raise ValueError("invalid AEC checkpoint bookkeeping")
+            if field in ("terminations", "truncations"):
+                if any(type(value) is not bool for value in values.values()):
+                    raise ValueError("invalid AEC checkpoint flags")
+            elif any(
+                type(value) not in (int, float) or not math.isfinite(value)
+                for value in values.values()
+            ):
+                raise ValueError("invalid AEC checkpoint rewards")
+        selection, skip = state["agent_selection"], state["skip_agent_selection"]
+        if any(value is not None and value not in self.possible_agents for value in (selection, skip)):
+            raise ValueError("invalid AEC checkpoint turn")
+        candidate = self.native.clone()
+        candidate.set_state(json.dumps(state["native"]))
+        terminated, truncated = candidate.flags()
+        actors = candidate.current_players()
+        if not state["initialized"]:
+            if agents or selection is not None or skip is not None:
+                raise ValueError("uninitialized AEC checkpoint has live bookkeeping")
+        elif not terminated and not truncated:
+            if (
+                agents != self.possible_agents or len(actors) != 1
+                or selection != self.possible_agents[actors[0]] or skip is not None
+            ):
+                raise ValueError("AEC checkpoint turn does not match engine")
+        elif (agents and selection != agents[0]) or (not agents and skip is not None):
+            raise ValueError("invalid AEC checkpoint dead-agent order")
+        if any(value != terminated for value in state["terminations"].values()) or any(
+            value != truncated for value in state["truncations"].values()
+        ):
+            raise ValueError("AEC checkpoint flags do not match engine")
+        generator = np.random.default_rng()
+        generator.bit_generator.state = copy.deepcopy(state["rng"])
+        dataset, position_id = curriculum.restore(state["curriculum"], candidate)
+
+        # Derive information sets from the validated engine, never serialized infos.
+        restored = copy.copy(self)
+        restored.native = candidate
+        restored._rng = generator
+        restored._position_set, restored._position_id = dataset, position_id
+        restored._initialized = state["initialized"]
+        restored.agents = agents[:]
+        restored.agent_selection, restored._skip_agent_selection = selection, skip
+        restored.rewards = state["rewards"].copy()
+        restored._cumulative_rewards = state["cumulative_rewards"].copy()
+        restored.terminations = state["terminations"].copy()
+        restored.truncations = state["truncations"].copy()
+        restored._refresh_infos()
+        self.__dict__.update(restored.__dict__)
 
     def clone(self):
         """Independent native and AEC bookkeeping state for trusted local search."""
