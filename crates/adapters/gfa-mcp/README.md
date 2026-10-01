@@ -26,3 +26,6 @@ States contain the engine text board and sorted canonical action strings, withou
 
 
 `get_match_history` scans bounded pages of the trusted local user's database; follow `next` even when a game filter produces an empty page. `get_replay` returns paginated viewer-scoped events with canonical moves, visible reasoning, and control outcomes. It omits raw initial states and seeds, and preserves the service's rule that another seat's reasoning stays hidden during active play. A future multiuser host must restrict match history and access to its authenticated principal.
+
+
+The resource catalog lists each installed game's compact rules. URI templates expose `gfa://games/{game_id}/info` and `gfa://matches/{match_id}/{info,state,replay}` with the same host-authorized view as tools. Live resource results are private and immediately stale; no viewer override is accepted in a URI. Replay resources return the first 100 projected events plus a continuation cursor; use `get_replay` for later pages. `play_game(game_id)` embeds compact rules and the tool loop in a user-invoked MCP prompt. Live subscriptions are a separate implementation unit.

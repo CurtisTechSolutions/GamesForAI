@@ -2,6 +2,7 @@
 mod play;
 mod play_types;
 mod types;
+mod resources;
 mod history;
 use history::{HistoryArgs, HistoryOutput, ReplayArgs, ReplayOutput};
 use gfa_api_types::ApiError;
@@ -193,11 +194,29 @@ impl McpServer {
 }
 impl ServerHandler for McpServer {
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+        ServerConfig::new(ServerCapabilities::builder().enable_tools().enable_resources().enable_prompts().build())
             .with_server_info(Implementation::new("GamesForAI", env!("CARGO_PKG_VERSION")))
             .with_instructions(
                 "Read get_game_info before playing. Tool errors include recovery hints.",
             )
+    }
+    async fn list_resources(&self, request: Option<PaginatedRequestParams>, _: RequestContext<RoleServer>) -> Result<rmcp::model::ListResourcesResult, ErrorData> {
+        resources::no_cursor(request)?;
+        Ok(self.resources())
+    }
+    async fn list_resource_templates(&self, request: Option<PaginatedRequestParams>, _: RequestContext<RoleServer>) -> Result<rmcp::model::ListResourceTemplatesResult, ErrorData> {
+        resources::no_cursor(request)?;
+        Ok(self.templates())
+    }
+    async fn read_resource(&self, request: rmcp::model::ReadResourceRequestParams, _: RequestContext<RoleServer>) -> Result<rmcp::model::ReadResourceResponse, ErrorData> {
+        self.resource(&request.uri).await.map(Into::into)
+    }
+    async fn list_prompts(&self, request: Option<PaginatedRequestParams>, _: RequestContext<RoleServer>) -> Result<rmcp::model::ListPromptsResult, ErrorData> {
+        resources::no_cursor(request)?;
+        Ok(self.prompts())
+    }
+    async fn get_prompt(&self, request: rmcp::model::GetPromptRequestParams, _: RequestContext<RoleServer>) -> Result<rmcp::model::GetPromptResponse, ErrorData> {
+        self.play_prompt(&request.name,Value::Object(request.arguments.unwrap_or_default())).map(Into::into)
     }
     fn get_tool(&self, name: &str) -> Option<Tool> {
         self.tools.iter().find(|tool| tool.name == name).cloned()

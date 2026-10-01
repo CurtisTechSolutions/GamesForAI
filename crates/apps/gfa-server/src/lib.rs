@@ -242,3 +242,6 @@ mod mcp_play_tests;
 
 #[cfg(test)]
 mod mcp_history_tests;
+
+#[cfg(test)]
+mod mcp_resource_tests;
