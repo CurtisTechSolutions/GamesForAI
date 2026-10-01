@@ -189,7 +189,8 @@ class GameEnv(gym.Env):
     def get_state(self) -> dict[str, Any]:
         """Trusted checkpoint containing private engine state and environment RNG."""
         return {
-            "version": 2,
+            "version": 3,
+            "opponent": self.opponent if isinstance(self.opponent, str) else "python",
             "seat": self.seat,
             "native": json.loads(self.native.get_state()),
             "rng": copy.deepcopy(self.np_random.bit_generator.state),
@@ -200,11 +201,26 @@ class GameEnv(gym.Env):
 
     def set_state(self, state: dict[str, Any]) -> None:
         """Atomically restore this wrapper; external policy state is not included."""
-        required = {"version", "seat", "native", "rng", "rng_seed", "needs_reset"}
-        if state.get("version") == 2:
-            required.add("curriculum")
-        if set(state) != required or state["version"] not in (1, 2) or state["seat"] != self.seat:
+        if not isinstance(state, dict) or type(state.get("version")) is not int:
             raise ValueError("incompatible environment checkpoint")
+        version = state["version"]
+        required = {"version", "seat", "native", "rng", "rng_seed", "needs_reset"}
+        if version in (2, 3):
+            required.add("curriculum")
+        if version == 3:
+            required.add("opponent")
+        if (
+            set(state) != required or version not in (1, 2, 3)
+            or type(state["seat"]) is not int or state["seat"] != self.seat
+            or type(state["rng_seed"]) is not int or state["rng_seed"] < -1
+        ):
+            raise ValueError("incompatible environment checkpoint")
+        identity = self.opponent if isinstance(self.opponent, str) else "python"
+        # Old checkpoints did not bind an opponent; their original default was random.
+        if (version == 3 and state["opponent"] != identity) or (
+            version < 3 and identity != "random"
+        ):
+            raise ValueError("checkpoint opponent differs from this environment")
         if not isinstance(state["needs_reset"], bool):
             raise ValueError("invalid checkpoint episode flag")
         candidate = self.native.clone()

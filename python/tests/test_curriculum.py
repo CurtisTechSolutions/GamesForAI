@@ -57,6 +57,7 @@ def test_older_gym_checkpoints_remain_loadable():
     snapshot = env.get_state()
     snapshot["version"] = 1
     del snapshot["curriculum"]
+    del snapshot["opponent"]
     env.set_state(snapshot)
     assert env.get_state()["native"] == snapshot["native"]
 
