@@ -105,6 +105,12 @@ Use `env.reset(seed=42, options={"position_set": "chess-endgames-basic@1"})` wit
 
 `info["curriculum"]` records only the set ID, content hash, and selected position ID. Expected puzzle answers are excluded. Gymnasium checkpoints include the pinned dataset and RNG continuation; AEC clones preserve both. Invalid selections, imported positions, and failed opponent openings preserve environment and RNG state. A caller-owned opponent model must manage its own mutable state.
 
+## Built-in training opponents
+
+Use `make("connect4", opponent="minimax:3")` or `opponent="mcts:3"` for the native built-in search algorithms at levels 1–10. Training uses fixed node/depth budgets and RNG seeds, so choices do not depend on machine speed. Search reconstructs a planning state from the opponent seat’s observation and never mutates the live environment. Gymnasium checkpoints preserve the opponent seed stream. These are the existing provisional resource levels; their playing strength has not yet been calibrated.
+
+For an independent native environment, `builtin_action(seat, algorithm, level, seed)` returns a legal index without stepping it. Search supports the same perfect-information sequential games as the shared opponent implementation. External Stockfish training integration is a separate adapter.
+
 ## Your own HTTP model
 
 ```python

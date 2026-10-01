@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import copy
 import json
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -37,12 +38,24 @@ class GameEnv(gym.Env):
     ) -> None:
         if render_mode not in (None, "ansi"):
             raise ValueError("render_mode must be None or 'ansi'")
-        if opponent != "random" and not callable(opponent):
-            raise ValueError("opponent must be 'random' or a Python policy callable")
+        self._builtin = None
+        if isinstance(opponent, str) and opponent != "random":
+            match = re.fullmatch(r"(minimax|mcts):([1-9]|10)", opponent)
+            if not match:
+                raise ValueError("opponent must be random, minimax:1..10, mcts:1..10, or a callable")
+            self._builtin = match[1], int(match[2])
+        elif opponent != "random" and not callable(opponent):
+            raise ValueError("opponent must be a supported name or Python policy callable")
         self.native = NativeEnv(game, json.dumps(config or {}))
         if isinstance(seat, bool) or not isinstance(seat, int) or not 0 <= seat < self.native.num_players:
             raise ValueError("seat is outside this game's player range")
         self._spec = json.loads(self.native.spec_json())
+        if self._builtin and (
+            self._spec["information"] != "perfect" or self._spec["stochastic"]
+            or self._spec["turn_structure"] != "sequential"
+            or (self._builtin[0] == "minimax" and self._spec["num_players"] != [2, 2])
+        ):
+            raise ValueError("builtin search does not support this game")
         self.seat = seat
         self.opponent = opponent
         self.render_mode = render_mode
@@ -83,7 +96,11 @@ class GameEnv(gym.Env):
             if seat == self.seat:
                 break
             observation, info = self._frame(seat)
-            if callable(self.opponent):
+            if self._builtin:
+                algorithm, level = self._builtin
+                seed = int(self.np_random.integers(0, 2**64, dtype=np.uint64))
+                action = self.native.builtin_action(seat, algorithm, level, seed)
+            elif callable(self.opponent):
                 action = self.opponent(observation, info)
                 if isinstance(action, (bool, np.bool_)) or not isinstance(action, (int, np.integer)):
                     raise ValueError("opponent policy must return an integer action index")
@@ -146,6 +163,12 @@ class GameEnv(gym.Env):
         self._needs_reset = terminated or truncated
         observation, info = self._frame(self.seat)
         return observation, float(reward), terminated, truncated, info
+
+    def action_masks(self) -> np.ndarray:
+        """Boolean legal-action mask used by MaskablePPO and other trainers."""
+        if self._needs_reset:
+            raise ResetNeeded("Call reset before requesting an active policy mask")
+        return self.native.action_mask(self.seat)
 
     def render(self) -> str:
         return self.native.frame(self.seat)["text"]
