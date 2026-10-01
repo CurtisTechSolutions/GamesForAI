@@ -114,8 +114,11 @@ impl<G: Game> Env<G> {
     pub fn action_mask(&self, player: PlayerId) -> Result<Vec<bool>, GameError> {
         let mut mask = vec![false; self.action_space_size as usize];
         for action in self.legal_actions(player)? {
-            let slot = mask.get_mut(G::action_to_index(&action) as usize)
-                .ok_or_else(|| GameError::illegal("Engine action index exceeds its declared space"))?;
+            let slot = mask
+                .get_mut(G::action_to_index(&action) as usize)
+                .ok_or_else(|| {
+                    GameError::illegal("Engine action index exceeds its declared space")
+                })?;
             *slot = true;
         }
         Ok(mask)
@@ -135,7 +138,11 @@ impl<G: Game> Env<G> {
         let events = G::apply(&mut self.state, player, action)?;
         let after = G::returns(&self.state);
         // Games guarantee finite returns in stable seat order.
-        let rewards = after.iter().zip(before).map(|(after, before)| after - before).collect();
+        let rewards = after
+            .iter()
+            .zip(before)
+            .map(|(after, before)| after - before)
+            .collect();
         Ok(EnvStep {
             rewards,
             terminated: self.terminated(),
@@ -182,7 +189,9 @@ impl<G: Game> Env<G> {
             || snapshot.engine_version != spec.engine_version
             || snapshot.config != serde_json::to_value(self.config.as_ref())?
         {
-            return Err(GameError::position("Training checkpoint does not match this environment"));
+            return Err(GameError::position(
+                "Training checkpoint does not match this environment",
+            ));
         }
         let state: G::State = serde_json::from_value(snapshot.state.clone())?;
         G::validate_state(&state)?;

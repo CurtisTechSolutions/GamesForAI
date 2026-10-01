@@ -14,7 +14,10 @@ fn native_episode_masks_rewards_and_state_restore() -> Result<(), GameError> {
     let mut clone = env.clone();
     clone.step_string(1, "r3c3")?;
     assert_ne!(clone.get_state()?, env.get_state()?);
-    let error = env.step_string(1, "r1c1").err().ok_or_else(|| GameError::illegal("expected rejection"))?;
+    let error = env
+        .step_string(1, "r1c1")
+        .err()
+        .ok_or_else(|| GameError::illegal("expected rejection"))?;
     assert_eq!(error.code, ErrorCode::IllegalAction);
     assert_eq!(env.get_state()?, saved);
     for _ in 0..2 {
@@ -39,7 +42,10 @@ fn native_episode_masks_rewards_and_state_restore() -> Result<(), GameError> {
 
 #[test]
 fn capped_chess_checkpoint_restores_truncation_and_rejects_wrong_config() -> Result<(), GameError> {
-    let config = ChessConfig { max_plies: 1, ..ChessConfig::default() };
+    let config = ChessConfig {
+        max_plies: 1,
+        ..ChessConfig::default()
+    };
     let mut env = Env::<ChessGame>::with_config(config, 0)?;
     let step = env.step_string(0, "e2e4")?;
     assert!(step.truncated);
@@ -54,7 +60,10 @@ fn capped_chess_checkpoint_restores_truncation_and_rejects_wrong_config() -> Res
     assert!(env.current_players().is_empty());
     let mut different = Env::<ChessGame>::new(0)?;
     assert!(different.set_state(&saved).is_err());
-    assert_eq!(different.get_state()?, Env::<ChessGame>::new(0)?.get_state()?);
+    assert_eq!(
+        different.get_state()?,
+        Env::<ChessGame>::new(0)?.get_state()?
+    );
     Ok(())
 }
 
@@ -63,10 +72,22 @@ fn checkpoint_metadata_and_state_are_validated_atomically() -> Result<(), GameEr
     let mut env = Env::<TicTacToe>::new(0)?;
     let saved = env.get_state()?;
     let invalid = [
-        EnvSnapshot { format_version: 255, ..saved.clone() },
-        EnvSnapshot { game_id: "chess".into(), ..saved.clone() },
-        EnvSnapshot { engine_version: "unknown".into(), ..saved.clone() },
-        EnvSnapshot { state: serde_json::json!({"invalid":true}), ..saved.clone() },
+        EnvSnapshot {
+            format_version: 255,
+            ..saved.clone()
+        },
+        EnvSnapshot {
+            game_id: "chess".into(),
+            ..saved.clone()
+        },
+        EnvSnapshot {
+            engine_version: "unknown".into(),
+            ..saved.clone()
+        },
+        EnvSnapshot {
+            state: serde_json::json!({"invalid":true}),
+            ..saved.clone()
+        },
     ];
     for snapshot in invalid {
         assert!(env.set_state(&snapshot).is_err());
@@ -79,7 +100,11 @@ fn checkpoint_metadata_and_state_are_validated_atomically() -> Result<(), GameEr
 
 #[test]
 fn seeded_sudoku_checkpoints_and_position_resets_preserve_the_puzzle() -> Result<(), GameError> {
-    let config = SudokuConfig { size: 4, max_moves: Some(2), ..SudokuConfig::default() };
+    let config = SudokuConfig {
+        size: 4,
+        max_moves: Some(2),
+        ..SudokuConfig::default()
+    };
     let mut env = Env::<Sudoku>::with_config(config.clone(), 17)?;
     let saved = env.get_state()?;
     let encoded = serde_json::to_string(&saved)?;
@@ -87,7 +112,10 @@ fn seeded_sudoku_checkpoints_and_position_resets_preserve_the_puzzle() -> Result
     let position = Sudoku::state_to_notation(env.state())?;
     env.reset(999, Some(&position))?;
     assert_eq!(env.get_state()?, saved);
-    let action = env.legal_actions(0)?.into_iter().find(|action| matches!(action, gfa_game_sudoku::Action::Place { .. }))
+    let action = env
+        .legal_actions(0)?
+        .into_iter()
+        .find(|action| matches!(action, gfa_game_sudoku::Action::Place { .. }))
         .ok_or_else(|| GameError::illegal("missing placement"))?;
     env.step(0, &action)?;
     let continued = env.get_state()?;
@@ -99,6 +127,9 @@ fn seeded_sudoku_checkpoints_and_position_resets_preserve_the_puzzle() -> Result
         Sudoku::observe(env.state(), Viewer::Player(0))
     );
     env.reset(17, None)?;
-    assert_eq!(env.get_state()?, Env::<Sudoku>::with_config(config, 17)?.get_state()?);
+    assert_eq!(
+        env.get_state()?,
+        Env::<Sudoku>::with_config(config, 17)?.get_state()?
+    );
     Ok(())
 }
