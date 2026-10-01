@@ -34,11 +34,19 @@ export class ApiError extends Error {
     public readonly status: number,
     public readonly details: unknown,
   ) {
-    const error = object(details) && object(details.error) ? details.error : null;
-    super(typeof error?.message === "string" ? error.message : `GamesForAI request failed (${status})`);
+    const error =
+      object(details) && object(details.error) ? details.error : null;
+    super(
+      typeof error?.message === "string"
+        ? error.message
+        : `GamesForAI request failed (${status})`,
+    );
     this.name = "ApiError";
     this.code = typeof error?.code === "string" ? error.code : "REQUEST_FAILED";
-    this.hint = typeof error?.hint === "string" ? error.hint : "Check the connection and try again.";
+    this.hint =
+      typeof error?.hint === "string"
+        ? error.hint
+        : "Check the connection and try again.";
   }
 }
 
@@ -78,7 +86,11 @@ export class ApiClient {
     if (!path.startsWith("/v1/") || path.includes("\\")) {
       throw new Error("Expected a versioned API path");
     }
-    if (init.body && (typeof init.body !== "string" || new TextEncoder().encode(init.body).length > 65536)) {
+    if (
+      init.body &&
+      (typeof init.body !== "string" ||
+        new TextEncoder().encode(init.body).length > 65536)
+    ) {
       throw new Error("API JSON body exceeds 64 KiB");
     }
     const controller = new AbortController();
@@ -90,13 +102,21 @@ export class ApiClient {
       const headers = new Headers(init.headers);
       headers.set("Content-Type", "application/json");
       const response = await fetch(this.baseUrl + path, {
-        ...init, signal: controller.signal, headers,
-        cache: "no-store", credentials: "same-origin", redirect: "error",
+        ...init,
+        signal: controller.signal,
+        headers,
+        cache: "no-store",
+        credentials: "same-origin",
+        redirect: "error",
       });
       const text = await boundedText(response);
       if (!response.ok) {
         let body: unknown = null;
-        try { body = JSON.parse(text); } catch { /* Non-JSON server failure. */ }
+        try {
+          body = JSON.parse(text);
+        } catch {
+          /* Non-JSON server failure. */
+        }
         throw new ApiError(response.status, body);
       }
       return text;
@@ -108,13 +128,22 @@ export class ApiClient {
 
   async request<T>(path: string, init?: RequestInit): Promise<T> {
     const text = await this.send(path, init);
-    try { return JSON.parse(text) as T; }
-    catch { throw new ApiError(502, { error: { code: "INVALID_RESPONSE", message: "The server returned invalid JSON." } }); }
+    try {
+      return JSON.parse(text) as T;
+    } catch {
+      throw new ApiError(502, {
+        error: {
+          code: "INVALID_RESPONSE",
+          message: "The server returned invalid JSON.",
+        },
+      });
+    }
   }
 
   private post<T>(path: string, body: unknown, key?: string) {
     return this.request<T>(path, {
-      method: "POST", body: JSON.stringify(body),
+      method: "POST",
+      body: JSON.stringify(body),
       headers: key ? { "Idempotency-Key": key } : undefined,
     });
   }
@@ -123,52 +152,120 @@ export class ApiClient {
     return this.request<GameSpec[]>("/v1/games", { signal });
   }
   game(id: string, signal?: AbortSignal) {
-    return this.request<GameSpec>("/v1/games/" + encodeURIComponent(id), { signal });
+    return this.request<GameSpec>("/v1/games/" + encodeURIComponent(id), {
+      signal,
+    });
   }
   info(game: string, signal?: AbortSignal) {
-    return this.request<Briefing>(query("/v1/games/" + encodeURIComponent(game) + "/info", { detail: "full" }), { signal });
+    return this.request<Briefing>(
+      query("/v1/games/" + encodeURIComponent(game) + "/info", {
+        detail: "full",
+      }),
+      { signal },
+    );
   }
   prompt(game: string, signal?: AbortSignal) {
-    return this.send(query("/v1/games/" + encodeURIComponent(game) + "/info", { format: "markdown", detail: "full" }), { signal });
+    return this.send(
+      query("/v1/games/" + encodeURIComponent(game) + "/info", {
+        format: "markdown",
+        detail: "full",
+      }),
+      { signal },
+    );
   }
   opponents(game: string, signal?: AbortSignal) {
-    return this.request<OpponentSpec[]>("/v1/games/" + encodeURIComponent(game) + "/opponents", { signal });
+    return this.request<OpponentSpec[]>(
+      "/v1/games/" + encodeURIComponent(game) + "/opponents",
+      { signal },
+    );
   }
   create(body: Schemas["CreateMatch"], seat = 0) {
-    if (body.seed !== undefined && body.seed !== null && !Number.isSafeInteger(body.seed)) {
+    if (
+      body.seed !== undefined &&
+      body.seed !== null &&
+      !Number.isSafeInteger(body.seed)
+    ) {
       throw new Error("The browser requires an exact safe-integer seed.");
     }
     return this.post<CreatedMatch>(query("/v1/matches", { seat }), body);
   }
   metadata(id: string, signal?: AbortSignal) {
-    return this.request<MatchMetadata>("/v1/matches/" + encodeURIComponent(id), { signal });
+    return this.request<MatchMetadata>(
+      "/v1/matches/" + encodeURIComponent(id),
+      { signal },
+    );
   }
   state(id: string, seat?: number, signal?: AbortSignal) {
-    return this.request<MatchState>(query("/v1/matches/" + encodeURIComponent(id) + "/state", { seat }), { signal });
+    return this.request<MatchState>(
+      query("/v1/matches/" + encodeURIComponent(id) + "/state", { seat }),
+      { signal },
+    );
   }
   move(id: string, body: Schemas["MoveRequest"], key = crypto.randomUUID()) {
-    return this.post<Schemas["MoveResult"]>("/v1/matches/" + encodeURIComponent(id) + "/actions", body, key);
+    return this.post<Schemas["MoveResult"]>(
+      "/v1/matches/" + encodeURIComponent(id) + "/actions",
+      body,
+      key,
+    );
   }
   history(filters: Query = {}, signal?: AbortSignal) {
-    return this.request<MatchHistory>(query("/v1/matches", filters), { signal });
+    return this.request<MatchHistory>(query("/v1/matches", filters), {
+      signal,
+    });
   }
-  events(id: string, seat?: number, after?: number, signal?: AbortSignal) {
-    return this.request<Schemas["EventPage"]>(query("/v1/matches/" + encodeURIComponent(id) + "/events", { seat, after }), { signal });
+  events(
+    id: string,
+    seat?: number,
+    since?: number,
+    signal?: AbortSignal,
+    limit?: number,
+  ) {
+    return this.request<Schemas["EventPage"]>(
+      query("/v1/matches/" + encodeURIComponent(id) + "/events", {
+        seat,
+        since,
+        limit,
+      }),
+      { signal },
+    );
   }
   replay(id: string, seat?: number, signal?: AbortSignal) {
-    return this.request<Replay>(query("/v1/matches/" + encodeURIComponent(id) + "/replay", { seat }), { signal });
+    return this.request<Replay>(
+      query("/v1/matches/" + encodeURIComponent(id) + "/replay", { seat }),
+      { signal },
+    );
   }
   fork(id: string, body: Schemas["ForkMatch"], seat = 0) {
-    return this.post<CreatedMatch>(query("/v1/matches/" + encodeURIComponent(id) + "/fork", { seat }), body);
+    return this.post<CreatedMatch>(
+      query("/v1/matches/" + encodeURIComponent(id) + "/fork", { seat }),
+      body,
+    );
   }
-  control(id: string, kind: "resign" | "offer-draw", body: Schemas["ControlRequest"], key = crypto.randomUUID()) {
-    return this.post<MatchState>("/v1/matches/" + encodeURIComponent(id) + "/" + kind, body, key);
+  control(
+    id: string,
+    kind: "resign" | "offer-draw",
+    body: Schemas["ControlRequest"],
+    key = crypto.randomUUID(),
+  ) {
+    return this.post<MatchState>(
+      "/v1/matches/" + encodeURIComponent(id) + "/" + kind,
+      body,
+      key,
+    );
   }
   analyze(body: Schemas["AnalysisRequest"], seat: number) {
-    return this.post<Schemas["AnalysisResult"]>(query("/v1/analysis", { seat }), body);
+    return this.post<Schemas["AnalysisResult"]>(
+      query("/v1/analysis", { seat }),
+      body,
+    );
   }
   validate(game: string, body: Schemas["ValidatePosition"], seat = 0) {
-    return this.post<Schemas["ValidatedPosition"]>(query("/v1/games/" + encodeURIComponent(game) + "/positions/validate", { seat }), body);
+    return this.post<Schemas["ValidatedPosition"]>(
+      query("/v1/games/" + encodeURIComponent(game) + "/positions/validate", {
+        seat,
+      }),
+      body,
+    );
   }
 
   /** Read-only stream. Disposal closes the socket and cancels reconnect timers. */
@@ -182,22 +279,42 @@ export class ApiClient {
     let socket: WebSocket | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let delay = 500;
-    const path = query("/v1/matches/" + encodeURIComponent(id) + "/stream", { seat });
+    const path = query("/v1/matches/" + encodeURIComponent(id) + "/stream", {
+      seat,
+    });
     const url = new URL(this.baseUrl + path, window.location.href);
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const open = () => {
       if (stopped) return;
       status(delay === 500 ? "connecting" : "reconnecting");
       socket = new WebSocket(url);
-      socket.onopen = () => { delay = 500; status("live"); };
+      socket.onopen = () => {
+        delay = 500;
+        status("live");
+      };
       socket.onmessage = (event) => {
         try {
-          if (typeof event.data !== "string" || event.data.length > 16 * 1024 * 1024) throw new Error("Invalid stream frame");
+          if (
+            typeof event.data !== "string" ||
+            event.data.length > 16 * 1024 * 1024
+          )
+            throw new Error("Invalid stream frame");
           const message: unknown = JSON.parse(event.data);
-          if (!object(message) || message.type !== "state" || !object(message.state)) throw new Error("Stream closed");
-          if (message.state.match_id !== id || !Number.isSafeInteger(message.state.turn)) throw new Error("Wrong stream state");
+          if (
+            !object(message) ||
+            message.type !== "state" ||
+            !object(message.state)
+          )
+            throw new Error("Stream closed");
+          if (
+            message.state.match_id !== id ||
+            !Number.isSafeInteger(message.state.turn)
+          )
+            throw new Error("Wrong stream state");
           receive(message.state as MatchState);
-        } catch { socket?.close(); }
+        } catch {
+          socket?.close();
+        }
       };
       socket.onclose = () => {
         if (stopped) return;

@@ -19,13 +19,14 @@ class VectorEnv:
     per seat. Finished rows receive None actions until explicitly reset.
     """
 
-    def __init__(self, game, n, *, config=None, seed=0, threads=0):
+    def __init__(self, game, n, *, config=None, seed=0, threads=0,
+                 _native_factory=NativeVectorEnv, _prototype_factory=NativeEnv):
         config_json = json.dumps(config or {})
-        self.native = NativeVectorEnv(game, n, config_json, seed, threads)
+        self.native = _native_factory(game, n, config_json, seed, threads)
         self.n = self.native.n
         self.num_players = self.native.num_players
         self.action_space_size = self.native.action_space_size
-        self._prototype = NativeEnv(game, config_json)
+        self._prototype = _prototype_factory(game, config_json)
         self._curricula = [(None, None)] * self.n
 
     @property

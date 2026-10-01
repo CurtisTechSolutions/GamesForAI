@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 import numpy as np
-from gamesforai import NativeEnv, connect, make
+from gamesforai import NativeEnv, VectorEnv, connect, make
 
 with tempfile.TemporaryDirectory() as directory:
     process = subprocess.Popen([
@@ -46,6 +46,17 @@ with tempfile.TemporaryDirectory() as directory:
                 a, b = remote.step(action), local.step(action)
                 np.testing.assert_array_equal(a[0], b[0])
                 assert a[1:4] == b[1:4]
+        remote_batch = client.vector("connect4", 65, seed=31, batch_size=32)
+        local_batch = VectorEnv("connect4", 65, seed=31)
+        for _ in range(4):
+            left = remote_batch.step([3] * 65)
+            right = local_batch.step([3] * 65)
+            for key in left:
+                np.testing.assert_array_equal(left[key], right[key])
+        checkpoints = remote_batch.get_state()
+        remote_batch.reset_at([0, 64], [77, 88])
+        remote_batch.set_state(checkpoints)
+        assert remote_batch.get_state() == checkpoints
         env = client.aec("tictactoe")
         env.reset(seed=0)
         checkpoint = env.get_state()

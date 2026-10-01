@@ -16,11 +16,18 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
-  webServer: {
+  webServer: [{
     command: `target/debug/gfa serve --sqlite "${join(directory, "matches.sqlite")}" --port 18080`,
     url: "http://127.0.0.1:18080/healthz",
     timeout: 30000,
     reuseExistingServer: false,
     gracefulShutdown: { signal: "SIGTERM", timeout: 10000 },
-  },
+  }, {
+    command: "pnpm --filter @gfa/site dev --port 18081",
+    url: "http://127.0.0.1:18081",
+    env: { GFA_API_TARGET: "http://127.0.0.1:18080" },
+    timeout: 30000,
+    reuseExistingServer: false,
+    gracefulShutdown: { signal: "SIGTERM", timeout: 10000 },
+  }],
 });
