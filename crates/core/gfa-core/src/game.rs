@@ -105,6 +105,11 @@ pub trait Game: Send + Sync + 'static {
     fn returns(state: &Self::State) -> Vec<f64>;
     /// Project state into the viewer's information set.
     fn observe(state: &Self::State, viewer: Viewer) -> Observation;
+    /// Numeric-only projection for training. It must match observe().tensor for
+    /// the same viewer. Override to avoid constructing text and JSON boards.
+    fn observe_tensor(state: &Self::State, viewer: Viewer) -> Option<crate::Tensor> {
+        Self::observe(state, viewer).tensor
+    }
     /// Encode an action into canonical notation.
     fn action_to_string(state: &Self::State, action: &Self::Action) -> String;
     /// Parse canonical notation; legality is checked separately by apply.

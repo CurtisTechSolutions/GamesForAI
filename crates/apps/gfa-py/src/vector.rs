@@ -48,8 +48,7 @@ impl NativeVectorEnv {
                         |seats| seats[index],
                     );
                     let tensor = env
-                        .observe(Viewer::Player(seat))?
-                        .tensor
+                        .observe_tensor(Viewer::Player(seat))?
                         .ok_or_else(|| GameError::position("Game has no numeric observation"))?;
                     if tensor.shape != self.shape {
                         return Err(GameError::position(
@@ -164,9 +163,8 @@ impl NativeVectorEnv {
             .map_err(error)?;
         let first = &envs[0];
         let tensor = py
-            .detach(|| first.observe(Viewer::Player(0)))
+            .detach(|| first.observe_tensor(Viewer::Player(0)))
             .map_err(error)?
-            .tensor
             .ok_or_else(|| error("Game has no numeric observation"))?;
         let action_space_size = first.spec().action_space_size as usize;
         let num_players = first.returns().len();

@@ -265,7 +265,7 @@ impl Game for Connect4 {
         }
     }
 
-    fn observe(state: &State, _: Viewer) -> Observation {
+    fn observe(state: &State, viewer: Viewer) -> Observation {
         let mut rows = Vec::new();
         let mut text = String::from("   1 2 3 4 5 6 7\n");
         for row in (0..6).rev() {
@@ -304,30 +304,31 @@ impl Game for Connect4 {
         } else {
             "Yellow to move (seat 1)."
         });
-        let values = (0..3)
-            .flat_map(|plane| {
-                rows.iter().flatten().map(move |cell| {
-                    if plane == 2 {
-                        f32::from(state.to_move)
-                    } else if *cell == Some(plane as PlayerId) {
-                        1.0
-                    } else {
-                        0.0
-                    }
-                })
-            })
-            .collect();
         Observation {
             text,
             json: serde_json::json!(Board {
                 rows,
                 to_move: state.to_move
             }),
-            tensor: Some(Tensor {
-                shape: vec![3, 6, 7],
-                values,
-            }),
+            tensor: Self::observe_tensor(state, viewer),
         }
+    }
+
+    fn observe_tensor(state: &State, _: Viewer) -> Option<Tensor> {
+        let mut values = vec![0.0; 126];
+        for row in 0..6 {
+            for col in 0..7 {
+                let bit = 1_u64 << (col * 7 + 5 - row);
+                let index = row * 7 + col;
+                values[index] = f32::from(state.boards[0] & bit != 0);
+                values[42 + index] = f32::from(state.boards[1] & bit != 0);
+                values[84 + index] = f32::from(state.to_move);
+            }
+        }
+        Some(Tensor {
+            shape: vec![3, 6, 7],
+            values,
+        })
     }
 
     fn action_to_string(_: &State, action: &Action) -> String {
@@ -386,6 +387,52 @@ impl Game for Connect4 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn numeric_projection_matches_public_board_through_complete_games() -> Result<(), GameError> {
+        for seed in 0..16 {
+            let mut state = Connect4::new_initial_state(&Config {}, seed)?;
+            let mut rng = gfa_core::SeededRng::new(seed);
+            loop {
+                let board: Board =
+                    serde_json::from_value(Connect4::observe(&state, Viewer::Spectator).json)?;
+                for viewer in [
+                    Viewer::Player(0),
+                    Viewer::Player(1),
+                    Viewer::Spectator,
+                    Viewer::Omniscient,
+                ] {
+                    let tensor = Connect4::observe_tensor(&state, viewer)
+                        .ok_or_else(|| GameError::position("missing tensor"))?;
+                    assert_eq!(tensor.shape, vec![3, 6, 7]);
+                    for row in 0..6 {
+                        for col in 0..7 {
+                            let index = row * 7 + col;
+                            assert_eq!(
+                                tensor.values[index],
+                                f32::from(board.rows[row][col] == Some(0))
+                            );
+                            assert_eq!(
+                                tensor.values[42 + index],
+                                f32::from(board.rows[row][col] == Some(1))
+                            );
+                            assert_eq!(tensor.values[84 + index], f32::from(board.to_move));
+                        }
+                    }
+                }
+                if Connect4::is_terminal(&state) {
+                    break;
+                }
+                let seat = state.to_move;
+                let actions = Connect4::legal_actions(&state, seat);
+                let index = rng
+                    .index(actions.len())
+                    .ok_or_else(|| GameError::illegal("missing move"))?;
+                Connect4::apply(&mut state, seat, &actions[index])?;
+            }
+        }
+        Ok(())
+    }
 
     #[test]
     fn conforms() -> Result<(), Box<dyn std::error::Error>> {
