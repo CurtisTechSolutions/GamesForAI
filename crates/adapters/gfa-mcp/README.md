@@ -40,3 +40,6 @@ The resource catalog lists each installed game's compact rules. URI templates ex
 
 
 Compact match briefings use the same text-board and canonical-move state as `get_state` across creation, `get_game_info`, and the match info resource. Full-detail tool briefings retain the service's full observation for clients that explicitly request it.
+
+
+`gfa serve` also serves streamable MCP at `/mcp` on the same loopback listener. `--mcp-seat 1` selects a player and `--mcp-spectator` selects read-only access; seat 0 is the default. This remains single-user local mode and shares REST's strict peer, Host, Origin, and response-header policy. SDK request bodies are limited to 64 KiB. Transport responses are stateless JSON when possible, with SDK protocol negotiation for legacy and current clients. No legacy session table is retained. Shutdown cancels SDK streams before HTTP drains. rmcp's streamable HTTP feature supplies protocol handling and SSE framing rather than a separate RPC implementation.
