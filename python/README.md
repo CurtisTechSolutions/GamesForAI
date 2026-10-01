@@ -98,3 +98,9 @@ of numeric output per batch. Throughput still needs measurement against the PRD 
 ## Readable actions for model policies
 
 Native frames include `legal_actions` as `(index, canonical_notation)` pairs in stable notation order. Gymnasium info includes the same catalog plus the game ID, rules, and action notation for learner and opponent policies. The catalog contains only actions available to that seat and matches its numeric mask. `NativeEnv.spec_json()` returns the static game contract. Vector batches keep their numeric-only output.
+
+## Built-in training opponents
+
+Use `make("connect4", opponent="minimax:3")` or `opponent="mcts:3"` for the native built-in search algorithms at levels 1–10. Training uses fixed node/depth budgets and RNG seeds, so choices do not depend on machine speed. Search reconstructs a planning state from the opponent seat’s observation and never mutates the live environment. Gymnasium checkpoints preserve the opponent seed stream. These are the existing provisional resource levels; their playing strength has not yet been calibrated.
+
+For an independent native environment, `builtin_action(seat, algorithm, level, seed)` returns a legal index without stepping it. Search supports the same perfect-information sequential games as the shared opponent implementation. External Stockfish training integration is a separate adapter.

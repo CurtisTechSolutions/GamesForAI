@@ -52,7 +52,7 @@ fn search(
     if !budget.enter() {
         return Ok(None);
     }
-    if depth == 0 || game.is_terminal(state)? {
+    if depth == 0 || game.is_terminal(state)? || game.is_truncated(state)? {
         return Ok(Some((payoff(game, state, root)?, vec![])));
     }
     let seat = actor(game, state)?;

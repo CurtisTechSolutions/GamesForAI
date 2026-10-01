@@ -13,6 +13,7 @@ fn error(error: impl std::fmt::Display) -> PyErr {
 #[pyclass(module = "gamesforai._native")]
 struct NativeEnv {
     inner: Box<dyn TrainingEnv>,
+    config: serde_json::Value,
     #[pyo3(get)]
     game_id: String,
     #[pyo3(get)]
@@ -36,6 +37,7 @@ impl NativeEnv {
             action_space_size: inner.spec().action_space_size,
             num_players: inner.returns().len(),
             game_id: game_id.into(),
+            config,
             inner,
         })
     }
@@ -63,6 +65,30 @@ impl NativeEnv {
             .detach(|| self.inner.step_string(seat, action))
             .map_err(error)?;
         Ok((step.rewards, step.terminated, step.truncated))
+    }
+
+    fn builtin_action(&self, py: Python<'_>, seat: u8, algorithm: &str, level: u8, seed: u64) -> PyResult<u32> {
+        use gfa_opponents::{Algorithm, Opponent, PlayerTurn, SearchLimits, SearchOpponent};
+        // Fixed node/depth budgets make training independent of machine speed.
+        struct NodeClock;
+        impl gfa_core::Clock for NodeClock {
+            fn now_ms(&self) -> u64 { 0 }
+        }
+        let algorithm = match algorithm {
+            "minimax" => Algorithm::Minimax,
+            "mcts" => Algorithm::Mcts,
+            _ => return Err(error("builtin algorithm must be minimax or mcts")),
+        };
+        py.detach(|| {
+            let limits = SearchLimits::for_level(level, seed)?;
+            let player = SearchOpponent::new(gfa_games::registry()?.get(&self.game_id)?, self.config.clone(), algorithm)?;
+            let observation = self.inner.observe(Viewer::Player(seat))?;
+            let actions = self.inner.action_catalog(seat)?;
+            let choice = player.choose_action(&PlayerTurn {
+                seat, observation: &observation, legal_actions: &actions,
+            }, limits, &NodeClock)?;
+            Ok::<_, GameError>(choice.action.index)
+        }).map_err(error)
     }
 
     fn spec_json(&self) -> PyResult<String> {
@@ -138,6 +164,7 @@ impl NativeEnv {
         Self {
             inner: self.inner.clone(),
             game_id: self.game_id.clone(),
+            config: self.config.clone(),
             action_space_size: self.action_space_size,
             num_players: self.num_players,
         }
