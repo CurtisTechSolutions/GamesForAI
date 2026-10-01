@@ -1,10 +1,10 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
+mod briefing;
 mod history;
 mod play;
 mod play_types;
 mod resources;
 mod types;
-mod briefing;
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;

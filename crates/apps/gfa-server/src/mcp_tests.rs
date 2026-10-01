@@ -131,19 +131,44 @@ async fn mcp_match_briefing_matches_the_authorized_rest_service_view() -> Result
         )
         .await?;
     let compact = output.structured_content.ok_or("briefing")?["data"].clone();
-    let section = compact["sections"].as_array().ok_or("sections")?.iter()
-        .find(|section|section["id"]=="match").ok_or("match section")?;
-    assert_eq!(section["data"]["state"]["board"],created.observation.text);
-    assert_eq!(section["data"]["state"]["you"],0);
+    let section = compact["sections"]
+        .as_array()
+        .ok_or("sections")?
+        .iter()
+        .find(|section| section["id"] == "match")
+        .ok_or("match section")?;
+    assert_eq!(section["data"]["state"]["board"], created.observation.text);
+    assert_eq!(section["data"]["state"]["you"], 0);
     assert!(section["data"]["state"].get("action_mask").is_none());
     assert!(section["data"]["state"].get("observation").is_none());
     assert!(compact["approx_tokens"].as_u64().ok_or("tokens")? < 3000);
-    let full = adapter.invoke("get_game_info",json!({"game_id":"chess","match_id":created.match_id,"detail":"full"})).await?;
-    let expected = app.service.get_match_info(&created.match_id,Viewer::Player(0),gfa_api_types::InfoDetail::Full).await?;
-    assert_eq!(full.structured_content.ok_or("full briefing")?["data"],serde_json::to_value(expected)?);
-    let resource = serde_json::to_value(adapter.resource(&format!("gfa://matches/{}/info",created.match_id)).await?)?;
-    let text = resource["contents"][0]["text"].as_str().ok_or("resource text")?;
-    assert!(text.len() < 12_000,"{} bytes",text.len());
+    let full = adapter
+        .invoke(
+            "get_game_info",
+            json!({"game_id":"chess","match_id":created.match_id,"detail":"full"}),
+        )
+        .await?;
+    let expected = app
+        .service
+        .get_match_info(
+            &created.match_id,
+            Viewer::Player(0),
+            gfa_api_types::InfoDetail::Full,
+        )
+        .await?;
+    assert_eq!(
+        full.structured_content.ok_or("full briefing")?["data"],
+        serde_json::to_value(expected)?
+    );
+    let resource = serde_json::to_value(
+        adapter
+            .resource(&format!("gfa://matches/{}/info", created.match_id))
+            .await?,
+    )?;
+    let text = resource["contents"][0]["text"]
+        .as_str()
+        .ok_or("resource text")?;
+    assert!(text.len() < 12_000, "{} bytes", text.len());
     assert!(!text.contains("\"action_mask\":["));
     let wrong = adapter
         .invoke(
