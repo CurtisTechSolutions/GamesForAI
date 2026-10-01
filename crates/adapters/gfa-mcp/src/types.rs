@@ -120,6 +120,7 @@ pub(crate) struct Failure {
     pub code: String,
     pub message: String,
     pub hint: String,
+    pub details: Value,
 }
 #[derive(Serialize, JsonSchema)]
 #[schemars(crate = "rmcp::schemars")]
