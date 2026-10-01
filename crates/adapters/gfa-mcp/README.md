@@ -13,7 +13,7 @@ protocol errors; domain and input errors are ordinary isError tool results.
 MCP DTOs use the SDK's JSON Schema 2020-12 generator. The existing game-plugin
 schema dependency remains unchanged. Official-client protocol tests and output
 schema validation run at the application layer, where concrete games may be
-named. Stdio/HTTP composition and playing tools are separate implementation units.
+named. The CLI supplies stdio composition; streamable HTTP is a separate implementation unit.
 
 Dependency justification: rmcp supplies maintained protocol negotiation, wire
 types and transports rather than a project-specific JSON-RPC implementation.

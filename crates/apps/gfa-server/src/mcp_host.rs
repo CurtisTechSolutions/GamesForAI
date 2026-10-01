@@ -1,8 +1,8 @@
-use super::{application, runner, Config, ServerError};
+use super::{components, runner, Config, ServerError};
 use gfa_core::Viewer;
 use gfa_mcp::McpServer;
 use rmcp::{service::QuitReason, ServiceExt};
-use std::{future::Future, net::{Ipv4Addr, SocketAddr}};
+use std::future::Future;
 
 /// Serve a trusted local MCP client over stdin/stdout, without opening a TCP listener.
 /// The selected seat is authorized by the process launcher; None is read-only spectator.
@@ -12,8 +12,11 @@ pub async fn serve_stdio(
     seat: Option<u8>,
     shutdown: impl Future<Output = ()> + Send,
 ) -> Result<(), ServerError> {
-    let app = application(&config, SocketAddr::from((Ipv4Addr::LOCALHOST, 0))).await?;
-    let adapter = McpServer::new(app.service.clone(), seat.map_or(Viewer::Spectator, Viewer::Player))?;
+    let app = components(&config).await?;
+    let adapter = McpServer::new(
+        app.service.clone(),
+        seat.map_or(Viewer::Spectator, Viewer::Player),
+    )?;
     let (stop, stopped) = tokio::sync::watch::channel(false);
     let runner = tokio::spawn(runner::run(app.service.clone(), stopped));
     tokio::pin!(shutdown);
@@ -36,7 +39,8 @@ pub async fn serve_stdio(
             return Err(error.into());
         }
         Ok(())
-    }.await;
+    }
+    .await;
     let _ = stop.send(true);
     let runner_result = runner.await;
     app.updates.close();

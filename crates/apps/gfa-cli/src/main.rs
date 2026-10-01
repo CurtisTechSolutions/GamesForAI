@@ -100,7 +100,13 @@ fn command(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, St
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
             "--seat" if !viewer_seen => {
-                seat = Some(arguments.next().ok_or("--seat requires a zero-based seat")?.parse().map_err(|_|"Seat must be an integer from 0 to 255")?);
+                seat = Some(
+                    arguments
+                        .next()
+                        .ok_or("--seat requires a zero-based seat")?
+                        .parse()
+                        .map_err(|_| "Seat must be an integer from 0 to 255")?,
+                );
                 viewer_seen = true;
             }
             "--spectator" if !viewer_seen => {
@@ -112,12 +118,16 @@ fn command(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, St
             // Preserve values even when a filesystem path equals another option.
             "--sqlite" | "--postgres-env" | "--stockfish" => {
                 forwarded.push(argument);
-                forwarded.push(arguments.next().ok_or("Storage and engine options require a value")?);
+                forwarded.push(
+                    arguments
+                        .next()
+                        .ok_or("Storage and engine options require a value")?,
+                );
             }
             _ => forwarded.push(argument),
         }
     }
-    parse(forwarded).map(|config|config.map(|config|Command::Mcp{config,seat}))
+    parse(forwarded).map(|config| config.map(|config| Command::Mcp { config, seat }))
 }
 
 async fn shutdown() -> Result<(), std::io::Error> {
@@ -144,7 +154,9 @@ async fn shutdown_signal() {
 async fn run() -> Result<(), ServerError> {
     match command(std::env::args().skip(1)) {
         Ok(Some(Command::Serve(config))) => gfa_server::serve(config, shutdown_signal()).await,
-        Ok(Some(Command::Mcp { config, seat })) => gfa_server::serve_stdio(config, seat, shutdown_signal()).await,
+        Ok(Some(Command::Mcp { config, seat })) => {
+            gfa_server::serve_stdio(config, seat, shutdown_signal()).await
+        }
         Ok(None) => {
             println!("{USAGE}");
             Ok(())
@@ -156,7 +168,9 @@ async fn run() -> Result<(), ServerError> {
     }
 }
 fn main() -> Result<(), ServerError> {
-    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?;
     let result = runtime.block_on(run());
     // Tokio's stdin reader uses an uncancellable blocking read. A launcher may
     // leave stdin open when sending SIGTERM; do not wait forever for that reader.
@@ -282,19 +296,46 @@ mod tests {
 #[cfg(test)]
 mod mcp_command_tests {
     use super::*;
-    fn parsed(args: &[&str]) -> Result<Option<Command>,String> { command(args.iter().map(|arg|(*arg).to_string())) }
+    fn parsed(args: &[&str]) -> Result<Option<Command>, String> {
+        command(args.iter().map(|arg| (*arg).to_string()))
+    }
     #[test]
-    fn parses_stdio_and_rejects_ambiguous_viewers() -> Result<(),String> {
-        assert_eq!(parsed(&["mcp"])?,Some(Command::Mcp{config:Config::default(),seat:Some(0)}));
-        assert_eq!(parsed(&["mcp","--seat","1"])?,Some(Command::Mcp{config:Config::default(),seat:Some(1)}));
-        assert_eq!(parsed(&["mcp","--spectator"])?,Some(Command::Mcp{config:Config::default(),seat:None}));
-        assert!(parsed(&["mcp","--help"])?.is_none());
+    fn parses_stdio_and_rejects_ambiguous_viewers() -> Result<(), String> {
+        assert_eq!(
+            parsed(&["mcp"])?,
+            Some(Command::Mcp {
+                config: Config::default(),
+                seat: Some(0)
+            })
+        );
+        assert_eq!(
+            parsed(&["mcp", "--seat", "1"])?,
+            Some(Command::Mcp {
+                config: Config::default(),
+                seat: Some(1)
+            })
+        );
+        assert_eq!(
+            parsed(&["mcp", "--spectator"])?,
+            Some(Command::Mcp {
+                config: Config::default(),
+                seat: None
+            })
+        );
+        assert!(parsed(&["mcp", "--help"])?.is_none());
         for args in [
-            vec!["mcp","--seat"],vec!["mcp","--seat","256"],vec!["mcp","--seat","-1"],
-            vec!["mcp","--seat","0","--spectator"],vec!["mcp","--spectator","--seat","0"],
-            vec!["mcp","--spectator","--spectator"],vec!["mcp","--port","0"],
-            vec!["serve","--seat","1"],vec!["mcp","--sqlite"],
-        ] { assert!(parsed(&args).is_err(),"{args:?}"); }
+            vec!["mcp", "--seat"],
+            vec!["mcp", "--seat", "256"],
+            vec!["mcp", "--seat", "-1"],
+            vec!["mcp", "--seat", "0", "--spectator"],
+            vec!["mcp", "--spectator", "--seat", "0"],
+            vec!["mcp", "--spectator", "--spectator"],
+            vec!["mcp", "--port", "0"],
+            vec!["serve", "--seat", "1"],
+            vec!["mcp", "--sqlite"],
+        ] {
+            assert!(parsed(&args).is_err(), "{args:?}");
+        }
         Ok(())
     }
 }
