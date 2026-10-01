@@ -67,12 +67,21 @@ impl NativeEnv {
         Ok((step.rewards, step.terminated, step.truncated))
     }
 
-    fn builtin_action(&self, py: Python<'_>, seat: u8, algorithm: &str, level: u8, seed: u64) -> PyResult<u32> {
+    fn builtin_action(
+        &self,
+        py: Python<'_>,
+        seat: u8,
+        algorithm: &str,
+        level: u8,
+        seed: u64,
+    ) -> PyResult<u32> {
         use gfa_opponents::{Algorithm, Opponent, PlayerTurn, SearchLimits, SearchOpponent};
         // Fixed node/depth budgets make training independent of machine speed.
         struct NodeClock;
         impl gfa_core::Clock for NodeClock {
-            fn now_ms(&self) -> u64 { 0 }
+            fn now_ms(&self) -> u64 {
+                0
+            }
         }
         let algorithm = match algorithm {
             "minimax" => Algorithm::Minimax,
@@ -81,14 +90,25 @@ impl NativeEnv {
         };
         py.detach(|| {
             let limits = SearchLimits::for_level(level, seed)?;
-            let player = SearchOpponent::new(gfa_games::registry()?.get(&self.game_id)?, self.config.clone(), algorithm)?;
+            let player = SearchOpponent::new(
+                gfa_games::registry()?.get(&self.game_id)?,
+                self.config.clone(),
+                algorithm,
+            )?;
             let observation = self.inner.observe(Viewer::Player(seat))?;
             let actions = self.inner.action_catalog(seat)?;
-            let choice = player.choose_action(&PlayerTurn {
-                seat, observation: &observation, legal_actions: &actions,
-            }, limits, &NodeClock)?;
+            let choice = player.choose_action(
+                &PlayerTurn {
+                    seat,
+                    observation: &observation,
+                    legal_actions: &actions,
+                },
+                limits,
+                &NodeClock,
+            )?;
             Ok::<_, GameError>(choice.action.index)
-        }).map_err(error)
+        })
+        .map_err(error)
     }
 
     fn spec_json(&self) -> PyResult<String> {
