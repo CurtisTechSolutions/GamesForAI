@@ -20,4 +20,4 @@ Actions are explicit about the acting seat. Rewards are per-seat deltas of engin
 
 `reset(seed, Some(position))` imports a position and reseeds future randomness. Restoring a checkpoint instead preserves its exact RNG continuation. Both operations are atomic on failure.
 
-Python Gymnasium/PettingZoo wrappers, parallel vector environments, model endpoints, and dataset exports are subsequent integration units.
+The [Python package](../python/README.md) exposes native environments, Gymnasium single-seat play, PettingZoo AEC self-play, and parallel VectorEnv batches. Model endpoints and dataset exports are subsequent integration units.
