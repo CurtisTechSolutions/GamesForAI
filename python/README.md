@@ -104,7 +104,3 @@ Native frames include `legal_actions` as `(index, canonical_notation)` pairs in 
 Use `env.reset(seed=42, options={"position_set": "chess-endgames-basic@1"})` with either Gymnasium or AEC. Later `reset()` calls keep sampling that pinned set; repeating an explicit seed repeats the selection. Supply a custom `PositionSet` instead of a bundled name, or use `{"position_set": None}` to return to initial positions. An explicit `position` also clears the active curriculum. A set must match the environment game and normalized configuration.
 
 `info["curriculum"]` records only the set ID, content hash, and selected position ID. Expected puzzle answers are excluded. Gymnasium checkpoints include the pinned dataset and RNG continuation; AEC clones preserve both. Invalid selections, imported positions, and failed opponent openings preserve environment and RNG state. A caller-owned opponent model must manage its own mutable state.
-
-## Measuring batch throughput
-
-Run `python examples/vector_throughput.py` for seeded full-game Connect Four batches. It times `VectorEnv.step`, including native transitions, projections, and owned NumPy transfer, with random policy selection and explicit resets outside the timed interval. One sample warms up the process; the JSON report records repeated rates, batch size, workers, platform, and logical CPUs. Wheel CI uploads one report per OS. Hosted-runner measurements are diagnostics; the PRD target still requires verification on the specified eight-core reference machine.
