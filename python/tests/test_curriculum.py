@@ -12,7 +12,7 @@ def test_gym_curriculum_repeats_seed_and_continues_rng_after_restore():
     first, info = env.reset(seed=82, options={"position_set": "connect4-solved-positions@1"})
     origin = info["curriculum"]
     assert set(origin) == {"position_set", "sha256", "position_id"}
-    assert "expected" not in json.dumps(info)
+    assert "expected" not in json.dumps(info, default=lambda array: array.tolist())
     second, second_info = env.reset(seed=82)
     np.testing.assert_array_equal(first, second)
     assert second_info["curriculum"] == origin
