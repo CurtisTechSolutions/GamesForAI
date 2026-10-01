@@ -1,4 +1,7 @@
-use crate::{Env, EnvSnapshot, EnvStep, Game, GameError, GameSpec, LegalAction, Observation, PlayerId, Viewer};
+use crate::{
+    Env, EnvSnapshot, EnvStep, Game, GameError, GameSpec, LegalAction, Observation, PlayerId,
+    Viewer,
+};
 
 /// Object-safe native environments for Python bindings and parallel batches.
 /// Implementations retain typed engine state between steps.
@@ -23,7 +26,9 @@ pub trait TrainingEnv: Send + Sync {
     fn action_mask(&self, player: PlayerId) -> Result<Vec<bool>, GameError>;
     /// Optional readable actions for text policies, scoped to the selected seat.
     fn action_catalog(&self, _player: PlayerId) -> Result<Vec<LegalAction>, GameError> {
-        Err(GameError::position("This environment has no readable action catalog"))
+        Err(GameError::position(
+            "This environment has no readable action catalog",
+        ))
     }
     /// Native discrete action step.
     fn step_index(&mut self, player: PlayerId, index: u32) -> Result<EnvStep, GameError>;
@@ -71,13 +76,17 @@ where
         Env::action_mask(self, player)
     }
     fn action_catalog(&self, player: PlayerId) -> Result<Vec<LegalAction>, GameError> {
-        let mut actions = self.legal_actions(player)?.iter().map(|action| {
-            Ok(LegalAction {
-                string: G::action_to_string(self.state(), action),
-                json: serde_json::to_value(action)?,
-                index: G::action_to_index(action),
+        let mut actions = self
+            .legal_actions(player)?
+            .iter()
+            .map(|action| {
+                Ok(LegalAction {
+                    string: G::action_to_string(self.state(), action),
+                    json: serde_json::to_value(action)?,
+                    index: G::action_to_index(action),
+                })
             })
-        }).collect::<Result<Vec<_>, GameError>>()?;
+            .collect::<Result<Vec<_>, GameError>>()?;
         actions.sort_by(|left, right| left.string.cmp(&right.string));
         Ok(actions)
     }

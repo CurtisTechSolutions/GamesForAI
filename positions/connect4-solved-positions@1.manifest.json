@@ -1,0 +1,9 @@
+{
+  "name": "connect4-solved-positions",
+  "version": 1,
+  "game": "connect4",
+  "sha256": "8044e2279f4980308e6644ceb6ac9a91cbbaf7c5ea6301296f1675f0d86c14af",
+  "source": "Generated immediate wins; expected action verified to terminate with +1",
+  "license": "CC0-1.0",
+  "count": 7
+}

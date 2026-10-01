@@ -6,6 +6,7 @@ import math
 import os
 import re
 import socket
+from http.client import HTTPException
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, Request, build_opener
@@ -135,6 +136,8 @@ class ChatPolicy:
                 raw = response.read(64 * 1024 + 1)
                 if len(raw) > 64 * 1024:
                     raise PolicyError("response_too_large")
+        except PolicyError:
+            raise
         except HTTPError as error:
             code = {401: "unauthorized", 403: "unauthorized", 408: "timeout", 429: "rate_limited"}.get(error.code, "http_error")
             error.close()
@@ -143,7 +146,7 @@ class ChatPolicy:
             raise PolicyError("timeout") from None
         except URLError as error:
             raise PolicyError("timeout" if isinstance(error.reason, TimeoutError) else "unavailable") from None
-        except (OSError, ValueError):
+        except (OSError, ValueError, HTTPException):
             raise PolicyError("unavailable") from None
         try:
             result = _json(raw.decode("utf-8"))
@@ -153,7 +156,7 @@ class ChatPolicy:
             move = _json(choice["message"]["content"])
             if not isinstance(move, dict) or set(move) != {"action"} or not isinstance(move["action"], str):
                 raise ValueError("invalid move schema")
-        except (KeyError, IndexError, TypeError, ValueError, UnicodeError):
+        except (KeyError, IndexError, TypeError, ValueError, UnicodeError, RecursionError):
             raise PolicyError("invalid_response") from None
         if move["action"] not in actions:
             raise PolicyError("illegal_action")
