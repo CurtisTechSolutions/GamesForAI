@@ -193,7 +193,7 @@ fn game_info_with_viewer(
         config_data["schema"] = spec.config_schema;
     }
     let mut result = Briefing {
-        info_version: format!("{}+briefing.2", spec.info_version),
+        info_version: format!("{}+briefing.3", spec.info_version),
         approx_tokens: 0,
         sections: vec![
             section("identity", spec.summary, json!({
@@ -221,7 +221,7 @@ fn game_info_with_viewer(
             section("time_controls", "Untimed play only; no running clocks or timeout penalties.", json!({"supported":["none"],"default":"none"})),
             section("opponents", "Local clients control the seats. Simulation is available when the match allows it. Built-in opponent scheduling and analysis are not installed.", json!({"available":[],"analysis":false,"simulation":true})),
             section("illegal_move_policy", "Reject without changing state; retry using the returned hint and current legal actions.", json!({"supported":["reject"],"default":"reject"})),
-            section("how_to_play", "Create a match, then submit moves for seats in to_act until terminated or truncated. MCP is not available yet.", json!({
+            section("how_to_play", "Create a match, then submit moves for seats in to_act until terminated or truncated.", json!({
                 "create":{"method":"POST","path":"/v1/matches","body":{"game_id":spec.id,"config":config}},
                 "state":"GET /v1/matches/{id}/state?seat={seat}",
                 "move":"POST /v1/matches/{id}/actions with {seat,turn,action,reasoning?}",

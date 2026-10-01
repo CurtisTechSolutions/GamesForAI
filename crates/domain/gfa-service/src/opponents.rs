@@ -453,3 +453,53 @@ mod analysis_validation_tests {
         assert!(validate_analysis_choices(&[bad], &legal).is_err());
     }
 }
+
+impl GameService {
+    pub(crate) fn briefing_opponents(
+        &self,
+        info: &mut gfa_api_types::Briefing,
+        game: &dyn DynGame,
+        detail: gfa_api_types::InfoDetail,
+        assists: Option<&gfa_api_types::Assists>,
+    ) -> Result<(), ApiError> {
+        let catalog = self
+            .opponents
+            .as_ref()
+            .map_or_else(Vec::new, |(factory, _)| factory.catalog(game));
+        let analysis_available =
+            self.opponents.is_some() && game.spec().information == Information::Perfect;
+        let available = if detail == gfa_api_types::InfoDetail::Full {
+            serde_json::to_value(&catalog).map_err(|_| crate::briefing::internal())?
+        } else {
+            serde_json::json!(catalog
+                .iter()
+                .map(|opponent| serde_json::json!({
+                    "id":opponent.id,
+                    "levels":opponent.levels.iter().map(|level|level.level).collect::<Vec<_>>(),
+                    "calibrated":opponent.calibrated,
+                    "ratings":if opponent.levels.iter().any(|level|level.rating.is_some()) {
+                        serde_json::json!(opponent.levels)
+                    } else { Value::Null }
+                }))
+                .collect::<Vec<_>>())
+        };
+        let section = info
+            .sections
+            .iter_mut()
+            .find(|section| section.id == "opponents")
+            .ok_or_else(crate::briefing::internal)?;
+        section.text = if catalog.is_empty() {
+            "No opponent workers are installed on this host. External clients control the seats."
+                .into()
+        } else {
+            "Installed opponents support automatic play and permitted analysis. Null ratings are uncalibrated.".into()
+        };
+        section.data = serde_json::json!({
+            "available":available,"analysis_available":analysis_available,
+            "analysis":analysis_available && assists.is_none_or(|assists|assists.allow_analysis),
+            "simulation":assists.is_none_or(|assists|assists.allow_simulation)
+        });
+        info.estimate_tokens()
+            .map_err(|_| crate::briefing::internal())
+    }
+}

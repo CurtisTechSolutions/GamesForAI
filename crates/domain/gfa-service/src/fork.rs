@@ -130,17 +130,18 @@ impl GameService {
             .await?;
         let state = progress.frame.project(&child_id, game, access.viewer)?;
         let info = if request.include_info {
-            Some(
-                crate::briefing::MatchBrief {
-                    game,
-                    origin: &child_origin,
-                    initial: &child,
-                    current: &progress.frame,
-                    id: &child_id,
-                    viewer: access.viewer,
-                }
-                .build(gfa_api_types::InfoDetail::Compact)?,
-            )
+            let detail = gfa_api_types::InfoDetail::Compact;
+            let mut info = crate::briefing::MatchBrief {
+                game,
+                origin: &child_origin,
+                initial: &child,
+                current: &progress.frame,
+                id: &child_id,
+                viewer: access.viewer,
+            }
+            .build(detail)?;
+            self.briefing_opponents(&mut info, game, detail, Some(&child_origin.assists))?;
+            Some(info)
         } else {
             None
         };
