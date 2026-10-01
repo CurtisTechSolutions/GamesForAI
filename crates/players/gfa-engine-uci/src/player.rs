@@ -124,6 +124,9 @@ pub fn validate_recommendation(
         // Public analysis continuations are capped at 32 plies, like the simulation API.
         // We publish the validated prefix with an explicit truncation marker.
         for token in info.pv.iter().take(32) {
+            if game.is_truncated(&state)? {
+                break;
+            }
             if game.is_terminal(&state)? {
                 return Err(OpponentError::InvalidResponse);
             }
@@ -156,7 +159,7 @@ pub fn validate_recommendation(
             "rank":info.multipv.unwrap_or(1),"score":score,"bound":bound,
             "perspective_seat":turn.seat,"wdl_permille":info.wdl,
             "depth":info.depth,"nodes":info.nodes,"time_ms":info.time_ms,
-            "principal_variation":pv,"truncated":info.pv.len()>32,
+            "principal_variation":pv,"truncated":info.pv.len()>pv.len(),
         }));
     }
     if let Some(ponder) = &result.ponder {
@@ -164,16 +167,18 @@ pub fn validate_recommendation(
         if game.is_terminal(&state)? {
             return Err(OpponentError::InvalidResponse);
         }
-        let actors = game.current_players(&state)?;
-        let [seat] = actors.as_slice() else {
-            return Err(OpponentError::InvalidResponse);
-        };
-        if !game
-            .legal_actions(&state, *seat)?
-            .iter()
-            .any(|action| action.string == *ponder)
-        {
-            return Err(OpponentError::InvalidResponse);
+        if !game.is_truncated(&state)? {
+            let actors = game.current_players(&state)?;
+            let [seat] = actors.as_slice() else {
+                return Err(OpponentError::InvalidResponse);
+            };
+            if !game
+                .legal_actions(&state, *seat)?
+                .iter()
+                .any(|action| action.string == *ponder)
+            {
+                return Err(OpponentError::InvalidResponse);
+            }
         }
     }
     let depth = chosen.and_then(|info| info.depth).unwrap_or(0);
@@ -258,7 +263,23 @@ pub fn validate_analysis(
         }
         let mut details = selected.info.clone();
         details.depth = u8::try_from(info.depth.unwrap_or(0)).unwrap_or(u8::MAX);
-        details.principal_variation = info.pv.iter().take(32).cloned().collect();
+        // Reuse the already validated prefix, including episode-cap truncation.
+        details.principal_variation = selected
+            .info
+            .advice
+            .as_ref()
+            .and_then(|advice| advice.details["variations"].as_array())
+            .and_then(|lines| lines.iter().find(|line| line["rank"] == rank))
+            .and_then(|line| line["principal_variation"].as_array())
+            .ok_or(OpponentError::InvalidResponse)?
+            .iter()
+            .map(|token| {
+                token
+                    .as_str()
+                    .map(str::to_owned)
+                    .ok_or(OpponentError::InvalidResponse)
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         if let Some(advice) = &mut details.advice {
             advice.summary = format!(
                 "{} analysis rank {}: {}",

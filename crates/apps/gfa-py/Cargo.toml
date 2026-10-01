@@ -17,6 +17,7 @@ extension-module = ["pyo3/extension-module"]
 gfa-core.workspace = true
 gfa-opponents.workspace = true
 gfa-service.workspace = true
+gfa-engine-uci.workspace = true
 gfa-games.workspace = true
 pyo3.workspace = true
 numpy.workspace = true

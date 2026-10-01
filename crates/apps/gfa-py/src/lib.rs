@@ -1,5 +1,6 @@
 //! Native Python training bridge. Typed engine states stay in Rust between steps.
 mod ratings;
+mod uci;
 mod vector;
 
 use gfa_core::{EnvSnapshot, GameError, TrainingEnv, Viewer};
@@ -250,5 +251,5 @@ mod _native {
     #[pymodule_export]
     use super::ratings::{rating_pair_json, rating_period_json, rating_validate_json};
     #[pymodule_export]
-    use super::{games, position_set_data, vector::NativeVectorEnv, NativeEnv};
+    use super::{games, position_set_data, uci::NativeUciPool, vector::NativeVectorEnv, NativeEnv};
 }
