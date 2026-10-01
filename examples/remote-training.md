@@ -19,6 +19,7 @@ branch.set_state(checkpoint)
 multi = client.aec("tictactoe")
 multi.reset(seed=42)
 native = client.native("chess")
+batch = client.vector("connect4", 128, seed=42, batch_size=32)
 ```
 
 Gymnasium and PettingZoo use the same wrappers as local training, including
@@ -27,8 +28,8 @@ and `ChatPolicy` run in your training process using only the requested seat's
 observation and legal moves. Random opponents use the wrapper's checkpointed
 RNG. Native minimax/MCTS recommendations use the server's analysis endpoint
 and its configured budgets; the same local assistance guards apply. Remote
-Stockfish Gym configuration and vector wrappers are not yet available; native
-Stockfish/VectorEnv remain available for in-process training.
+Stockfish Gym configuration is not yet available; native Stockfish remains
+available for in-process training.
 
 `client.batch(operations)` exposes the [batch REST contract](../docs/training-batches.md)
 directly, with up to 64 independent create/reset/step/observe operations. It
@@ -59,3 +60,23 @@ credentials or endpoint URLs. Timeout is a socket timeout, not a total run
 deadline. The current server is local-only and does not validate API keys;
 do not expose it through a public proxy. Use TLS for future authenticated
 remote deployments. Server and SDK engine versions must be compatible.
+
+## Remote vector batches
+
+`client.vector(game, n, config=..., seed=..., batch_size=32)` uses the same
+VectorEnv API and curricula as local training. Numeric output shapes/dtypes,
+per-seat rewards, explicit terminal resets and clone/checkpoint behavior match
+the native wrapper. The default view is each row's next actor, or seat 0 for
+finished rows; `frame(seats)` requests explicit information sets.
+
+Calls split into ordered HTTP requests of at most `batch_size` rows (1..64)
+and 4 MiB. This is serial HTTP batching, not a local Rayon thread pool;
+leave `threads=0`. A transition commits **all** local checkpoints only after
+every chunk and required observation succeeds. A failure in a later chunk
+preserves the entire previous batch; the stateless server has no partial
+environment mutation to undo. Retrying the same input is safe.
+
+The native limits of 1..4096 environments and 128 MiB of numeric arrays apply.
+Large JSON checkpoint/frame payloads can still hit the server's row/response
+limits; lower `batch_size` when needed. These serialized/array limits are not
+limits on Python object memory. Use in-process VectorEnv for high-volume RL.

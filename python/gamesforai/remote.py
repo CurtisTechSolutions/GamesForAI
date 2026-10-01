@@ -132,6 +132,15 @@ class Client:
             raise ValueError("remote Gym currently supports random, minimax/mcts or a Python/HTTP policy")
         return GameEnv(game, _native_factory=self.native, **kwargs)
 
+    def vector(self, game, n, *, batch_size=32, **kwargs):
+        from .remote_vector import RemoteNativeVectorEnv
+        from .vector_env import VectorEnv
+
+        def factory(game, n, config_json, seed, threads):
+            return RemoteNativeVectorEnv(self, game, n, config_json, seed, threads,
+                                         batch_size=batch_size)
+        return VectorEnv(game, n, _native_factory=factory, _prototype_factory=self.native, **kwargs)
+
     def aec(self, game, **kwargs):
         from .aec_env import AECGameEnv
         return AECGameEnv(game, _native_factory=self.native, **kwargs)
