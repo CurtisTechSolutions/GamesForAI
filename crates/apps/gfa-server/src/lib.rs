@@ -29,6 +29,8 @@ pub struct Config {
     pub port: u16,
     /// Optional installed Stockfish engine and sandbox policy.
     pub stockfish: Option<StockfishConfig>,
+    /// MCP viewer selected by the trusted local launcher. None selects spectator.
+    pub mcp_seat: Option<u8>,
 }
 
 impl Default for Config {
@@ -37,6 +39,7 @@ impl Default for Config {
             database: Database::Sqlite("gfa.sqlite".into()),
             port: 8080,
             stockfish: None,
+            mcp_seat: Some(0),
         }
     }
 }
@@ -119,6 +122,7 @@ impl MatchIds for Host {
 }
 
 struct Application {
+    mcp: mcp_http::McpHttp,
     router: axum::Router,
     store: Store,
     updates: Arc<gfa_http::LiveUpdates>,
@@ -155,7 +159,10 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
         service,
     } = components(config).await?;
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
+    let (mcp_router, mcp) = mcp_http::router(service.clone(), address, config.mcp_seat)?;
+    let router = router.merge(mcp_router);
     Ok(Application {
+        mcp,
         router,
         store,
         updates,
@@ -187,6 +194,7 @@ async fn serve_application(
     let (stop_runner, stopped) = tokio::sync::watch::channel(false);
     let runner_task = tokio::spawn(runner::run(app.service.clone(), stopped));
     let stop_on_shutdown = stop_runner.clone();
+    let stop_mcp = app.mcp.clone();
     let result = axum::serve(
         listener,
         app.router
@@ -194,10 +202,12 @@ async fn serve_application(
     )
     .with_graceful_shutdown(async move {
         shutdown.await;
+        stop_mcp.stop();
         let _ = stop_on_shutdown.send(true);
         updates.close();
     })
     .await;
+    app.mcp.stop();
     let _ = stop_runner.send(true);
     let runner_result = runner_task.await;
     app.updates.wait_closed().await;
@@ -260,6 +270,10 @@ mod mcp_play_tests;
 
 mod mcp_host;
 pub use mcp_host::serve_stdio;
+
+mod mcp_http;
+#[cfg(test)]
+mod mcp_http_tests;
 
 #[cfg(test)]
 mod mcp_history_tests;
