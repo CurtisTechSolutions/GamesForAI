@@ -6,13 +6,13 @@ pub fn registry() -> Result<GameRegistry, GameError> {
     #[allow(unused_mut)]
     let mut registry = GameRegistry::default();
     #[cfg(feature = "tictactoe")]
-    registry.register::<gfa_game_tictactoe::TicTacToe>()?;
+    registry.register_training::<gfa_game_tictactoe::TicTacToe>()?;
     #[cfg(feature = "connect4")]
-    registry.register::<gfa_game_connect4::Connect4>()?;
+    registry.register_training::<gfa_game_connect4::Connect4>()?;
     #[cfg(feature = "sudoku")]
-    registry.register::<gfa_game_sudoku::Sudoku>()?;
+    registry.register_training::<gfa_game_sudoku::Sudoku>()?;
     #[cfg(feature = "chess")]
-    registry.register::<gfa_game_chess::ChessGame>()?;
+    registry.register_training::<gfa_game_chess::ChessGame>()?;
     Ok(registry)
 }
 

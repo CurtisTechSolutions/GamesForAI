@@ -5,6 +5,7 @@ mod error;
 mod game;
 mod player;
 mod rng;
+mod training;
 mod types;
 
 pub use dynamic::{DynGame, GameAdapter, GameRegistry};
@@ -19,4 +20,5 @@ pub use rng::SeededRng;
 pub use schemars;
 pub use serde;
 pub use serde_json;
+pub use training::TrainingEnv;
 pub use types::*;
