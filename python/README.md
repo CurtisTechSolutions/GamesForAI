@@ -22,4 +22,23 @@ This unit exposes the native bridge. Gymnasium/AEC convenience wrappers and para
 
 The new PyO3 and rust-numpy dependencies provide the CPython ABI boundary and owned NumPy buffers; no hand-written unsafe code is needed. Packaging follows [Maturin's mixed project layout](https://www.maturin.rs/project_layout.html). Native calls use [PyO3 interpreter detachment](https://pyo3.rs/v0.29.2/parallelism), and arrays use [rust-numpy ownership transfer](https://docs.rs/numpy/0.29.0/numpy/array/struct.PyArray.html).
 
-PyO3's target detection uses target-lexicon, licensed under Apache-2.0 with the LLVM exception; the dependency allowlist records that exact expression.
+## Gymnasium and your policy
+
+```python
+import numpy as np
+import gamesforai
+
+env = gamesforai.make("connect4")
+obs, info = env.reset(seed=42)
+while True:
+    action = your_policy(obs, info["action_mask"])
+    obs, reward, terminated, truncated, info = env.step(action)
+    if terminated or truncated:
+        break
+```
+
+The default opponent samples legal actions from the environment's seeded random generator. Select `seat=1` to train from the second seat; the opponent plays its opening during reset. Supply `opponent=my_policy` to play against a Python callable accepting `(observation, info)` and returning a discrete index. Each opponent receives its own seat's view.
+
+Masks are required: a fixed action space includes actions that are illegal in a particular position. Invalid actions raise `ValueError` without committing a learner/opponent exchange. Call `reset` after termination or truncation. Position curricula can use `reset(options={"position": notation})`.
+
+Wrapper checkpoints include native state and the environment RNG, so random-opponent continuations repeat exactly. A cloned wrapper owns independent game, RNG, and action-space state. A custom policy callable and its model state remain caller-owned; checkpoint those separately for reproducible self-play.
