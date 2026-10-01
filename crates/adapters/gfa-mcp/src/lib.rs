@@ -1,11 +1,11 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
-mod types;
 mod play;
 mod play_types;
-use play_types::*;
+mod types;
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
+use play_types::*;
 use rmcp::{
     model::{
         CallToolRequestParams, CallToolResponse, CallToolResult, ContentBlock, Implementation,
@@ -76,7 +76,9 @@ impl McpServer {
             "list_games" => self.games(arguments),
             "list_opponents" => self.opponents(arguments),
             "get_game_info" => self.info(arguments).await,
-            "create_match" | "get_state" | "get_legal_actions" | "make_move" | "resign" => Ok(self.play(name, arguments).await),
+            "create_match" | "get_state" | "get_legal_actions" | "make_move" | "resign" => {
+                Ok(self.play(name, arguments).await)
+            }
             _ => {
                 return Err(ErrorData::new(
                     rmcp::model::ErrorCode::METHOD_NOT_FOUND,
@@ -259,8 +261,16 @@ fn success<T: Serialize>(data: T, text: String) -> Result<CallToolResult, ApiErr
     Ok(result)
 }
 fn failure(mut error: ApiError) -> CallToolResult {
-    if let Some(actions) = error.details.get_mut("legal_actions").and_then(Value::as_array_mut) {
-        let mut strings = actions.iter().filter_map(|action| action["string"].as_str()).map(str::to_owned).collect::<Vec<_>>();
+    if let Some(actions) = error
+        .details
+        .get_mut("legal_actions")
+        .and_then(Value::as_array_mut)
+    {
+        let mut strings = actions
+            .iter()
+            .filter_map(|action| action["string"].as_str())
+            .map(str::to_owned)
+            .collect::<Vec<_>>();
         strings.sort();
         *actions = strings.into_iter().map(Value::String).collect();
     }

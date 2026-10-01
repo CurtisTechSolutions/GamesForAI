@@ -14,7 +14,12 @@ async fn mcp_discovery_output_schemas_match_success_and_error_results() -> Resul
     let adapter = McpServer::new(app.service.clone(), Viewer::Player(0))?;
     let tools = adapter.tool_definitions();
     assert_eq!(tools.len(), 8);
-    for tool in tools.iter().filter(|tool| matches!(tool.name.as_ref(), "list_games" | "list_opponents" | "get_game_info")) {
+    for tool in tools.iter().filter(|tool| {
+        matches!(
+            tool.name.as_ref(),
+            "list_games" | "list_opponents" | "get_game_info"
+        )
+    }) {
         assert!(tool
             .description
             .as_ref()
