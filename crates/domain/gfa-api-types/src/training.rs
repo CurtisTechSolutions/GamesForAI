@@ -98,7 +98,7 @@ pub enum TrainingResult {
         /// Full private state/RNG for the owner; never forward to a policy.
         checkpoint: EnvSnapshot,
         /// Seat-scoped policy input and episode metadata.
-        frame: TrainingFrame,
+        frame: Box<TrainingFrame>,
     },
     /// This operation failed; other rows remain independent.
     Error {

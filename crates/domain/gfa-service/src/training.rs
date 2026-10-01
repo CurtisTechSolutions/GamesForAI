@@ -121,7 +121,7 @@ impl GameService {
         };
         Ok(TrainingResult::Ok {
             checkpoint: env.get_state().map_err(error::engine)?,
-            frame,
+            frame: Box::new(frame),
         })
     }
 }
