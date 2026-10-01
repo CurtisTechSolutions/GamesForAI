@@ -1,12 +1,12 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
+mod planning;
 mod play;
 mod play_types;
 mod types;
-mod planning;
-use planning::{Analysis, AnalysisArgs, Simulation, SimulationArgs};
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
+use planning::{Analysis, AnalysisArgs, Simulation, SimulationArgs};
 use play_types::*;
 use rmcp::{
     model::{
@@ -280,7 +280,12 @@ fn compact_failure(mut error: ApiError) -> Failure {
         strings.sort();
         *actions = strings.into_iter().map(Value::String).collect();
     }
-    Failure { code:error.code, message:error.message, hint:error.hint, details:error.details }
+    Failure {
+        code: error.code,
+        message: error.message,
+        hint: error.hint,
+        details: error.details,
+    }
 }
 fn failure(error: ApiError) -> CallToolResult {
     let error = compact_failure(error);
