@@ -99,6 +99,12 @@ of numeric output per batch. Throughput still needs measurement against the PRD 
 
 Native frames include `legal_actions` as `(index, canonical_notation)` pairs in stable notation order. Gymnasium info includes the same catalog plus the game ID, rules, and action notation for learner and opponent policies. The catalog contains only actions available to that seat and matches its numeric mask. `NativeEnv.spec_json()` returns the static game contract. Vector batches keep their numeric-only output.
 
+## Sampling a curriculum on every reset
+
+Use `env.reset(seed=42, options={"position_set": "chess-endgames-basic@1"})` with either Gymnasium or AEC. Later `reset()` calls keep sampling that pinned set; repeating an explicit seed repeats the selection. Supply a custom `PositionSet` instead of a bundled name, or use `{"position_set": None}` to return to initial positions. An explicit `position` also clears the active curriculum. A set must match the environment game and normalized configuration.
+
+`info["curriculum"]` records only the set ID, content hash, and selected position ID. Expected puzzle answers are excluded. Gymnasium checkpoints include the pinned dataset and RNG continuation; AEC clones preserve both. Invalid selections, imported positions, and failed opponent openings preserve environment and RNG state. A caller-owned opponent model must manage its own mutable state.
+
 ## Built-in training opponents
 
 Use `make("connect4", opponent="minimax:3")` or `opponent="mcts:3"` for the native built-in search algorithms at levels 1–10. Training uses fixed node/depth budgets and RNG seeds, so choices do not depend on machine speed. Search reconstructs a planning state from the opponent seat’s observation and never mutates the live environment. Gymnasium checkpoints preserve the opponent seed stream. These are the existing provisional resource levels; their playing strength has not yet been calibrated.
