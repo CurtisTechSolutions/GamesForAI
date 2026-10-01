@@ -323,7 +323,10 @@ impl Game for Connect4 {
                 rows,
                 to_move: state.to_move
             }),
-            tensor: Some(Tensor { shape: vec![3, 6, 7], values }),
+            tensor: Some(Tensor {
+                shape: vec![3, 6, 7],
+                values,
+            }),
         }
     }
 
@@ -439,7 +442,9 @@ mod tensor_tests {
         assert_eq!(observation, Connect4::observe(&state, Viewer::Player(0)));
         assert_eq!(observation, Connect4::observe(&state, Viewer::Player(1)));
         let board: Board = serde_json::from_value(observation.json)?;
-        let tensor = observation.tensor.ok_or_else(|| GameError::position("missing tensor"))?;
+        let tensor = observation
+            .tensor
+            .ok_or_else(|| GameError::position("missing tensor"))?;
         assert_eq!(tensor.shape, vec![3, 6, 7]);
         assert_eq!(tensor.values.len(), 126);
         assert_eq!(tensor.values[4 * 7], 1.0);
@@ -450,7 +455,11 @@ mod tensor_tests {
                 for plane in 0..2 {
                     assert_eq!(
                         tensor.values[plane * 42 + row * 7 + col],
-                        if *cell == Some(plane as PlayerId) { 1.0 } else { 0.0 }
+                        if *cell == Some(plane as PlayerId) {
+                            1.0
+                        } else {
+                            0.0
+                        }
                     );
                 }
             }
