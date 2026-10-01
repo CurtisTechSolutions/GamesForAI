@@ -289,3 +289,6 @@ mod mcp_live_tests;
 
 #[cfg(test)]
 mod uci_cap_tests;
+
+#[cfg(test)]
+mod training_tests;

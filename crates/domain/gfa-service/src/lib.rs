@@ -40,3 +40,5 @@ mod events;
 
 /// Pure Glicko-2 rating periods and fixed calibration anchors.
 pub mod ratings;
+
+mod training;

@@ -312,3 +312,6 @@ pub use seats::{OpponentReply, Seat};
 
 mod events;
 pub use events::{EventData, EventPage, EventsQuery, RecordedEvent};
+
+mod training;
+pub use training::{TrainingBatch, TrainingBatchResult, TrainingFrame, TrainingOperation, TrainingResult};
