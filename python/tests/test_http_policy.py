@@ -87,7 +87,7 @@ def test_http_errors_and_redirects_are_not_retried_or_exposed(status, code):
     (json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": '{"action":"99"}'}}]}).encode(), "illegal_action"),
     (json.dumps({"choices": [{"finish_reason": "stop", "message": {"content": '{"action":"1","action":"2"}'}}]}).encode(), "invalid_response"),
     (b"x" * 65537, "response_too_large"),
-])
+], ids=["malformed-json", "truncated", "illegal", "duplicate-key", "oversized"])
 def test_response_validation_and_gym_exchange_rollback(reply, code):
     with server(reply) as (url, calls):
         env = make("connect4", opponent=ChatPolicy(url, "own-model"))
