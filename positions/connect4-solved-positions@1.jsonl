@@ -1,0 +1,7 @@
+{"id":"vertical-win-1","position":"{\"boards\":[7,896],\"to_move\":0}","tags":["win-in-one","vertical"],"expected":{"value":1,"winning_action":"1"},"source":"GamesForAI generated six-ply position"}
+{"id":"vertical-win-2","position":"{\"boards\":[896,114688],\"to_move\":0}","tags":["win-in-one","vertical"],"expected":{"value":1,"winning_action":"2"},"source":"GamesForAI generated six-ply position"}
+{"id":"vertical-win-3","position":"{\"boards\":[114688,14680064],\"to_move\":0}","tags":["win-in-one","vertical"],"expected":{"value":1,"winning_action":"3"},"source":"GamesForAI generated six-ply position"}
+{"id":"vertical-win-4","position":"{\"boards\":[14680064,1879048192],\"to_move\":0}","tags":["win-in-one","vertical"],"expected":{"value":1,"winning_action":"4"},"source":"GamesForAI generated six-ply position"}
+{"id":"vertical-win-5","position":"{\"boards\":[1879048192,240518168576],\"to_move\":0}","tags":["win-in-one","vertical"],"expected":{"value":1,"winning_action":"5"},"source":"GamesForAI generated six-ply position"}
+{"id":"vertical-win-6","position":"{\"boards\":[240518168576,30786325577728],\"to_move\":0}","tags":["win-in-one","vertical"],"expected":{"value":1,"winning_action":"6"},"source":"GamesForAI generated six-ply position"}
+{"id":"vertical-win-7","position":"{\"boards\":[30786325577728,7],\"to_move\":0}","tags":["win-in-one","vertical"],"expected":{"value":1,"winning_action":"7"},"source":"GamesForAI generated six-ply position"}
