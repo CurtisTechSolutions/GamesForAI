@@ -125,7 +125,12 @@ struct Application {
     service: Arc<GameService>,
 }
 
-async fn application(config: &Config, address: SocketAddr) -> Result<Application, ServerError> {
+struct Components {
+    store: Store,
+    updates: Arc<gfa_http::LiveUpdates>,
+    service: Arc<GameService>,
+}
+async fn components(config: &Config) -> Result<Components, ServerError> {
     let registry = gfa_games::registry()?;
     let opponents = stockfish::factory(config.stockfish.as_ref(), &registry).await?;
     let store = Store::open(&config.database).await?;
@@ -136,6 +141,19 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
             .with_observer(updates.clone())
             .with_opponents(opponents, Arc::new(workers::Workers::new(4))),
     );
+    Ok(Components {
+        store,
+        updates,
+        service,
+    })
+}
+
+async fn application(config: &Config, address: SocketAddr) -> Result<Application, ServerError> {
+    let Components {
+        store,
+        updates,
+        service,
+    } = components(config).await?;
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
     Ok(Application {
         router,
@@ -239,3 +257,6 @@ mod mcp_tests;
 
 #[cfg(test)]
 mod mcp_play_tests;
+
+mod mcp_host;
+pub use mcp_host::serve_stdio;
