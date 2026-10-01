@@ -11,6 +11,7 @@ from gymnasium.utils import seeding
 from pettingzoo import AECEnv
 
 from ._native import NativeEnv
+from . import curriculum
 
 
 class AECGameEnv(AECEnv):
@@ -36,6 +37,8 @@ class AECGameEnv(AECEnv):
                 "action_mask": spaces.MultiBinary(self.native.action_space_size),
             })
         self.agents = []
+        self._position_set = None
+        self._position_id = None
         self._rng, _ = seeding.np_random(None)
 
     def observation_space(self, agent):
@@ -50,23 +53,26 @@ class AECGameEnv(AECEnv):
 
     def _refresh_infos(self):
         self.infos = {
-            agent: {"seat": self._seats[agent], "text": self.native.frame(self._seats[agent])["text"]}
+            agent: {"seat": self._seats[agent], "text": self.native.frame(self._seats[agent])["text"],
+                    **curriculum.origin_info(self._position_set, self._position_id)}
             for agent in self.agents
         }
 
     def reset(self, seed=None, options=None):
         options = options or {}
         # PettingZoo callers may pass options intended for other wrappers.
-        position = options.get("position")
-        if position is not None and not isinstance(position, str):
-            raise ValueError("position must be a notation string")
-        if seed is not None:
-            self._rng, _ = seeding.np_random(seed)
-        native_seed = int(self._rng.integers(0, 2**64, dtype=np.uint64)) if seed is None else seed
-        self.native.reset(native_seed, position)
-        actors = self.native.current_players()
+        rng = copy.deepcopy(self._rng) if seed is None else seeding.np_random(seed)[0]
+        position, dataset, position_id = curriculum.resolve_start(
+            self.native, options, rng, self._position_set
+        )
+        native_seed = int(rng.integers(0, 2**64, dtype=np.uint64)) if seed is None else seed
+        candidate = self.native.clone()
+        candidate.reset(native_seed, position)
+        actors = candidate.current_players()
         if len(actors) > 1:
             raise ValueError("AEC adapter currently requires sequential turns")
+        self.native, self._rng = candidate, rng
+        self._position_set, self._position_id = dataset, position_id
         self.agents = self.possible_agents[:]
         self.rewards = {agent: 0.0 for agent in self.agents}
         self._cumulative_rewards = self.rewards.copy()
