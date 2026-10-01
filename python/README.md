@@ -65,3 +65,9 @@ CI runs [PettingZoo's API test](https://pettingzoo.farama.org/content/environmen
 ## Versioned positions
 
 `PositionSet.load("chess-endgames-basic@1")` loads a bundled, hash-verified dataset and validates every entry using the native engine. `PositionSet.from_files(manifest_path, jsonl_path)` loads a custom set with the same checks. Entries are immutable; use `sample(numpy_rng)` to choose a deterministic starting position. Pass its `position` to a native or Gymnasium reset. Expected puzzle answers stay in trusted dataset metadata, outside policy observations. See [position data](../positions/README.md) for the format and provenance.
+
+## Sampling a curriculum on every reset
+
+Use `env.reset(seed=42, options={"position_set": "chess-endgames-basic@1"})` with either Gymnasium or AEC. Later `reset()` calls keep sampling that pinned set; repeating an explicit seed repeats the selection. Supply a custom `PositionSet` instead of a bundled name, or use `{"position_set": None}` to return to initial positions. An explicit `position` also clears the active curriculum. A set must match the environment game and normalized configuration.
+
+`info["curriculum"]` records only the set ID, content hash, and selected position ID. Expected puzzle answers are excluded. Gymnasium checkpoints include the pinned dataset and RNG continuation; AEC clones preserve both. Invalid selections, imported positions, and failed opponent openings preserve environment and RNG state. A caller-owned opponent model must manage its own mutable state.
