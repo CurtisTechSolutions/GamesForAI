@@ -49,6 +49,8 @@ class EpisodeRecorder:
         if position is not None:
             self._native.reset(seed, position)
         self._spec = json.loads(self._native.spec_json())
+        if isinstance(agents, (str, bytes)):
+            raise ValueError("agents must be a sequence of identities")
         self._agents = tuple(_text(agent, "agent id", 256) for agent in agents)
         if len(self._agents) != self._native.num_players:
             raise ValueError("one agent identity is required per seat")
@@ -138,8 +140,8 @@ class EpisodeRecorder:
             "next_to_act": candidate.current_players(),
             "terminated": terminated, "truncated": truncated,
         }
-        # Include final fields at their maximum serialized size in the bound.
-        size = len(_dump({**row, "outcome": "truncated", "episode_returns": [-1.0] * len(rewards)}).encode("utf-8")) + 1
+        # Reserve final labels and up to 32 bytes for each finite float64 return.
+        size = len(_dump(row).encode("utf-8")) + 128 + 32 * len(rewards)
         if self._bytes + size > self._max_bytes:
             raise ValueError("episode record byte limit reached")
         self._native = candidate
