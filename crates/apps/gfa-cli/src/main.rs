@@ -60,7 +60,12 @@ fn parse_with_env(
                 return Err("PostgreSQL requires a build with --features postgres".into())
             }
             "--mcp-seat" if !mcp_viewer_seen => {
-                config.mcp_seat = Some(args.next().ok_or("--mcp-seat requires a seat")?.parse().map_err(|_|"MCP seat must be an integer from 0 to 255")?);
+                config.mcp_seat = Some(
+                    args.next()
+                        .ok_or("--mcp-seat requires a seat")?
+                        .parse()
+                        .map_err(|_| "MCP seat must be an integer from 0 to 255")?,
+                );
                 mcp_viewer_seen = true;
             }
             "--mcp-spectator" if !mcp_viewer_seen => {
@@ -123,7 +128,9 @@ fn command(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, St
                 viewer_seen = true;
             }
             "--seat" | "--spectator" => return Err("Choose --seat or --spectator once".into()),
-            "--mcp-seat" | "--mcp-spectator" => return Err("Use --seat or --spectator for mcp stdio".into()),
+            "--mcp-seat" | "--mcp-spectator" => {
+                return Err("Use --seat or --spectator for mcp stdio".into())
+            }
             "--port" => return Err("mcp uses stdin/stdout and does not accept --port".into()),
             // Preserve values even when a filesystem path equals another option.
             "--sqlite" | "--postgres-env" | "--stockfish" => {
@@ -355,16 +362,25 @@ mod mcp_command_tests {
 mod http_mcp_options_tests {
     use super::*;
     #[test]
-    fn validates_http_mcp_viewer_options() -> Result<(),String> {
-        let config=parse(["serve","--mcp-seat","1"].map(str::to_owned))?.ok_or("config")?;
-        assert_eq!(config.mcp_seat,Some(1));
-        assert_eq!(parse(["serve","--mcp-spectator"].map(str::to_owned))?.ok_or("config")?.mcp_seat,None);
+    fn validates_http_mcp_viewer_options() -> Result<(), String> {
+        let config = parse(["serve", "--mcp-seat", "1"].map(str::to_owned))?.ok_or("config")?;
+        assert_eq!(config.mcp_seat, Some(1));
+        assert_eq!(
+            parse(["serve", "--mcp-spectator"].map(str::to_owned))?
+                .ok_or("config")?
+                .mcp_seat,
+            None
+        );
         for args in [
-            vec!["serve","--mcp-seat"],vec!["serve","--mcp-seat","256"],
-            vec!["serve","--mcp-seat","0","--mcp-spectator"],
-            vec!["serve","--mcp-spectator","--mcp-seat","0"],
-            vec!["mcp","--mcp-seat","1"],vec!["mcp","--mcp-spectator"],
-        ] { assert!(command(args.into_iter().map(str::to_owned)).is_err()); }
+            vec!["serve", "--mcp-seat"],
+            vec!["serve", "--mcp-seat", "256"],
+            vec!["serve", "--mcp-seat", "0", "--mcp-spectator"],
+            vec!["serve", "--mcp-spectator", "--mcp-seat", "0"],
+            vec!["mcp", "--mcp-seat", "1"],
+            vec!["mcp", "--mcp-spectator"],
+        ] {
+            assert!(command(args.into_iter().map(str::to_owned)).is_err());
+        }
         Ok(())
     }
 }

@@ -61,9 +61,12 @@ pub fn local_router_with_updates(
 /// Additional transports remain responsible for enforcing their own request-body limit.
 pub fn protect_local_routes(router: Router, address: SocketAddr) -> Result<Router, ApiError> {
     validate_local_address(address)?;
-    Ok(router.layer(middleware::from_fn_with_state(access::LocalAccess::new(address), access::guard)))
+    Ok(router.layer(middleware::from_fn_with_state(
+        access::LocalAccess::new(address),
+        access::guard,
+    )))
 }
-fn validate_local_address(address: SocketAddr) -> Result<(),ApiError> {
+fn validate_local_address(address: SocketAddr) -> Result<(), ApiError> {
     if !address.ip().is_loopback() || address.port() == 0 {
         return Err(ApiError::new(
             "INVALID_CONFIG",

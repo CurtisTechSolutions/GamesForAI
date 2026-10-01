@@ -51,7 +51,7 @@ async fn streams_preserve_turn_order_and_reconnect_from_current_state() -> TestR
             database: Database::Sqlite(dir.path().join("live.sqlite")),
             port: 0,
             stockfish: None,
-        mcp_seat: Some(0),
+            mcp_seat: Some(0),
         },
         address,
     )
