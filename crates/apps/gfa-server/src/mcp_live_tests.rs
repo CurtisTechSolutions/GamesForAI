@@ -252,7 +252,9 @@ async fn modern_watch_capacity_is_released_after_cancellation() -> Result<(), Se
     // The SDK acknowledges the accepted filter before invoking our handler.
     // The exhausted handler then closes the stream with a protocol error.
     let mut excess = client.listen(filter.clone()).await?;
-    assert!(tokio::time::timeout(Duration::from_secs(2), excess.next()).await?.is_err());
+    assert!(tokio::time::timeout(Duration::from_secs(2), excess.next())
+        .await?
+        .is_err());
     subscriptions[0].cancel().await?;
     let mut replacement = tokio::time::timeout(Duration::from_secs(2), async {
         loop {

@@ -57,11 +57,16 @@ pub fn local_router_with_updates(
     build_router(service, address, Some(updates))
 }
 
-fn build_router(
-    service: Arc<GameService>,
-    address: SocketAddr,
-    updates: Option<Arc<LiveUpdates>>,
-) -> Result<Router, ApiError> {
+/// Apply local peer, Host, Origin, and response-header policy to host-composed routes.
+/// Additional transports remain responsible for enforcing their own request-body limit.
+pub fn protect_local_routes(router: Router, address: SocketAddr) -> Result<Router, ApiError> {
+    validate_local_address(address)?;
+    Ok(router.layer(middleware::from_fn_with_state(
+        access::LocalAccess::new(address),
+        access::guard,
+    )))
+}
+fn validate_local_address(address: SocketAddr) -> Result<(), ApiError> {
     if !address.ip().is_loopback() || address.port() == 0 {
         return Err(ApiError::new(
             "INVALID_CONFIG",
@@ -69,6 +74,15 @@ fn build_router(
             "Bind 127.0.0.1 or ::1, then pass listener.local_addr().",
         ));
     }
+    Ok(())
+}
+
+fn build_router(
+    service: Arc<GameService>,
+    address: SocketAddr,
+    updates: Option<Arc<LiveUpdates>>,
+) -> Result<Router, ApiError> {
+    validate_local_address(address)?;
     let document = openapi_document(updates.is_some()).to_json().map_err(|_| {
         ApiError::new(
             "INVALID_CONFIG",
