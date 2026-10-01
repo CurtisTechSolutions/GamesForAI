@@ -133,3 +133,30 @@ fn seeded_sudoku_checkpoints_and_position_resets_preserve_the_puzzle() -> Result
     );
     Ok(())
 }
+
+#[test]
+fn registry_training_preserves_native_semantics() -> Result<(), GameError> {
+    let registry = crate::registry()?;
+    assert!(registry.training_env("missing", &serde_json::json!({}), 0).is_err());
+    assert!(registry.training_env("tictactoe", &serde_json::json!({"bad":1}), 0).is_err());
+    for spec in registry.specs() {
+        let config = if spec.id == "sudoku" { serde_json::json!({"size":4}) } else { serde_json::json!({}) };
+        let mut env = registry.training_env(&spec.id, &config, 1)?;
+        let game = registry.get(&spec.id)?;
+        let before = env.get_state()?;
+        let mut clone = env.clone();
+        let seat = env.current_players()[0];
+        let index = env.action_mask(seat)?.iter().position(|legal| *legal)
+            .ok_or_else(|| GameError::illegal("missing action"))? as u32;
+        let step = env.step_index(seat, index)?;
+        let (expected, events) = game.apply(&before.state, seat, &serde_json::json!({"index":index}))?;
+        assert_eq!(env.get_state()?.state, expected);
+        assert_eq!(step.events, events);
+        assert_eq!(step.terminated, game.is_terminal(&expected)?);
+        assert_eq!(step.truncated, game.is_truncated(&expected)?);
+        assert_eq!(clone.get_state()?, before);
+        clone.set_state(&env.get_state()?)?;
+        assert_eq!(clone.observe(Viewer::Player(seat))?, env.observe(Viewer::Player(seat))?);
+    }
+    Ok(())
+}

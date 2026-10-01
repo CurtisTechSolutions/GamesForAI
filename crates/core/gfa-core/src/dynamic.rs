@@ -333,10 +333,13 @@ impl<G: Game> DynGame for GameAdapter<G> {
     }
 }
 
+type TrainingFactory = fn(&Value, u64) -> Result<Box<dyn crate::TrainingEnv>, GameError>;
+
 /// Ordered, constructor-injected registry. Only gfa-games names concrete game types.
 #[derive(Default, Clone)]
 pub struct GameRegistry {
     games: BTreeMap<String, Arc<dyn DynGame>>,
+    training: BTreeMap<String, TrainingFactory>,
 }
 
 impl GameRegistry {
@@ -353,6 +356,37 @@ impl GameRegistry {
         self.games
             .insert(spec.id, Arc::new(GameAdapter::<G>::default()));
         Ok(())
+    }
+
+    /// Register a game plus its native training constructor.
+    /// Existing plugins using register() remain compatible.
+    pub fn register_training<G: Game>(&mut self) -> Result<(), GameError>
+    where
+        G::Config: Send + Sync,
+    {
+        self.register::<G>()?;
+        self.training.insert(G::spec().id, |config, seed| {
+            let config = GameAdapter::<G>::config(config)?;
+            Ok(Box::new(crate::Env::<G>::with_config(config, seed)?))
+        });
+        Ok(())
+    }
+
+    /// Construct a native environment without serializing state on every step.
+    pub fn training_env(
+        &self,
+        id: &str,
+        config: &Value,
+        seed: u64,
+    ) -> Result<Box<dyn crate::TrainingEnv>, GameError> {
+        let factory = self.training.get(id).ok_or_else(|| {
+            GameError::new(
+                ErrorCode::UnknownGame,
+                format!("No native training environment registered for {id}"),
+                "Choose an installed game with native training support.",
+            )
+        })?;
+        factory(config, seed)
     }
 
     /// Resolve a game by its stable id.
