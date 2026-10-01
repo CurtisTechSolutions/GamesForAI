@@ -41,6 +41,14 @@ jobs:
         env:
           POSITION_BASE_SHA: ${{ github.event.pull_request.base.sha }}
       - run: python -m pytest python/tests -q
+      - name: Build local server for remote SDK integration
+        if: runner.os == 'Linux'
+        env:
+          SQLX_OFFLINE: true
+        run: cargo build -p gfa-cli --locked
+      - name: Compare remote and native SDK against real server
+        if: runner.os == 'Linux'
+        run: python .github/scripts/python-remote-smoke.py
       - run: python examples/vector_throughput.py --output vector-benchmark.json
       - uses: actions/upload-artifact@v4
         with:

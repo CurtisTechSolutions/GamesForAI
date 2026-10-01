@@ -21,11 +21,12 @@ class AECGameEnv(AECEnv):
     metadata = {"render_modes": ["ansi"], "name": "gamesforai_v0", "is_parallelizable": False}
 
     def __init__(
-        self, game: str, *, config: dict[str, Any] | None = None, render_mode: str | None = None
+        self, game: str, *, config: dict[str, Any] | None = None, render_mode: str | None = None,
+        _native_factory=NativeEnv
     ) -> None:
         if render_mode not in (None, "ansi"):
             raise ValueError("render_mode must be None or 'ansi'")
-        self.native = NativeEnv(game, json.dumps(config or {}))
+        self.native = _native_factory(game, json.dumps(config or {}))
         self.render_mode = render_mode
         self.possible_agents = [f"player_{seat}" for seat in range(self.native.num_players)]
         self._seats = {agent: seat for seat, agent in enumerate(self.possible_agents)}

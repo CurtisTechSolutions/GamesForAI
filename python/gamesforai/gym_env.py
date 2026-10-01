@@ -37,6 +37,7 @@ class GameEnv(gym.Env):
         opponent: str | Policy = "random",
         stockfish_pool: StockfishPool | None = None,
         render_mode: str | None = None,
+        _native_factory=NativeEnv,
     ) -> None:
         if render_mode not in (None, "ansi"):
             raise ValueError("render_mode must be None or 'ansi'")
@@ -60,7 +61,7 @@ class GameEnv(gym.Env):
             raise ValueError("opponent must be a supported name or Python policy callable")
         if stockfish_pool is not None and self._stockfish is None:
             raise ValueError("stockfish_pool requires a stockfish opponent")
-        self.native = NativeEnv(game, json.dumps(config or {}))
+        self.native = _native_factory(game, json.dumps(config or {}))
         if isinstance(seat, bool) or not isinstance(seat, int) or not 0 <= seat < self.native.num_players:
             raise ValueError("seat is outside this game's player range")
         self._spec = json.loads(self.native.spec_json())
