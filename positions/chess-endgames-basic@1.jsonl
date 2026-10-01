@@ -1,0 +1,6 @@
+{"id":"kq-k-white","position":"7k/8/5K2/6Q1/8/8/8/8 w - - 0 1","tags":["queen","winning-material"],"source":"GamesForAI generated endgame study"}
+{"id":"kq-k-black","position":"8/8/8/8/6q1/5k2/8/7K b - - 0 1","tags":["queen","winning-material"],"source":"GamesForAI generated endgame study"}
+{"id":"kr-k-white","position":"7k/8/5K2/6R1/8/8/8/8 w - - 0 1","tags":["rook","winning-material"],"source":"GamesForAI generated endgame study"}
+{"id":"kr-k-black","position":"8/8/8/8/6r1/5k2/8/7K b - - 0 1","tags":["rook","winning-material"],"source":"GamesForAI generated endgame study"}
+{"id":"kp-k-white","position":"8/4k3/8/4PK2/8/8/8/8 w - - 0 1","tags":["pawn","opposition"],"source":"GamesForAI generated endgame study"}
+{"id":"kp-k-black","position":"8/8/8/8/4pk2/8/4K3/8 b - - 0 1","tags":["pawn","opposition"],"source":"GamesForAI generated endgame study"}

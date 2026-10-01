@@ -160,9 +160,27 @@ fn games() -> PyResult<Vec<String>> {
         .collect())
 }
 
+
+/// Bundled, versioned position datasets; manifests pin the exact UTF-8 bytes.
+#[pyfunction]
+fn position_set_data(name: &str) -> PyResult<(String, String)> {
+    let (manifest, data) = match name {
+        "chess-endgames-basic@1" => (
+            include_str!("../../../../positions/chess-endgames-basic@1.manifest.json"),
+            include_str!("../../../../positions/chess-endgames-basic@1.jsonl"),
+        ),
+        "connect4-solved-positions@1" => (
+            include_str!("../../../../positions/connect4-solved-positions@1.manifest.json"),
+            include_str!("../../../../positions/connect4-solved-positions@1.jsonl"),
+        ),
+        _ => return Err(error("unknown position set; use a published name@version")),
+    };
+    Ok((manifest.into(), data.into()))
+}
+
 /// GamesForAI's native engine bridge.
 #[pymodule]
 mod _native {
     #[pymodule_export]
-    use super::{games, NativeEnv};
+    use super::{games, position_set_data, NativeEnv};
 }

@@ -61,3 +61,7 @@ for agent in env.agent_iter():
 Agents are named `player_0`, `player_1`, and so on. Each policy sees only its seat's observation. The AEC interface preserves accumulated rewards and gives every agent its final transition before `step(None)` removes it. Numeric spaces and masks stay fixed through an episode. `clone()` copies native and AEC bookkeeping for independent search; rendering uses the public spectator view.
 
 CI runs [PettingZoo's API test](https://pettingzoo.farama.org/content/environment_tests/) against every installed game in addition to full-game reward and truncation tests.
+
+## Versioned positions
+
+`PositionSet.load("chess-endgames-basic@1")` loads a bundled, hash-verified dataset and validates every entry using the native engine. `PositionSet.from_files(manifest_path, jsonl_path)` loads a custom set with the same checks. Entries are immutable; use `sample(numpy_rng)` to choose a deterministic starting position. Pass its `position` to a native or Gymnasium reset. Expected puzzle answers stay in trusted dataset metadata, outside policy observations. See [position data](../positions/README.md) for the format and provenance.
