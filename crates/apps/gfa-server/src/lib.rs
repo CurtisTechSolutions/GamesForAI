@@ -286,3 +286,6 @@ mod mcp_plan_tests;
 
 #[cfg(test)]
 mod mcp_live_tests;
+
+#[cfg(test)]
+mod uci_cap_tests;
