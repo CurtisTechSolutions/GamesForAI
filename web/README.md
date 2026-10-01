@@ -20,7 +20,7 @@ pnpm dev
 Open the local URL printed by Vite. The development proxy forwards API and
 WebSocket requests to `http://127.0.0.1:8080`. Override `GFA_API_TARGET` with
 another local HTTP backend if needed. Only requests from the app's own origin
-have their origin rewritten for the backend; foreign origins remain rejected.
+have their origin rewritten for the backend; foreign origins are replaced with an invalid origin and rejected by the backend.
 This development server is for a trusted local workspace.
 
 ## Architecture and checks
