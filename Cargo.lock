@@ -890,6 +890,7 @@ dependencies = [
  "gfa-engine-uci",
  "gfa-games",
  "gfa-opponents",
+ "gfa-service",
  "numpy",
  "pyo3",
  "rayon",
