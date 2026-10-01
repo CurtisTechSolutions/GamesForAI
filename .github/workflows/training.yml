@@ -1,0 +1,40 @@
+name: Training CI
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: training-ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  masked-ppo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: python -m pip install "torch>=2.3,<3" --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m pip install "maturin>=1.9,<2" "pytest>=8,<9" "numpy>=1.24,<3"
+      - run: maturin build --release --locked --out dist
+      - name: Install wheel with training dependencies
+        run: |
+          python - <<'PY'
+          import glob
+          import subprocess
+          import sys
+          subprocess.check_call([sys.executable, "-m", "pip", "install", glob.glob("dist/*.whl")[0] + "[training]"])
+          PY
+      - run: python -m pytest python/tests/test_ppo_example.py python/tests/test_training_mask.py -q
+      - run: python examples/train_ppo.py --steps 4096 --envs 2 --rollout 64 --epochs 2 --eval-games 8 --output training-output
+      - uses: actions/upload-artifact@v4
+        with:
+          name: masked-ppo-smoke
+          path: training-output/

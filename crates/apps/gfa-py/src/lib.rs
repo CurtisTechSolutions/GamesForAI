@@ -111,6 +111,11 @@ impl NativeEnv {
         .map_err(error)
     }
 
+    fn action_mask<'py>(&self, py: Python<'py>, seat: u8) -> PyResult<Bound<'py, PyArray1<bool>>> {
+        let mask = py.detach(|| self.inner.action_mask(seat)).map_err(error)?;
+        Ok(PyArray1::from_vec(py, mask))
+    }
+
     fn spec_json(&self) -> PyResult<String> {
         serde_json::to_string(&self.inner.spec()).map_err(error)
     }
