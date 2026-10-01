@@ -116,7 +116,7 @@ def write_parquet(path, records, *, batch_size=256):
                     batch.clear()
             if batch:
                 writer.write_table(pa.Table.from_pylist(batch, schema=schema))
-        with temporary.open("rb") as file:
+        with temporary.open("r+b") as file:
             os.fsync(file.fileno())
         os.replace(temporary, path)
         return count
