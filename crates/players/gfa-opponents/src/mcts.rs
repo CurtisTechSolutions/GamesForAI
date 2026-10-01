@@ -10,7 +10,7 @@ struct Node {
 }
 
 fn node(game: &dyn DynGame, state: Value, rng: &mut SeededRng) -> Result<Node, GameError> {
-    let seat = if game.is_terminal(&state)? {
+    let seat = if game.is_terminal(&state)? || game.is_truncated(&state)? {
         None
     } else {
         Some(actor(game, &state)?)
@@ -116,7 +116,10 @@ pub(super) fn choose(
         result.info.depth = result.info.depth.max(depth);
         // Rollout uses the same per-seat engine rules, with independent randomness.
         let mut rollout = tree[current].state.clone();
-        while depth < budget.limits.depth && !game.is_terminal(&rollout)? {
+        while depth < budget.limits.depth
+            && !game.is_terminal(&rollout)?
+            && !game.is_truncated(&rollout)?
+        {
             if !budget.enter() {
                 break;
             }
