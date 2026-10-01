@@ -887,6 +887,7 @@ name = "gfa-py"
 version = "0.1.0"
 dependencies = [
  "gfa-core",
+ "gfa-engine-uci",
  "gfa-games",
  "gfa-opponents",
  "numpy",
