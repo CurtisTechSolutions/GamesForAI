@@ -176,7 +176,6 @@ fn registry_training_preserves_native_semantics() -> Result<(), GameError> {
     Ok(())
 }
 
-
 #[test]
 fn numeric_projection_keeps_viewer_validation_and_plugin_fallbacks() -> Result<(), GameError> {
     let registry = crate::registry()?;
@@ -187,9 +186,14 @@ fn numeric_projection_keeps_viewer_validation_and_plugin_fallbacks() -> Result<(
                 assert_eq!(env.observe_tensor(viewer)?, env.observe(viewer)?.tensor);
             }
             assert!(env.observe_tensor(Viewer::Player(255)).is_err());
-            let Some(seat) = env.current_players().first().copied() else { break; };
-            let index = env.action_mask(seat)?.iter().position(|legal| *legal)
-                .ok_or_else(|| GameError::illegal("missing action"))? as u32;
+            let Some(seat) = env.current_players().first().copied() else {
+                break;
+            };
+            let index =
+                env.action_mask(seat)?
+                    .iter()
+                    .position(|legal| *legal)
+                    .ok_or_else(|| GameError::illegal("missing action"))? as u32;
             env.step_index(seat, index)?;
         }
     }

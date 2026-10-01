@@ -325,7 +325,10 @@ impl Game for Connect4 {
                 values[84 + index] = f32::from(state.to_move);
             }
         }
-        Some(Tensor { shape: vec![3, 6, 7], values })
+        Some(Tensor {
+            shape: vec![3, 6, 7],
+            values,
+        })
     }
 
     fn action_to_string(_: &State, action: &Action) -> String {
@@ -391,23 +394,40 @@ mod tests {
             let mut state = Connect4::new_initial_state(&Config {}, seed)?;
             let mut rng = gfa_core::SeededRng::new(seed);
             loop {
-                let board: Board = serde_json::from_value(Connect4::observe(&state, Viewer::Spectator).json)?;
-                for viewer in [Viewer::Player(0), Viewer::Player(1), Viewer::Spectator, Viewer::Omniscient] {
-                    let tensor = Connect4::observe_tensor(&state, viewer).ok_or_else(|| GameError::position("missing tensor"))?;
+                let board: Board =
+                    serde_json::from_value(Connect4::observe(&state, Viewer::Spectator).json)?;
+                for viewer in [
+                    Viewer::Player(0),
+                    Viewer::Player(1),
+                    Viewer::Spectator,
+                    Viewer::Omniscient,
+                ] {
+                    let tensor = Connect4::observe_tensor(&state, viewer)
+                        .ok_or_else(|| GameError::position("missing tensor"))?;
                     assert_eq!(tensor.shape, vec![3, 6, 7]);
                     for row in 0..6 {
                         for col in 0..7 {
                             let index = row * 7 + col;
-                            assert_eq!(tensor.values[index], f32::from(board.rows[row][col] == Some(0)));
-                            assert_eq!(tensor.values[42 + index], f32::from(board.rows[row][col] == Some(1)));
+                            assert_eq!(
+                                tensor.values[index],
+                                f32::from(board.rows[row][col] == Some(0))
+                            );
+                            assert_eq!(
+                                tensor.values[42 + index],
+                                f32::from(board.rows[row][col] == Some(1))
+                            );
                             assert_eq!(tensor.values[84 + index], f32::from(board.to_move));
                         }
                     }
                 }
-                if Connect4::is_terminal(&state) { break; }
+                if Connect4::is_terminal(&state) {
+                    break;
+                }
                 let seat = state.to_move;
                 let actions = Connect4::legal_actions(&state, seat);
-                let index = rng.index(actions.len()).ok_or_else(|| GameError::illegal("missing move"))?;
+                let index = rng
+                    .index(actions.len())
+                    .ok_or_else(|| GameError::illegal("missing move"))?;
                 Connect4::apply(&mut state, seat, &actions[index])?;
             }
         }
