@@ -1,11 +1,12 @@
 //! Official-SDK MCP adapter over the transport-independent lifecycle service.
+mod briefing;
 mod history;
+mod live;
 mod planning;
 mod play;
 mod play_types;
 mod resources;
 mod types;
-mod live;
 use gfa_api_types::ApiError;
 use gfa_core::Viewer;
 use gfa_service::GameService;
@@ -196,6 +197,11 @@ impl McpServer {
                 args.detail.into(),
             )?
         };
+        let briefing = if matches!(args.detail, Detail::Compact) {
+            briefing::compact(briefing, self.viewer)?
+        } else {
+            briefing
+        };
         let text = briefing.markdown().map_err(|_| internal())?;
         success(BriefingOutput::from(briefing), text)
     }
@@ -255,17 +261,28 @@ impl ServerHandler for McpServer {
         )
         .map(Into::into)
     }
-    fn accepted_subscription_filter(&self, requested: &rmcp::model::SubscriptionFilter) -> Option<rmcp::model::SubscriptionFilter> {
+    fn accepted_subscription_filter(
+        &self,
+        requested: &rmcp::model::SubscriptionFilter,
+    ) -> Option<rmcp::model::SubscriptionFilter> {
         Some(self.accepted_watches(requested))
     }
-    async fn listen(&self, context: rmcp::service::SubscriptionContext) -> Result<(),ErrorData> {
+    async fn listen(&self, context: rmcp::service::SubscriptionContext) -> Result<(), ErrorData> {
         self.listen_states(context).await
     }
-    async fn subscribe(&self, request: rmcp::model::SubscribeRequestParams, context: RequestContext<RoleServer>) -> Result<(),ErrorData> {
-        self.subscribe_state(request.uri,context).await
+    async fn subscribe(
+        &self,
+        request: rmcp::model::SubscribeRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<(), ErrorData> {
+        self.subscribe_state(request.uri, context).await
     }
-    async fn unsubscribe(&self, request: rmcp::model::UnsubscribeRequestParams, context: RequestContext<RoleServer>) -> Result<(),ErrorData> {
-        self.unsubscribe_state(&request.uri,context).await
+    async fn unsubscribe(
+        &self,
+        request: rmcp::model::UnsubscribeRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<(), ErrorData> {
+        self.unsubscribe_state(&request.uri, context).await
     }
     fn get_tool(&self, name: &str) -> Option<Tool> {
         self.tools.iter().find(|tool| tool.name == name).cloned()
