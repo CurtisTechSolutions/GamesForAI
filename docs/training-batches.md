@@ -28,6 +28,7 @@ state, or resume a benchmark from an ID.
 Subsequent operations:
 - `{op: "step", checkpoint, seat: 0, action: 3}` applies one discrete action.
 - `{op: "observe", checkpoint, seat: 1}` validates and projects another seat.
+  Omit seat for public spectator text with an empty catalog and all-false mask.
 - `{op: "reset", checkpoint, seed: 44, position: "...", seat: 0}` starts an
   episode with the checkpoint's game/configuration. Omit position for the
   standard start. Create also accepts optional position notation.
