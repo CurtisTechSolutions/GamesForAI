@@ -94,3 +94,20 @@ of numeric output per batch. Throughput still needs measurement against the PRD 
 ## Readable actions for model policies
 
 Native frames include `legal_actions` as `(index, canonical_notation)` pairs in stable notation order. Gymnasium info includes the same catalog plus the game ID, rules, and action notation for learner and opponent policies. The catalog contains only actions available to that seat and matches its numeric mask. `NativeEnv.spec_json()` returns the static game contract. Vector batches keep their numeric-only output.
+
+## Your own HTTP model
+
+```python
+from gamesforai import ChatPolicy, make
+
+policy = ChatPolicy("http://localhost:8000/v1", "your-model", api_key_env="MY_MODEL_KEY")
+env = make("connect4", opponent=policy)
+obs, info = env.reset(seed=42)
+# Or choose learner moves directly with policy(obs, info).
+```
+
+ChatPolicy uses the chat-completions protocol implemented by servers such as [vLLM](https://docs.vllm.ai/en/latest/serving/online_serving/). It sends only seat-visible text, rules, and canonical legal moves. The model returns `{"action":"4"}` for Connect Four column 4, or `{"action":"e2e4"}` for a chess move. The adapter validates the move and converts it to the native index.
+
+Credentials are read from the named environment variable on each call; omit `api_key_env` for a server without authentication. No model or provider account is required by the engine. Structured output uses a JSON Schema with the legal moves as an enum, as supported by [vLLM structured outputs](https://docs.vllm.ai/en/latest/features/structured_outputs/). Set `structured=False` for a server that accepts the chat protocol but not that parameter; the reply must still be the exact JSON object.
+
+Requests and replies are capped at 64 KiB; output tokens and the socket timeout are configurable. Calls do not retry or follow redirects. `PolicyError.code` distinguishes malformed/illegal replies, authentication, rate limits, timeouts, and connection failures without exposing response bodies or credentials. A Gymnasium opponent failure rolls back the complete learner/opponent exchange. This synchronous adapter is for local training/evaluation code; durable server-side LLM transcripts and budgets are a separate integration.
