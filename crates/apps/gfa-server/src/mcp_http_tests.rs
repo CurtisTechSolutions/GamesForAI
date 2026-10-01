@@ -184,3 +184,84 @@ async fn streamable_http_viewer_is_configured_by_launcher() -> Result<(), Server
     spectator.store.close().await;
     Ok(())
 }
+
+#[tokio::test]
+async fn modern_http_subscriptions_stream_updates_and_stop_on_shutdown() -> Result<(), ServerError> {
+    use futures_util::StreamExt;
+    use rmcp::model::{
+        ClientCapabilities, Implementation, ProtocolVersion, RequestMetaObject, SubscriptionFilter,
+        SubscriptionsListenRequestParams,
+    };
+    use std::time::Duration;
+
+    let directory = tempfile::tempdir()?;
+    let app = fixture(&config(&directory)).await?;
+    let initial = app.service.create_match(
+        serde_json::from_value(json!({"game_id":"tictactoe"}))?,
+        gfa_core::Viewer::Player(0),
+    ).await?;
+    let uri = format!("gfa://matches/{}/state", initial.match_id);
+    let params = SubscriptionsListenRequestParams::new(
+        SubscriptionFilter::builder().resource_subscriptions([uri.clone()]).build()
+    ).with_meta(RequestMetaObject::with_client_context(
+        ProtocolVersion::V_2026_07_28,
+        Implementation::new("http-stream-test", "1"),
+        ClientCapabilities::default(),
+    ));
+    let mut req = Request::builder()
+        .method("POST")
+        .uri("/mcp")
+        .header(header::HOST, "127.0.0.1:8080")
+        .header(header::CONTENT_TYPE, "application/json")
+        .header(header::ACCEPT, "application/json, text/event-stream")
+        .header("MCP-Protocol-Version", "2026-07-28")
+        .header("Mcp-Method", "subscriptions/listen")
+        .body(Body::from(json!({"jsonrpc":"2.0","id":17,"method":"subscriptions/listen","params":params}).to_string()))?;
+    req.extensions_mut().insert(ConnectInfo(SocketAddr::from(([127,0,0,1],50000))));
+    let response = app.router.clone().oneshot(req).await?;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert!(response.headers()[header::CONTENT_TYPE].to_str()?.starts_with("text/event-stream"));
+    let mut stream = response.into_body().into_data_stream();
+    let mut buffer = String::new();
+    let mut methods = Vec::new();
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while methods.len() < 2 {
+            let chunk = stream.next().await.ok_or("SSE closed before initial update")??;
+            buffer.push_str(std::str::from_utf8(&chunk)?);
+            while let Some(end) = buffer.find("\n\n") {
+                let event = buffer.drain(..end+2).collect::<String>();
+                for line in event.lines() {
+                    if let Some(data) = line.strip_prefix("data:") {
+                        let notification: Value = serde_json::from_str(data.trim())?;
+                        methods.push(notification["method"].as_str().unwrap_or("").to_owned());
+                    }
+                }
+            }
+        }
+        Ok::<_, ServerError>(())
+    }).await??;
+    assert_eq!(methods, vec!["notifications/subscriptions/acknowledged", "notifications/resources/updated"]);
+    app.service.make_move(
+        &initial.match_id,
+        serde_json::from_value(json!({"seat":0,"turn":0,"action":"r1c1"}))?,
+        None,
+    ).await?;
+    tokio::time::timeout(Duration::from_secs(5), async {
+        loop {
+            let chunk = stream.next().await.ok_or("SSE closed before changed state")??;
+            buffer.push_str(std::str::from_utf8(&chunk)?);
+            if buffer.contains("notifications/resources/updated") && buffer.contains(&uri) {
+                return Ok::<_, ServerError>(());
+            }
+        }
+    }).await??;
+    app.mcp.stop();
+    tokio::time::timeout(Duration::from_secs(3), async {
+        while let Some(chunk) = stream.next().await {
+            chunk?;
+        }
+        Ok::<_, ServerError>(())
+    }).await??;
+    app.store.close().await;
+    Ok(())
+}
