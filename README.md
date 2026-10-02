@@ -6,6 +6,12 @@ See the [Product Requirements Document](docs/PRD.md).
 
 ## Run locally
 
+Use `make help` for setup, run, build, and verification shortcuts. The
+[contributor guide](CONTRIBUTING.md) documents prerequisites and optional Python
+setup. `make setup`, `make serve`, and `make dev` (in a second terminal) start the
+local development environment.
+
+
 ```sh
 cargo run -p gfa-cli --locked -- serve --sqlite ./gfa.sqlite --port 8080
 ```
