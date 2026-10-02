@@ -19,9 +19,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: pnpm install --frozen-lockfile
-      - run: cargo build -p gfa-cli --locked
-      - run: pnpm test:browser
+      - run: make setup-web
+      - run: make test-browser
       - uses: actions/upload-artifact@v4
         if: always()
         with:
