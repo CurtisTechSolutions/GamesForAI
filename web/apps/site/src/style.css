@@ -878,3 +878,121 @@ pre {
     grid-template-columns: 1fr;
   }
 }
+
+.replay-controls {
+  display: grid;
+  gap: 20px;
+  margin: 24px 0;
+}
+.replay-controls input[type="range"] {
+  padding: 0;
+  accent-color: var(--accent);
+}
+.playback-buttons,
+.replay-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.replay-moves ol {
+  list-style: none;
+  padding: 0;
+  max-height: 480px;
+  overflow: auto;
+}
+.replay-moves li {
+  border-bottom: 1px solid var(--line);
+  padding: 8px 0;
+}
+.replay-move {
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 6px;
+  font-size: 12px;
+  text-align: left;
+  justify-content: start;
+  width: 100%;
+}
+.replay-move[aria-current] {
+  color: var(--accent);
+  border-color: #507569;
+}
+.replay-moves details {
+  margin: 8px 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.agent-record pre {
+  max-height: 260px;
+  overflow: auto;
+  font-size: 11px;
+}
+.branch-button {
+  margin-top: 24px;
+}
+.branch-form fieldset {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 24px 0 0;
+  min-width: 0;
+}
+.branch-form legend {
+  font-weight: 650;
+}
+.branch-form p {
+  font-size: 13px;
+}
+.branch-form .form-grid {
+  margin-bottom: 20px;
+}
+.variation-tree {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 12px;
+}
+.variation-tree ol,
+.variation-tree ul {
+  list-style: none;
+  padding-left: 16px;
+  border-left: 2px solid var(--line);
+}
+.variation-tree li {
+  margin-bottom: 16px;
+}
+.variation-tree small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.replay-record {
+  margin-top: 24px;
+}
+.replay-record dl {
+  font-size: 12px;
+}
+.replay-record dd {
+  margin: 0 0 12px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+.evaluation-graph {
+  margin: 24px 0;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+}
+.evaluation-graph svg {
+  width: 100%;
+  display: block;
+}
+.evaluation-graph figcaption {
+  font-weight: 650;
+}
+.evaluation-graph table {
+  width: 100%;
+  font-size: 12px;
+  text-align: left;
+}

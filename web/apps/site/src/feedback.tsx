@@ -16,7 +16,11 @@ export function Failure({
           : "The game server isn't reachable. Start gfa serve and try again."}
       </p>
       {error instanceof ApiError && <p>{error.hint}</p>}
-      {retry && <button onClick={retry}>Try again</button>}
+      {retry && (
+        <button type="button" onClick={retry}>
+          Try again
+        </button>
+      )}
     </section>
   );
 }

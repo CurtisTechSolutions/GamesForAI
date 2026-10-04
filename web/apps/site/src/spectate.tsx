@@ -93,6 +93,9 @@ export function Spectator({
           )}
         </div>
         <aside className={compact ? "" : "match-sidebar"}>
+          <a href={"#/matches/" + encodeURIComponent(id) + "/replay"}>
+            Replay and branch
+          </a>
           <MatchEvents id={id} />
           <p className="history-note">
             This view shows public observations and reasoning made available by

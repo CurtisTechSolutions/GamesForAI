@@ -203,7 +203,8 @@ export function HistoryPage({ live = false }: { live?: boolean }) {
                     href={
                       "#/matches/" +
                       encodeURIComponent(match.forked_from.match_id) +
-                      "/watch"
+                      "/replay?turn=" +
+                      match.forked_from.turn
                     }
                   >
                     {match.forked_from.match_id}
@@ -226,6 +227,14 @@ export function HistoryPage({ live = false }: { live?: boolean }) {
                 href={"#/matches/" + encodeURIComponent(match.match_id)}
               >
                 Open match
+              </a>
+              <a
+                className="button secondary"
+                href={
+                  "#/matches/" + encodeURIComponent(match.match_id) + "/replay"
+                }
+              >
+                Replay
               </a>
               {live && (
                 <label className="checkbox-label">
