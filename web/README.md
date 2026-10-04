@@ -75,3 +75,17 @@ available, including when a renderer cannot load.
 Add a scene in `packages/game-<id>` using `BoardScene` from `@gfa/game-kit/scene`,
 then add its lazy loader to `packages/game-kit/src/registry.ts`. The site uses
 only the game-kit interface. Unregistered games keep the generic text renderer.
+
+## History and live spectating
+
+**History** lists local matches with game/status filters and cursor pagination.
+Search and result filters operate on the loaded records; use **Load more matches**
+to continue the search. Match cards link back to controls or to a spectator view.
+
+**Live** lists active matches and shows up to four selected boards in an arena.
+A spectator link (`#/matches/<id>/watch`) requests only the public observation
+and public events. It never submits moves or requests a player's private view.
+WebSocket updates refresh the boards and move lists; polling continues when the
+stream is unavailable. Provider reasoning remains subject to server disclosure
+rules. This is the local workspace; hosted visibility/account controls are not
+implemented by these pages.

@@ -2,22 +2,28 @@ import { Library, GameDetails } from "./library";
 import { useRoute } from "./navigation";
 import { MatchSetup } from "./setup";
 import { MatchPage } from "./match";
+import { HistoryPage } from "./history";
+import { Spectator } from "./spectate";
 
 export function App() {
   const route = useRoute();
   const [path, search = ""] = route.split("?");
   const params = new URLSearchParams(search);
   let page = <Library />;
-  const match = /^\/(games|matches)\/([^/]+)(\/play)?$/.exec(path);
+  const match = /^\/(games|matches)\/([^/]+)(\/(?:play|watch))?$/.exec(path);
   if (match) {
     try {
       const id = decodeURIComponent(match[2]);
       if (match[1] === "games") {
+        if (match[3] && match[3] !== "/play")
+          throw new Error("Invalid game link");
         page = match[3] ? (
           <MatchSetup key={id} id={id} />
         ) : (
           <GameDetails key={id} id={id} />
         );
+      } else if (match[3] === "/watch") {
+        page = <Spectator key={id} id={id} />;
       } else {
         const seat = Number(params.get("seat") ?? 0);
         if (!Number.isInteger(seat) || seat < 0 || seat > 255 || match[3])
@@ -38,6 +44,8 @@ export function App() {
         </p>
       );
     }
+  } else if (path === "/history" || path === "/live") {
+    page = <HistoryPage key={path} live={path === "/live"} />;
   } else if (path !== "/") {
     page = (
       <section className="feedback">
@@ -70,6 +78,15 @@ export function App() {
         <nav aria-label="Main navigation">
           <a href="#/" aria-current={route === "/" ? "page" : undefined}>
             Library
+          </a>
+          <a href="#/live" aria-current={path === "/live" ? "page" : undefined}>
+            Live
+          </a>
+          <a
+            href="#/history"
+            aria-current={path === "/history" ? "page" : undefined}
+          >
+            History
           </a>
           <a href="/docs" target="_blank" rel="noreferrer">
             API reference <span aria-hidden="true">↗</span>
