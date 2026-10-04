@@ -19,7 +19,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: pnpm install --frozen-lockfile
+      - run: make setup-web
       - name: Verify generated API contracts
         env:
           SQLX_OFFLINE: true
@@ -27,10 +27,8 @@ jobs:
           python3 .github/scripts/test-api-types.py
           cargo run -p gfa-http --example export-openapi --locked > /tmp/gfa-openapi.json
           python3 .github/scripts/generate-api-types.py /tmp/gfa-openapi.json web/packages/api-client/src/generated.ts --check
-      - run: pnpm typecheck
-      - run: pnpm lint
-      - run: pnpm format:check
-      - run: pnpm build
+      - run: make check-web
+      - run: make build-web
       - name: Show formatter corrections after a failure
         if: failure()
         run: |
