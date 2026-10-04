@@ -22,3 +22,27 @@ The run ID and timestamp are fixed to make the fixture reproducible. It is
 explicitly marked as example data; these ratings depend on this small schedule
 and its default priors. The failure test fixture uses a factory that raises an
 exception before each game.
+
+## Compare model snapshots
+
+Choose **Compare runs**, open two reports, and select a snapshot from each run.
+The comparison shows each snapshot's full-run score, reported rating interval,
+and results against each opponent. Snapshot names may differ between runs.
+
+Score changes are shown per shared opponent only when the game, engine version,
+game options and position-set checksum agree, and both matchups have the same
+seeds, model seats, and starting-position IDs. Changes are descriptive percentage
+points (run B minus run A), not significance tests. Excluded games remain visible,
+and a matchup with no rated games has no score. Aggregate ratings depend on the
+entire opponent mix and priors; no cross-run rating delta or ranking is inferred.
+
+Different settings and unmatched schedules are explained in the comparison.
+Reports without position-set provenance remain readable, but do not receive
+score changes because their starting-position source cannot be compared.
+Replacing a report with an invalid file preserves the previous report and
+selected snapshot. Both reports stay in memory in the current tab.
+
+The candidate browser-test fixture is another native Tic-Tac-Toe run with the
+same seed and schedule as the example. It uses a last-legal-action Python policy
+(example:policy-v2), so comparisons exercise measured differences rather than
+handwritten ratings.

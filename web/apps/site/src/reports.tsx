@@ -73,9 +73,14 @@ export function ReportsPage() {
             evidence supports a rating.
           </p>
         </div>
-        <a className="button secondary" href="#/models">
-          Prepare a run
-        </a>
+        <div className="report-import-actions">
+          <a className="button secondary" href="#/models">
+            Prepare a run
+          </a>
+          <a className="button secondary" href="#/reports/compare">
+            Compare runs
+          </a>
+        </div>
       </section>
       <section className="report-import" aria-label="Open an evaluation report">
         <div>
@@ -407,6 +412,18 @@ function ReportView({ loaded }: { loaded: Loaded }) {
           </dd>
           <dt>Starting seed</dt>
           <dd>{report.seed}</dd>
+          <dt>Position set</dt>
+          <dd>
+            {report.positionSet === undefined
+              ? "Not recorded"
+              : (report.positionSet?.id ?? "Standard starting positions")}
+          </dd>
+          {report.positionSet && (
+            <>
+              <dt>Position set checksum</dt>
+              <dd>{report.positionSet.sha256}</dd>
+            </>
+          )}
         </dl>
         <h3>Game options</h3>
         <pre>{report.config}</pre>

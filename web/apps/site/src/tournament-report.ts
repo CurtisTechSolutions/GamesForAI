@@ -32,6 +32,7 @@ export interface TournamentReport {
   seed: string;
   gamesPerPair: number;
   config: string;
+  positionSet: { id: string; sha256: string } | null | undefined;
   standings: Standing[];
   episodes: Episode[];
 }
@@ -235,6 +236,14 @@ export function parseTournamentReport(raw: string): TournamentReport {
   jsonOptions(config);
   const configText = JSON.stringify(config, null, 2);
   if (configText.length > 32768) return invalid();
+  let positionSet: TournamentReport["positionSet"];
+  if (root.position_set === null) positionSet = null;
+  else if (root.position_set !== undefined) {
+    const position = record(root.position_set);
+    const sha256 = text(position.sha256, 64);
+    if (!/^[a-f0-9]{64}$/.test(sha256)) return invalid();
+    positionSet = { id: text(position.id), sha256 };
+  }
   return {
     id: text(root.run_id),
     game: text(root.game),
@@ -243,6 +252,7 @@ export function parseTournamentReport(raw: string): TournamentReport {
     seed: seed(root.seed),
     gamesPerPair,
     config: configText,
+    positionSet,
     standings,
     episodes,
   };
