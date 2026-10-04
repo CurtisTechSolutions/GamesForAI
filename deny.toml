@@ -20,6 +20,13 @@ allow = [
 ]
 confidence-threshold = 0.8
 
+# Reqwest's platform verifier uses this Mozilla root-certificate data on
+# supported platforms. Its redistribution license is included in THIRD_PARTY_LICENSES.
+[[licenses.exceptions]]
+name = "webpki-root-certs"
+version = "=1.0.9"
+allow = ["CDLA-Permissive-2.0"]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
