@@ -327,6 +327,11 @@ export function MatchPage({
           <a href={"#/matches/" + encodeURIComponent(id) + "/watch"}>
             Watch as a spectator
           </a>
+          <p>
+            <a href={"#/matches/" + encodeURIComponent(id) + "/replay"}>
+              Replay and branch
+            </a>
+          </p>
           <label>
             Viewing seat
             <select

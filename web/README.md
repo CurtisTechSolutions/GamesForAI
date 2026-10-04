@@ -89,3 +89,19 @@ WebSocket updates refresh the boards and move lists; polling continues when the
 stream is unavailable. Provider reasoning remains subject to server disclosure
 rules. This is the local workspace; hosted visibility/account controls are not
 implemented by these pages.
+
+## Replays and variations
+
+Open **Replay** from history or **Replay and branch** from a match. The replay
+uses recorded states, with timeline/step controls, autoplay speed, a public or
+player perspective, and links that retain the selected turn. The move list
+shows disclosed reasoning and recorded agent diagnostics. Engine estimates
+are plotted only where they were recorded, from the acting player's perspective;
+the viewer does not invent evaluations or blunder labels for missing analysis.
+
+**Branch from here** creates an independent match from the selected turn, with
+hot-seat, an installed opponent, or an open agent seat. Game options and assists
+are inherited. Parent matches remain unchanged. The variation panel links the
+ancestor chain and discovered direct children; **Find more variations** continues
+the history scan when more records exist. Provider transcripts and omniscient
+hidden-information views require their corresponding backend capabilities.

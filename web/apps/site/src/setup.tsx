@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import type { GameSpec, JsonValue, Schemas } from "@gfa/api-client";
@@ -33,6 +33,7 @@ export function MatchSetup({ id }: { id: string }) {
 }
 
 function SetupForm({ game }: { game: GameSpec }) {
+  const cache = useQueryClient();
   const opponents = useQuery({
     queryKey: ["opponents", game.id],
     queryFn: ({ signal }) => api.opponents(game.id, signal),
@@ -54,7 +55,8 @@ function SetupForm({ game }: { game: GameSpec }) {
   });
   const create = useMutation({
     mutationFn: (body: Schemas["CreateMatch"]) => api.create(body, seat),
-    onSuccess: (match) => {
+    onSuccess: async (match) => {
+      await cache.invalidateQueries({ queryKey: ["history"] });
       window.location.hash =
         "/matches/" +
         encodeURIComponent(match.match_id) +

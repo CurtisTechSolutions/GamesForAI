@@ -4,13 +4,16 @@ import { MatchSetup } from "./setup";
 import { MatchPage } from "./match";
 import { HistoryPage } from "./history";
 import { Spectator } from "./spectate";
+import { ReplayPage } from "./replay";
 
 export function App() {
   const route = useRoute();
   const [path, search = ""] = route.split("?");
   const params = new URLSearchParams(search);
   let page = <Library />;
-  const match = /^\/(games|matches)\/([^/]+)(\/(?:play|watch))?$/.exec(path);
+  const match = /^\/(games|matches)\/([^/]+)(\/(?:play|watch|replay))?$/.exec(
+    path,
+  );
   if (match) {
     try {
       const id = decodeURIComponent(match[2]);
@@ -21,6 +24,23 @@ export function App() {
           <MatchSetup key={id} id={id} />
         ) : (
           <GameDetails key={id} id={id} />
+        );
+      } else if (match[3] === "/replay") {
+        const turn = Number(params.get("turn") ?? 0);
+        const seat = params.get("seat") ?? "public";
+        if (
+          !Number.isSafeInteger(turn) ||
+          turn < 0 ||
+          (seat !== "public" && (!/^\d+$/.test(seat) || Number(seat) > 255))
+        )
+          throw new Error("Invalid replay link");
+        page = (
+          <ReplayPage
+            key={id}
+            id={id}
+            initialTurn={turn}
+            initialSeat={seat === "public" ? undefined : Number(seat)}
+          />
         );
       } else if (match[3] === "/watch") {
         page = <Spectator key={id} id={id} />;

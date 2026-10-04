@@ -44,6 +44,7 @@ export function useMatch(id: string, seat: number | undefined) {
   }, [id, turn, draw, ended, cache]);
   const refresh = async () => {
     await Promise.all([
+      cache.invalidateQueries({ queryKey: ["history"] }),
       cache.invalidateQueries({ queryKey: ["state", id] }),
       cache.invalidateQueries({ queryKey: ["match", id] }),
       cache.invalidateQueries({ queryKey: ["events", id] }),
