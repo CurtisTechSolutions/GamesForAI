@@ -13,7 +13,8 @@
     "paths": {
       "@gfa/api-client": ["./packages/api-client/src/index.ts"],
       "@gfa/game-kit": ["./packages/game-kit/src/index.tsx"],
-      "@gfa/ui": ["./packages/ui/src/index.tsx"]
+      "@gfa/ui": ["./packages/ui/src/index.tsx"],
+      "@gfa/game-kit/scene": ["./packages/game-kit/src/scene.ts"]
     }
   },
   "include": ["apps", "packages"]

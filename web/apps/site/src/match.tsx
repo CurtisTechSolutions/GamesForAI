@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError } from "@gfa/api-client";
 import type { MatchState, Schemas } from "@gfa/api-client";
-import { TextBoard } from "@gfa/game-kit";
+import { GameBoard, TextBoard } from "@gfa/game-kit";
 import { api } from "./api";
 import { Failure, Loading } from "./feedback";
 import { MatchEvents } from "./match-events";
@@ -180,6 +180,15 @@ export function MatchPage({
             </h2>
             <span className="turn-counter">Turn {current.turn}</span>
           </div>
+          <GameBoard
+            gameId={metadata.data.game_id}
+            label={game.data.name}
+            observation={current.observation.json}
+            perspective={seat}
+            legalActions={current.legal_actions.map((action) => action.string)}
+            onAction={submit}
+            disabled={!canAct}
+          />
           <TextBoard
             text={current.observation.text}
             legalActions={current.legal_actions.map((action) => action.string)}

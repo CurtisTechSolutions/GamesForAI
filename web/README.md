@@ -58,3 +58,20 @@ resignation and draw controls. Engine hints default off and must be allowed
 when creating the match. Retries of an uncertain move reuse its request key,
 turn and seat; mutations never retry automatically. Local mode treats this
 browser as the match owner; seat selection is a view, not authentication.
+
+## Visual boards
+
+Tic-Tac-Toe, Connect Four, chess and Sudoku have Phaser scene packages. The game
+kit loads Phaser and each scene on demand; library and guide pages do not load
+the renderer. Scenes draw only server observations and submit actions from the
+server's legal list. They contain no game rules or network requests.
+
+Click/tap a cell, or focus the board and use arrow keys and Enter. Connect Four
+also accepts column keys 1–7. Chess highlights legal destinations and asks for a
+promotion piece. Sudoku supports notes (N), digit keys and an accessible touch
+keypad; givens cannot be changed. The text board and notation input remain
+available, including when a renderer cannot load.
+
+Add a scene in `packages/game-<id>` using `BoardScene` from `@gfa/game-kit/scene`,
+then add its lazy loader to `packages/game-kit/src/registry.ts`. The site uses
+only the game-kit interface. Unregistered games keep the generic text renderer.

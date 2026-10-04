@@ -25,6 +25,7 @@ module.exports = {
     },
   ],
   options: {
+    exclude: { path: "(^|/)(dist|node_modules)/" },
     doNotFollow: { path: "node_modules" },
     tsConfig: { fileName: "tsconfig.json" },
     tsPreCompilationDeps: true,

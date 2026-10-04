@@ -69,6 +69,18 @@ importers:
 
   web/packages/api-client: {}
 
+  web/packages/game-chess:
+    dependencies:
+      '@gfa/game-kit':
+        specifier: workspace:*
+        version: link:../game-kit
+
+  web/packages/game-connect4:
+    dependencies:
+      '@gfa/game-kit':
+        specifier: workspace:*
+        version: link:../game-kit
+
   web/packages/game-kit:
     dependencies:
       phaser:
@@ -81,6 +93,18 @@ importers:
       '@types/react':
         specifier: ^19.0.0
         version: 19.3.0
+
+  web/packages/game-sudoku:
+    dependencies:
+      '@gfa/game-kit':
+        specifier: workspace:*
+        version: link:../game-kit
+
+  web/packages/game-tictactoe:
+    dependencies:
+      '@gfa/game-kit':
+        specifier: workspace:*
+        version: link:../game-kit
 
   web/packages/ui:
     dependencies:
