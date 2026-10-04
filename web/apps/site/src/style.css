@@ -108,8 +108,13 @@ textarea {
 }
 .app-header nav {
   display: flex;
-  gap: 28px;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  min-width: 0;
   margin-left: auto;
+}
+.app-header nav a {
+  white-space: nowrap;
 }
 nav a {
   color: var(--muted);
@@ -522,7 +527,7 @@ pre {
     min-height: auto;
   }
   .app-header nav {
-    gap: 20px;
+    gap: 12px 20px;
     margin-left: 0;
     width: 100%;
   }
