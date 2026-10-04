@@ -636,7 +636,8 @@ export function ModelsPage() {
                     )}
                   <li>
                     Run the evaluation command below. Results are saved to
-                    tournament-report.json.
+                    tournament-report.json. Open it in{" "}
+                    <a href="#/reports">Reports</a> to explore the results.
                   </li>
                 </ol>
                 <pre className="model-code" data-testid="evaluation-command">

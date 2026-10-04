@@ -1,0 +1,138 @@
+{
+  "format_version": 1,
+  "run_id": "example-failure-v1",
+  "game": "tictactoe",
+  "engine_version": "0.1.0",
+  "config": {},
+  "seed": "42",
+  "created_at": "2026-10-03T00:00:00Z",
+  "games_per_pair": 2,
+  "rating_system": {
+    "name": "glicko2",
+    "tau": 0.5,
+    "period": "whole_tournament"
+  },
+  "position_set": null,
+  "agent_specs": [
+    {
+      "id": "example:broken",
+      "opponent": null,
+      "stockfish": null
+    },
+    {
+      "id": "builtin:random",
+      "opponent": "random",
+      "stockfish": null
+    }
+  ],
+  "matchups": [
+    [
+      "example:broken",
+      "builtin:random"
+    ]
+  ],
+  "standings": [
+    {
+      "agent": "builtin:random",
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "truncated": 0,
+      "failed": 2,
+      "invalid_starts": 0,
+      "seats": [
+        1,
+        1
+      ],
+      "rated_games": 0,
+      "fixed": false,
+      "initial_rating": {
+        "rating": 1500.0,
+        "rd": 350.0,
+        "volatility": 0.06,
+        "games_played": 0
+      },
+      "rating": {
+        "rating": 1500.0,
+        "rd": 350.0,
+        "volatility": 0.06,
+        "games_played": 0
+      },
+      "rating_interval95": [
+        800.0,
+        2200.0
+      ],
+      "win_rate": null,
+      "win_rate_wilson95": null,
+      "score": null
+    },
+    {
+      "agent": "example:broken",
+      "wins": 0,
+      "draws": 0,
+      "losses": 0,
+      "truncated": 0,
+      "failed": 2,
+      "invalid_starts": 0,
+      "seats": [
+        1,
+        1
+      ],
+      "rated_games": 0,
+      "fixed": false,
+      "initial_rating": {
+        "rating": 1500.0,
+        "rd": 350.0,
+        "volatility": 0.06,
+        "games_played": 0
+      },
+      "rating": {
+        "rating": 1500.0,
+        "rd": 350.0,
+        "volatility": 0.06,
+        "games_played": 0
+      },
+      "rating_interval95": [
+        800.0,
+        2200.0
+      ],
+      "win_rate": null,
+      "win_rate_wilson95": null,
+      "score": null
+    }
+  ],
+  "matches": [
+    {
+      "id": "example-failure-v1:0",
+      "seed": "42",
+      "agents": [
+        "example:broken",
+        "builtin:random"
+      ],
+      "turns": 0,
+      "status": "failed",
+      "failure": {
+        "agent": "example:broken",
+        "code": "policy_factory"
+      },
+      "returns": null,
+      "position_id": null
+    },
+    {
+      "id": "example-failure-v1:1",
+      "seed": "43",
+      "agents": [
+        "builtin:random",
+        "example:broken"
+      ],
+      "turns": 0,
+      "status": "failed",
+      "failure": {
+        "agent": "example:broken",
+        "code": "policy_factory"
+      },
+      "returns": null,
+      "position_id": null
+    }
+  ]
+}

@@ -1,6 +1,7 @@
 # Browser application
 
-See [model setup](MODELS.md) for saved Python/HTTP configurations and evaluation exports.
+See [model setup](MODELS.md) for saved Python/HTTP configurations and evaluation exports,
+and [evaluation reports](REPORTS.md) for inspecting local runner results.
 
 The library reads the installed game catalog, play guides and opponent ladders
 from the running server. Each guide can be copied as a model prompt. The app
