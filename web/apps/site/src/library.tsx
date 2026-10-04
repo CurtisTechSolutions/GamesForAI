@@ -139,13 +139,8 @@ export function Library() {
             evaluate with the same game environments.
           </p>
         </div>
-        <a
-          className="button secondary"
-          href="https://github.com/CurtisTechSolutions/GamesForAI/blob/main/python/README.md"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Python SDK <span aria-hidden="true">↗</span>
+        <a className="button secondary" href="#/models">
+          Set up a model <span aria-hidden="true">→</span>
         </a>
       </aside>
     </>

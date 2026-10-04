@@ -4,6 +4,7 @@ import { MatchSetup } from "./setup";
 import { MatchPage } from "./match";
 import { HistoryPage } from "./history";
 import { Spectator } from "./spectate";
+import { ModelsPage } from "./models";
 import { ReplayPage } from "./replay";
 
 export function App() {
@@ -66,6 +67,8 @@ export function App() {
     }
   } else if (path === "/history" || path === "/live") {
     page = <HistoryPage key={path} live={path === "/live"} />;
+  } else if (path === "/models") {
+    page = <ModelsPage />;
   } else if (path !== "/") {
     page = (
       <section className="feedback">
@@ -101,6 +104,12 @@ export function App() {
           </a>
           <a href="#/live" aria-current={path === "/live" ? "page" : undefined}>
             Live
+          </a>
+          <a
+            href="#/models"
+            aria-current={path === "/models" ? "page" : undefined}
+          >
+            Models
           </a>
           <a
             href="#/history"
