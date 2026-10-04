@@ -2,12 +2,13 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError } from "@gfa/api-client";
-import type { MatchState, Schemas } from "@gfa/api-client";
+import type { Schemas } from "@gfa/api-client";
 import { GameBoard, TextBoard } from "@gfa/game-kit";
 import { api } from "./api";
 import { Failure, Loading } from "./feedback";
 import { MatchEvents } from "./match-events";
 import { useMatch } from "./use-match";
+import { resultLabel } from "./result";
 
 type MoveIntent = { body: Schemas["MoveRequest"]; key: string };
 type ControlIntent = {
@@ -15,28 +16,6 @@ type ControlIntent = {
   body: Schemas["ControlRequest"];
   key: string;
 };
-
-export function resultLabel(state: MatchState, names: string[] = []) {
-  if (state.truncated) return "Move limit reached";
-  if (state.outcome?.reason === "resigned")
-    return (
-      (names[state.outcome.seat] ?? "Seat " + state.outcome.seat) + " resigned"
-    );
-  if (state.outcome?.reason === "agreed_draw") return "Draw by agreement";
-  if (state.terminated) {
-    const winner = state.returns.findIndex((value) => value > 0);
-    return winner >= 0
-      ? (names[winner] ?? "Seat " + winner) +
-          (state.returns.length === 1 ? " completed the puzzle" : " wins")
-      : state.returns.length === 1
-        ? "Puzzle finished"
-        : "Draw";
-  }
-  return (
-    state.to_act.map((index) => names[index] ?? "Seat " + index).join(", ") +
-    " to move"
-  );
-}
 
 export function MatchPage({
   id,
@@ -345,6 +324,9 @@ export function MatchPage({
           </div>
         </section>
         <aside className="match-sidebar">
+          <a href={"#/matches/" + encodeURIComponent(id) + "/watch"}>
+            Watch as a spectator
+          </a>
           <label>
             Viewing seat
             <select

@@ -77,11 +77,13 @@ export default function BoardHost(
         ref={host}
         className="visual-board"
         role="group"
-        tabIndex={0}
+        tabIndex={props.readOnly ? -1 : 0}
         aria-label={props.label + " interactive board"}
-        aria-describedby={props.instructionsId}
+        aria-describedby={props.readOnly ? undefined : props.instructionsId}
         data-ready={ready}
-        onPointerDown={() => host.current?.focus({ preventScroll: true })}
+        onPointerDown={() => {
+          if (!props.readOnly) host.current?.focus({ preventScroll: true });
+        }}
         onKeyDown={(event) => {
           if (
             /^(ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Enter| |Escape|Backspace|Delete|[0-9nqrbNQRB])$/.test(
@@ -93,7 +95,7 @@ export default function BoardHost(
           }
         }}
       />
-      {props.gameId === "sudoku" && (
+      {props.gameId === "sudoku" && !props.readOnly && (
         <div className="board-keypad" role="group" aria-label="Sudoku keypad">
           {[
             ...Array.from({ length: digits }, (_, i) => String(i + 1)),
