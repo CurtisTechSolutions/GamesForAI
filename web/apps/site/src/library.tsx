@@ -203,6 +203,12 @@ export function GameDetails({ id }: { id: string }) {
           {icons[id] || "◇"}
         </span>
       </section>
+      <a
+        className="button"
+        href={"#/games/" + encodeURIComponent(id) + "/play"}
+      >
+        Play {game.data.name}
+      </a>
       <div className="facts">
         <span>{game.data.num_players.join("–")} players</span>
         <span>

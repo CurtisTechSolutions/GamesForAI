@@ -44,3 +44,17 @@ pnpm test:browser
 Browser tests start isolated backend and app servers, use Chromium, and exercise
 the actual catalog, guides, clipboard, mobile/keyboard behavior, errors and local
 HTTP/WebSocket origin guards. CI retains failure traces and screenshots.
+
+## Match play
+
+Use a game's **Play** link to start a hot-seat match, choose an installed
+opponent, or leave a seat open for your own REST/MCP agent. Seeds are exact
+nonnegative JavaScript safe integers. Custom notation and JSON game options
+are checked by the server; you can validate a custom position before creation.
+
+The match room offers an accessible text board, legal-move list and notation
+entry, a live connection with polling fallback, move/reasoning history,
+resignation and draw controls. Engine hints default off and must be allowed
+when creating the match. Retries of an uncertain move reuse its request key,
+turn and seat; mutations never retry automatically. Local mode treats this
+browser as the match owner; seat selection is a view, not authentication.

@@ -1,21 +1,44 @@
 import { Library, GameDetails } from "./library";
 import { useRoute } from "./navigation";
+import { MatchSetup } from "./setup";
+import { MatchPage } from "./match";
 
 export function App() {
   const route = useRoute();
+  const [path, search = ""] = route.split("?");
+  const params = new URLSearchParams(search);
   let page = <Library />;
-  const match = /^\/games\/([^/]+)$/.exec(route);
+  const match = /^\/(games|matches)\/([^/]+)(\/play)?$/.exec(path);
   if (match) {
     try {
-      page = <GameDetails key={match[1]} id={decodeURIComponent(match[1])} />;
+      const id = decodeURIComponent(match[2]);
+      if (match[1] === "games") {
+        page = match[3] ? (
+          <MatchSetup key={id} id={id} />
+        ) : (
+          <GameDetails key={id} id={id} />
+        );
+      } else {
+        const seat = Number(params.get("seat") ?? 0);
+        if (!Number.isInteger(seat) || seat < 0 || seat > 255 || match[3])
+          throw new Error("Invalid match link");
+        page = (
+          <MatchPage
+            key={id + search}
+            id={id}
+            initialSeat={seat}
+            hotseat={params.get("hotseat") === "1"}
+          />
+        );
+      }
     } catch {
       page = (
         <p role="alert">
-          This game link is invalid. <a href="#/">Return to the library.</a>
+          This link is invalid. <a href="#/">Return to the library.</a>
         </p>
       );
     }
-  } else if (route !== "/") {
+  } else if (path !== "/") {
     page = (
       <section className="feedback">
         <h1>Page not found</h1>
