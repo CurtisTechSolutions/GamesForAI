@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE gfa_llm_calls SET payload = $1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a6fba478ac84bcf2f4cb0aa2e00970b1451fec85f27d8bcf5c6308cea2aba82b"
+}

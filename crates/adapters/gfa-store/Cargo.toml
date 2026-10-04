@@ -13,6 +13,8 @@ postgres = ["sqlx/postgres", "sqlx/tls-rustls-ring-native-roots"]
 gfa-api-types.workspace = true
 gfa-service.workspace = true
 serde_json.workspace = true
+serde.workspace = true
+futures-util.workspace = true
 sqlx.workspace = true
 
 [dev-dependencies]

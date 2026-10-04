@@ -54,3 +54,16 @@ cargo test -p gfa-store --no-default-features --features postgres --locked -- --
 ```
 
 Retention policies and materialized replay snapshots are separate increments.
+
+
+## LLM call journal and spending accounts
+
+Both backends implement `gfa_service::llm_ledger::LlmLedger`. A call reservation writes the complete credential-free request and reserves a conservative token/cost bound against its match and provider-key accounts, plus an optional benchmark-run account. Account references are host-generated names such as `key:primary-anthropic`; never use an API key as a reference. Limits are immutable for an account's lifetime, so a new budget period uses a new reference.
+
+Only `ReserveResult::Reserved` authorizes a new HTTP call. An existing call ID returns its stored response/status and never authorizes retransmission. Reusing an ID with different input, or using a different ID for the same match/seat/turn/attempt, fails. SQLite reserves its writer before checking balances. PostgreSQL inserts/locks account rows in a fixed order; every call, reservation, and settlement shares those same locks. All affected balances and the journal update commit together.
+
+Timeouts and cancelled calls keep their full reservation as `Uncertain`. The host may reconcile a known response later. Settlement computes cost from the immutable pricing snapshot, separates all token classes, and is idempotent for an identical provider response. If reported usage exceeds the host's reservation, the actual amount is recorded and `exceeded_reservation` is true. Exhausted accounts reject subsequent reservations; the host must surface the estimation failure rather than reporting the call as free or silently releasing funds.
+
+Transcripts are paged by `(turn, attempt)` within a host-authorized match/seat. Pages contain at most 100 records and ordinarily at most 8 MiB of stored payload; a larger single record is returned whole. Continue from the last returned call until an empty page. These trusted persistence methods do not expose an HTTP endpoint, hold provider keys, or enable model seats on their own.
+
+Integration tests exercise concurrent reservations/settlements, duplicate dispatch attempts, rollback across scopes, unknown billing, restart recovery, actual usage above a reservation, and transcript ordering against SQLite and PostgreSQL.

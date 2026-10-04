@@ -42,3 +42,6 @@ mod events;
 pub mod ratings;
 
 mod training;
+
+/// Durable provider-call journals and shared spending reservations.
+pub mod llm_ledger;

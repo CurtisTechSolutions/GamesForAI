@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT payload FROM gfa_llm_calls WHERE match_id = $1 AND seat = $2 AND (turn > $3 OR (turn = $4 AND attempt > $5)) ORDER BY turn, attempt LIMIT $6",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "payload",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4",
+        "Int8",
+        "Int8",
+        "Int4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0fd9a733372cc0ec60c16a26d3a35105222174526920d0c9c031c95d3ddf2fb4"
+}

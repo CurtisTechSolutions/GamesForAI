@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT payload FROM gfa_llm_calls WHERE match_id = ? AND seat = ? AND (turn > ? OR (turn = ? AND attempt > ?)) ORDER BY turn, attempt LIMIT ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "payload",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "14bcdfac1fff7452a623d275c782998a2264e9c64d21212da326c0a4a8530c01"
+}
