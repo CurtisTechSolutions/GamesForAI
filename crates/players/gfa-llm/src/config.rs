@@ -30,6 +30,17 @@ pub enum Effort {
     Max,
 }
 
+/// Explicit thinking policy; use disabled for models without adaptive thinking.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ThinkingMode {
+    /// Let supported models choose their thinking budget and return a summary.
+    #[default]
+    Adaptive,
+    /// Request no extended thinking on models that support disabling it.
+    Disabled,
+}
+
 /// Serializable settings; there is deliberately no API key field.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, deny_unknown_fields)]
@@ -44,6 +55,10 @@ pub struct PlayerConfig {
     pub prompt_version: String,
     /// Explicit reasoning effort.
     pub effort: Effort,
+    /// Provider thinking policy, included in agent identity.
+    pub thinking: ThinkingMode,
+    /// Clear old tool results on the provider while keeping local history intact.
+    pub context_editing: bool,
     /// Hard output-token limit per API response, including thinking.
     pub max_output_tokens: u32,
     /// Total input, output, and cache tokens allowed for a game.
@@ -63,6 +78,8 @@ impl Default for PlayerConfig {
             mode: PlayMode::Tools,
             prompt_version: "gfa.llm.1".into(),
             effort: Effort::Medium,
+            thinking: ThinkingMode::Adaptive,
+            context_editing: true,
             max_output_tokens: 4096,
             max_game_tokens: 250_000,
             max_game_cost_microusd: 1_000_000,
