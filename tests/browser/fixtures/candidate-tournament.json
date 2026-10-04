@@ -1,0 +1,672 @@
+{
+  "format_version": 1,
+  "run_id": "example-ttt-v2",
+  "game": "tictactoe",
+  "engine_version": "0.1.0",
+  "config": {},
+  "seed": "42",
+  "created_at": "2026-10-03T01:00:00Z",
+  "games_per_pair": 10,
+  "rating_system": {
+    "name": "glicko2",
+    "tau": 0.5,
+    "period": "whole_tournament"
+  },
+  "position_set": null,
+  "agent_specs": [
+    {
+      "id": "example:policy-v2",
+      "opponent": null,
+      "stockfish": null
+    },
+    {
+      "id": "builtin:random",
+      "opponent": "random",
+      "stockfish": null
+    },
+    {
+      "id": "builtin:minimax:3",
+      "opponent": "minimax:3",
+      "stockfish": null
+    }
+  ],
+  "matchups": [
+    [
+      "example:policy-v2",
+      "builtin:random"
+    ],
+    [
+      "example:policy-v2",
+      "builtin:minimax:3"
+    ],
+    [
+      "builtin:random",
+      "builtin:minimax:3"
+    ]
+  ],
+  "standings": [
+    {
+      "agent": "builtin:minimax:3",
+      "wins": 19,
+      "draws": 0,
+      "losses": 1,
+      "truncated": 0,
+      "failed": 0,
+      "invalid_starts": 0,
+      "seats": [
+        10,
+        10
+      ],
+      "rated_games": 20,
+      "fixed": false,
+      "initial_rating": {
+        "rating": 1500.0,
+        "rd": 350.0,
+        "volatility": 0.06,
+        "games_played": 0
+      },
+      "rating": {
+        "rating": 1921.0525435261598,
+        "rd": 110.21316272333087,
+        "volatility": 0.06000181110008809,
+        "games_played": 20
+      },
+      "rating_interval95": [
+        1700.626218079498,
+        2141.4788689728216
+      ],
+      "win_rate": 0.95,
+      "win_rate_wilson95": [
+        0.763868806553258,
+        0.9911185511992047
+      ],
+      "score": 0.95
+    },
+    {
+      "agent": "example:policy-v2",
+      "wins": 6,
+      "draws": 0,
+      "losses": 14,
+      "truncated": 0,
+      "failed": 0,
+      "invalid_starts": 0,
+      "seats": [
+        10,
+        10
+      ],
+      "rated_games": 20,
+      "fixed": false,
+      "initial_rating": {
+        "rating": 1500.0,
+        "rd": 350.0,
+        "volatility": 0.06,
+        "games_played": 0
+      },
+      "rating": {
+        "rating": 1312.865538321788,
+        "rd": 110.2131621016356,
+        "volatility": 0.05999795560399776,
+        "games_played": 20
+      },
+      "rating_interval95": [
+        1092.439214118517,
+        1533.2918625250593
+      ],
+      "win_rate": 0.3,
+      "win_rate_wilson95": [
+        0.1454772448676043,
+        0.5189728183535235
+      ],
+      "score": 0.3
+    },
+    {
+      "agent": "builtin:random",
+      "wins": 5,
+      "draws": 0,
+      "losses": 15,
+      "truncated": 0,
+      "failed": 0,
+      "invalid_starts": 0,
+      "seats": [
+        10,
+        10
+      ],
+      "rated_games": 20,
+      "fixed": false,
+      "initial_rating": {
+        "rating": 1500.0,
+        "rd": 350.0,
+        "volatility": 0.06,
+        "games_played": 0
+      },
+      "rating": {
+        "rating": 1266.0819225368907,
+        "rd": 110.21316218770372,
+        "volatility": 0.05999848937747382,
+        "games_played": 20
+      },
+      "rating_interval95": [
+        1045.6555981614833,
+        1486.508246912298
+      ],
+      "win_rate": 0.25,
+      "win_rate_wilson95": [
+        0.11186170140766569,
+        0.468700877618744
+      ],
+      "score": 0.25
+    }
+  ],
+  "matches": [
+    {
+      "id": "example-ttt-v2:0",
+      "seed": "42",
+      "agents": [
+        "example:policy-v2",
+        "builtin:random"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "7c3fab22e10fbc55d46c565a3b2259e0098187bac4212f4a817ceab7a87db491"
+    },
+    {
+      "id": "example-ttt-v2:1",
+      "seed": "43",
+      "agents": [
+        "builtin:random",
+        "example:policy-v2"
+      ],
+      "turns": 6,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "d63743ce71343d014a5814c8b898db71f67d8d4d2e5fbd5f08b30559f185352c"
+    },
+    {
+      "id": "example-ttt-v2:2",
+      "seed": "44",
+      "agents": [
+        "example:policy-v2",
+        "builtin:random"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "69d108f84ea75dce8ee2fa160b365fac00208157ef9d341812a7aa6aa2a1e6dc"
+    },
+    {
+      "id": "example-ttt-v2:3",
+      "seed": "45",
+      "agents": [
+        "builtin:random",
+        "example:policy-v2"
+      ],
+      "turns": 9,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "83b34af5f9dc9fcf54b28ce8a62f9356a521813499b08a63d31018ac5996fb00"
+    },
+    {
+      "id": "example-ttt-v2:4",
+      "seed": "46",
+      "agents": [
+        "example:policy-v2",
+        "builtin:random"
+      ],
+      "turns": 9,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "afeb3823761c1d85d839d79c9a9e28b9cec05d705ecc254319f7fc12bfe86da2"
+    },
+    {
+      "id": "example-ttt-v2:5",
+      "seed": "47",
+      "agents": [
+        "builtin:random",
+        "example:policy-v2"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "664884c0fdf2a6d83d14e297b45c0cdda0fd948a64eb119ff2c2cff1fd5e798f"
+    },
+    {
+      "id": "example-ttt-v2:6",
+      "seed": "48",
+      "agents": [
+        "example:policy-v2",
+        "builtin:random"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "415f9c02f918738fa0ec22446411bea0d3b275539d2046c1d37368dfbc140001"
+    },
+    {
+      "id": "example-ttt-v2:7",
+      "seed": "49",
+      "agents": [
+        "builtin:random",
+        "example:policy-v2"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "f3e1736a8c251e449bc3933cc45d25ae9d9e52e4c10c7a3d9c9192ed088fd90a"
+    },
+    {
+      "id": "example-ttt-v2:8",
+      "seed": "50",
+      "agents": [
+        "example:policy-v2",
+        "builtin:random"
+      ],
+      "turns": 6,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "9e8f39cac26f98b32454e65230340ea34a00400cdad31fcd0af03606a14111e9"
+    },
+    {
+      "id": "example-ttt-v2:9",
+      "seed": "51",
+      "agents": [
+        "builtin:random",
+        "example:policy-v2"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "667cfc82a81e37799b3675f836155063f6039c7037e628f6e88106bdd5d7ebc2"
+    },
+    {
+      "id": "example-ttt-v2:10",
+      "seed": "52",
+      "agents": [
+        "example:policy-v2",
+        "builtin:minimax:3"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "234d05443473229150e704dea06d7b358b610abe31f44030d40fae85700ddee9"
+    },
+    {
+      "id": "example-ttt-v2:11",
+      "seed": "53",
+      "agents": [
+        "builtin:minimax:3",
+        "example:policy-v2"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "0e751f74fd71e05d70824b6692d7a3eeeca0bfbf97d5ec925f39a2829588f5c7"
+    },
+    {
+      "id": "example-ttt-v2:12",
+      "seed": "54",
+      "agents": [
+        "example:policy-v2",
+        "builtin:minimax:3"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "382036683ab56f701b10aa93d8fb2b597836ff0ac5e63bbe9e810828e31164b2"
+    },
+    {
+      "id": "example-ttt-v2:13",
+      "seed": "55",
+      "agents": [
+        "builtin:minimax:3",
+        "example:policy-v2"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "40175577c9b63443d08317cd57a4cdb902a243f4ee47679b97ed0164d373720f"
+    },
+    {
+      "id": "example-ttt-v2:14",
+      "seed": "56",
+      "agents": [
+        "example:policy-v2",
+        "builtin:minimax:3"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "a6624fda6b1c9570cf1c8cbe59cc254dbb20ed14c22e5dbf5faa664ca45151e8"
+    },
+    {
+      "id": "example-ttt-v2:15",
+      "seed": "57",
+      "agents": [
+        "builtin:minimax:3",
+        "example:policy-v2"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "4ef64c164654509ac293d624beb49a622f79ee6eb77f815d53d47c8f7e3e1092"
+    },
+    {
+      "id": "example-ttt-v2:16",
+      "seed": "58",
+      "agents": [
+        "example:policy-v2",
+        "builtin:minimax:3"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "e159fee932d30acdf5bfd966deec32291f856765bcd7277fa742b4ce8427b46a"
+    },
+    {
+      "id": "example-ttt-v2:17",
+      "seed": "59",
+      "agents": [
+        "builtin:minimax:3",
+        "example:policy-v2"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "2bb1a9b64955abe025d84019233d3de9e8a34aa98ed3c6f285725be9b3a7e42e"
+    },
+    {
+      "id": "example-ttt-v2:18",
+      "seed": "60",
+      "agents": [
+        "example:policy-v2",
+        "builtin:minimax:3"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "e46c70dc9d3028910838ec3b452f5f9341a82b104e3126a8abcc06b15d6edbb8"
+    },
+    {
+      "id": "example-ttt-v2:19",
+      "seed": "61",
+      "agents": [
+        "builtin:minimax:3",
+        "example:policy-v2"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "685a3ae4648b0931ad878df87ace9e0fa31e04b103418064069a687e197c6418"
+    },
+    {
+      "id": "example-ttt-v2:20",
+      "seed": "62",
+      "agents": [
+        "builtin:random",
+        "builtin:minimax:3"
+      ],
+      "turns": 6,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "9b49705a2d0c3a4ab22fe9a6ffbca0153789f5d0612366374068dca616917a9f"
+    },
+    {
+      "id": "example-ttt-v2:21",
+      "seed": "63",
+      "agents": [
+        "builtin:minimax:3",
+        "builtin:random"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "fa2219bfeb5baa43ae96dc73d25f2d05f5ed1ceeb8f1531b09f178e282e95e1d"
+    },
+    {
+      "id": "example-ttt-v2:22",
+      "seed": "64",
+      "agents": [
+        "builtin:random",
+        "builtin:minimax:3"
+      ],
+      "turns": 7,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "e514c1df7cff5a3a106a3cfacc4b8eb6652b9557b488bfd827416803fb9759ed"
+    },
+    {
+      "id": "example-ttt-v2:23",
+      "seed": "65",
+      "agents": [
+        "builtin:minimax:3",
+        "builtin:random"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "76a43ac48553360552551f5855b644da35192f0b0fa985140eca5242c648c577"
+    },
+    {
+      "id": "example-ttt-v2:24",
+      "seed": "66",
+      "agents": [
+        "builtin:random",
+        "builtin:minimax:3"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "77f7b6a62acfc822cc7fb173db72fc14e7f85c8b7ddaeda7e0d39e96cd77560a"
+    },
+    {
+      "id": "example-ttt-v2:25",
+      "seed": "67",
+      "agents": [
+        "builtin:minimax:3",
+        "builtin:random"
+      ],
+      "turns": 7,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "c1637956835b6d519ea41339b6f4a473dffa9d260f3869cd7a0bb3bd3fd5057a"
+    },
+    {
+      "id": "example-ttt-v2:26",
+      "seed": "68",
+      "agents": [
+        "builtin:random",
+        "builtin:minimax:3"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "981c2ca61ec2b11c1fc115656565e860ffb7c8ac5b35887ca286c8fe202acffb"
+    },
+    {
+      "id": "example-ttt-v2:27",
+      "seed": "69",
+      "agents": [
+        "builtin:minimax:3",
+        "builtin:random"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "3f729d3c0f674fdc10872d952455e9836853c793f1daa269aaccbf820c4c3a6a"
+    },
+    {
+      "id": "example-ttt-v2:28",
+      "seed": "70",
+      "agents": [
+        "builtin:random",
+        "builtin:minimax:3"
+      ],
+      "turns": 8,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        -1.0,
+        1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "bcd95382504829787f47f26f46210515c7f7f109f190676102ce1719a4e526e4"
+    },
+    {
+      "id": "example-ttt-v2:29",
+      "seed": "71",
+      "agents": [
+        "builtin:minimax:3",
+        "builtin:random"
+      ],
+      "turns": 5,
+      "status": "completed",
+      "failure": null,
+      "returns": [
+        1.0,
+        -1.0
+      ],
+      "position_id": null,
+      "trajectory_sha256": "321aa837863669877348b1522cca1af514fc2abbf6534c5406bee357e018b5df"
+    }
+  ]
+}

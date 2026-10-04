@@ -1,0 +1,137 @@
+.comparison-runs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+.comparison-run-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+.comparison-run-heading h2 {
+  margin: 0;
+}
+.comparison-filename {
+  overflow-wrap: anywhere;
+  font-weight: 650;
+  margin-bottom: 0;
+}
+.comparison-error {
+  color: #ffb6b6;
+  overflow-wrap: anywhere;
+}
+.comparison-model {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  margin-top: 24px;
+}
+.comparison-score {
+  padding: 26px 0;
+  border-bottom: 1px solid var(--line);
+}
+.comparison-score strong {
+  display: block;
+  font-size: clamp(24px, 4vw, 38px);
+  line-height: 1.2;
+  color: var(--accent);
+}
+.comparison-score span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 8px;
+}
+.comparison-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  font-size: 12px;
+  gap: 12px 16px;
+  margin: 24px 0;
+}
+.comparison-context dt {
+  color: var(--muted);
+}
+.comparison-context dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.comparison-context small {
+  color: var(--muted);
+}
+.comparison-options {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.comparison-options summary {
+  cursor: pointer;
+}
+.comparison-options pre {
+  overflow: auto;
+  max-height: 240px;
+  background: #0d161c;
+  padding: 16px;
+  border-radius: 8px;
+}
+.comparison-empty {
+  max-width: 650px;
+  margin: 60px auto;
+  text-align: center;
+}
+.comparison-empty p {
+  color: var(--muted);
+}
+.comparison-results {
+  margin-top: 24px;
+}
+.comparison-conditions {
+  border-left: 3px solid var(--accent);
+  padding: 10px 16px;
+  font-size: 13px;
+  color: var(--muted);
+  background: #14241f;
+}
+.comparison-conditions.mismatch {
+  border-color: #edce99;
+  background: #25231e;
+  color: #edce99;
+}
+.comparison-table table {
+  min-width: 650px;
+}
+.comparison-table td {
+  width: 23%;
+}
+.opponent-result {
+  min-width: 125px;
+}
+.opponent-result strong,
+.opponent-result span,
+.opponent-result small {
+  display: block;
+}
+.opponent-result span {
+  margin: 5px 0;
+  font-size: 12px;
+}
+.opponent-result small,
+.comparison-unavailable {
+  color: var(--muted);
+  font-size: 11px;
+}
+.comparison-delta {
+  font-weight: 550;
+  white-space: nowrap;
+}
+@media (max-width: 800px) {
+  .comparison-runs {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 400px) {
+  .comparison-run-heading {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
