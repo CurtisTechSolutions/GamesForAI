@@ -101,6 +101,7 @@ export function TextBoard({
       <label>
         Legal move
         <select
+          aria-label="Legal move"
           value=""
           disabled={disabled || legalActions.length === 0}
           onChange={(event) => onAction(event.target.value)}

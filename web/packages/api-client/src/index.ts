@@ -201,7 +201,11 @@ export class ApiClient {
       { signal },
     );
   }
-  move(id: string, body: Schemas["MoveRequest"], key = crypto.randomUUID()) {
+  move(
+    id: string,
+    body: Schemas["MoveRequest"],
+    key: string = crypto.randomUUID(),
+  ) {
     return this.post<Schemas["MoveResult"]>(
       "/v1/matches/" + encodeURIComponent(id) + "/actions",
       body,
@@ -245,7 +249,7 @@ export class ApiClient {
     id: string,
     kind: "resign" | "offer-draw",
     body: Schemas["ControlRequest"],
-    key = crypto.randomUUID(),
+    key: string = crypto.randomUUID(),
   ) {
     return this.post<MatchState>(
       "/v1/matches/" + encodeURIComponent(id) + "/" + kind,
