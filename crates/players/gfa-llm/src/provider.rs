@@ -4,7 +4,8 @@ use serde_json::Value;
 use std::{future::Future, pin::Pin};
 
 /// Errors never carry credentials or arbitrary HTTP response bodies.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
+#[serde(rename_all = "snake_case")]
 pub enum ProviderError {
     /// Invalid host or player settings.
     #[error("invalid LLM configuration")]

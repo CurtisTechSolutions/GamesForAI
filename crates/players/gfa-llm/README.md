@@ -18,4 +18,15 @@ Unit and loopback HTTP tests cover both wire formats, signed history, cache acco
 
 Protocol references: [thinking](https://platform.claude.com/docs/en/build-with-claude/thinking), [structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs), [prompt caching](https://platform.claude.com/docs/en/build-with-claude/prompt-caching), and [context editing](https://platform.claude.com/docs/en/build-with-claude/context-editing).
 
-Dependencies reuse serde/serde_json, SHA-256, and thiserror for serialization, stable agent fingerprints, and typed errors. Reqwest with Rustls supplies asynchronous HTTPS without a system OpenSSL dependency; Axum, Tokio, and futures-util are test-only dependencies for loopback fixtures. No game implementation or application transport adapter is imported.
+Dependencies reuse serde/serde_json, SHA-256, and thiserror for serialization, stable agent fingerprints, and typed errors. Reqwest with Rustls supplies asynchronous HTTPS without a system OpenSSL dependency; Tokio enforces the whole-move deadline; Axum and futures-util are test-only dependencies for loopback fixtures. No game implementation or application transport adapter is imported.
+
+
+## Turn runner
+
+`PlayerSession::new` freezes the configured prompt, briefing, and tools. `play_turn` takes an already projected seat observation and its canonical legal actions. It returns a proposed move and a complete `TurnReport`; the service commits the move separately with its expected-turn precondition. The source session remains unchanged if the future is cancelled. Persist the returned session with the accepted move or failed-move policy.
+
+Direct responses must be exactly the advertised action/reasoning JSON object. Tools mode offers `get_state` and `make_move`, plus `simulate_moves` and `analyze_position` only when permitted. Tool inputs cannot select another match or seat. The host binds the planning adapter to the same authorized service operations used by MCP. `make_move` stages one listed action, answers every tool-use ID in the response, and skips further work in that batch after choosing a move. Planning cannot invoke another LLM as an analysis engine.
+
+The runner allows the configured illegal-move retries, enforces one output-token limit across all calls in the move, and applies the move deadline to both provider and planning calls. Sixteen calls per turn is an additional hard bound on endless planning. It returns explicit failures to the host instead of choosing a fallback move. Refusals, output exhaustion, invalid actions, and invalid formats are recorded as failed attempts. Provider errors and budget exhaustion are not silently retried. Full request/response pairs, tool results, per-class usage, and elapsed time are retained even on failure.
+
+The host still owns spending reservations, pricing, durable per-call journals, concurrency, and match policy. It must reserve and journal each call before the provider sees it, because a process crash can prevent an in-memory report from being returned. Unknown billing after a timeout keeps its reservation. A cancelled turn does not rewrite the last committed conversation; failed or uncommitted calls remain in the durable audit log. This library does not enable LLM seats in the server by itself.
