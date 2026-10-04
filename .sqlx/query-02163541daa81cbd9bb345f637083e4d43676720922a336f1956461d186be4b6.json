@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT payload FROM gfa_llm_accounts WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "payload",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "02163541daa81cbd9bb345f637083e4d43676720922a336f1956461d186be4b6"
+}

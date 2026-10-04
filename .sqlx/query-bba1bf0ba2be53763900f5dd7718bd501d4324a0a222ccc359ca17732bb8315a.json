@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT id FROM gfa_llm_calls WHERE match_id = ? AND seat = ? AND turn = ? AND attempt = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "bba1bf0ba2be53763900f5dd7718bd501d4324a0a222ccc359ca17732bb8315a"
+}

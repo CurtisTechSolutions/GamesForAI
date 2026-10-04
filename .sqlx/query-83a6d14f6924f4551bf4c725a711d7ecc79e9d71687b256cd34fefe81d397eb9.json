@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO gfa_llm_accounts (id, payload) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "83a6d14f6924f4551bf4c725a711d7ecc79e9d71687b256cd34fefe81d397eb9"
+}

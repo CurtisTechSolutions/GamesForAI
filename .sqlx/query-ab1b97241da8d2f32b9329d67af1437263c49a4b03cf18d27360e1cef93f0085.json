@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE gfa_llm_accounts SET payload = ? WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "ab1b97241da8d2f32b9329d67af1437263c49a4b03cf18d27360e1cef93f0085"
+}

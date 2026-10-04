@@ -1,4 +1,7 @@
 //! Atomic event-sourced match storage with compile-time checked SQL.
+mod llm_ledger;
+#[cfg(test)]
+mod llm_ledger_tests;
 #[cfg(feature = "sqlite")]
 mod sqlite;
 #[cfg(feature = "sqlite")]

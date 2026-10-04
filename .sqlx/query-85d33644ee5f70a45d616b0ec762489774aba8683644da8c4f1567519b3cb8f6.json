@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO gfa_llm_calls (id, match_id, seat, turn, attempt, payload) VALUES (?, ?, ?, ?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "85d33644ee5f70a45d616b0ec762489774aba8683644da8c4f1567519b3cb8f6"
+}

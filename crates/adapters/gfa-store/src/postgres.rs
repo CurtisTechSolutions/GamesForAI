@@ -303,3 +303,16 @@ fn unavailable(error: impl std::fmt::Display) -> StoreError {
 #[cfg(test)]
 #[path = "postgres_tests.rs"]
 mod tests;
+
+crate::llm_ledger::implement!(
+    PostgresMatchStore, Postgres, "BEGIN",
+    "INSERT INTO gfa_llm_accounts (id, payload) VALUES ($1, $2) ON CONFLICT (id) DO NOTHING",
+    "SELECT payload FROM gfa_llm_accounts WHERE id = $1 FOR UPDATE",
+    "SELECT payload FROM gfa_llm_accounts WHERE id = $1",
+    "UPDATE gfa_llm_accounts SET payload = $1 WHERE id = $2",
+    "SELECT payload FROM gfa_llm_calls WHERE id = $1",
+    "SELECT id FROM gfa_llm_calls WHERE match_id = $1 AND seat = $2 AND turn = $3 AND attempt = $4",
+    "INSERT INTO gfa_llm_calls (id, match_id, seat, turn, attempt, payload) VALUES ($1, $2, $3, $4, $5, $6)",
+    "UPDATE gfa_llm_calls SET payload = $1 WHERE id = $2",
+    "SELECT payload FROM gfa_llm_calls WHERE match_id = $1 AND seat = $2 AND (turn > $3 OR (turn = $4 AND attempt > $5)) ORDER BY turn, attempt LIMIT $6"
+);

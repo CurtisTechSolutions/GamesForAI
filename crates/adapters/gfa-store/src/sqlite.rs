@@ -334,3 +334,16 @@ fn unavailable(error: impl std::fmt::Display) -> StoreError {
 #[cfg(test)]
 #[path = "tests.rs"]
 mod tests;
+
+crate::llm_ledger::implement!(
+    SqliteMatchStore, Sqlite, "BEGIN IMMEDIATE",
+    "INSERT INTO gfa_llm_accounts (id, payload) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
+    "SELECT payload FROM gfa_llm_accounts WHERE id = ?",
+    "SELECT payload FROM gfa_llm_accounts WHERE id = ?",
+    "UPDATE gfa_llm_accounts SET payload = ? WHERE id = ?",
+    "SELECT payload FROM gfa_llm_calls WHERE id = ?",
+    "SELECT id FROM gfa_llm_calls WHERE match_id = ? AND seat = ? AND turn = ? AND attempt = ?",
+    "INSERT INTO gfa_llm_calls (id, match_id, seat, turn, attempt, payload) VALUES (?, ?, ?, ?, ?, ?)",
+    "UPDATE gfa_llm_calls SET payload = ? WHERE id = ?",
+    "SELECT payload FROM gfa_llm_calls WHERE match_id = ? AND seat = ? AND (turn > ? OR (turn = ? AND attempt > ?)) ORDER BY turn, attempt LIMIT ?"
+);

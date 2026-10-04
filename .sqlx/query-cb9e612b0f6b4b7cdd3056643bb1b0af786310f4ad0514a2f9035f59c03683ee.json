@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE gfa_llm_accounts SET payload = $1 WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "cb9e612b0f6b4b7cdd3056643bb1b0af786310f4ad0514a2f9035f59c03683ee"
+}

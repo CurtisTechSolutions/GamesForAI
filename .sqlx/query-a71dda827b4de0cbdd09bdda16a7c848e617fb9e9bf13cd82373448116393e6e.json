@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO gfa_llm_accounts (id, payload) VALUES (?, ?) ON CONFLICT (id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a71dda827b4de0cbdd09bdda16a7c848e617fb9e9bf13cd82373448116393e6e"
+}
