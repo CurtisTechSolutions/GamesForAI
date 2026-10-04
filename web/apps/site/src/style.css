@@ -749,3 +749,42 @@ pre {
     flex-basis: 100%;
   }
 }
+
+.visual-board {
+  width: 100%;
+  max-width: 600px;
+  aspect-ratio: 1;
+  margin: 16px auto;
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  touch-action: manipulation;
+}
+.visual-board canvas {
+  display: block;
+}
+.visual-board:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.board-instructions {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.65;
+}
+.board-keypad {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(44px, 1fr));
+  gap: 6px;
+}
+.board-keypad button {
+  min-height: 44px;
+  min-width: 0;
+  padding: 6px 2px;
+  font-size: 12px;
+}
+
+.board-keypad button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}

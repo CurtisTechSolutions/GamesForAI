@@ -1,86 +1,57 @@
-import { useEffect, useRef } from "react";
-import Phaser from "phaser";
+import { Component, lazy, Suspense, useId } from "react";
+import type { ReactNode } from "react";
+import type { BoardProps } from "./types";
+export type { BoardProps } from "./types";
+import { hasGameScene } from "./registry";
 
-/** Scenes render server observations; they never compute legality or outcomes. */
-export interface GameScenePlugin {
-  gameId: string;
-  createScene: () => Phaser.Scene;
-  render: (
-    scene: Phaser.Scene,
-    observation: unknown,
-    perspective: number,
-  ) => void;
-  onInput: (
-    scene: Phaser.Scene,
-    callback: (action: unknown) => void,
-  ) => () => void;
+const BoardHost = lazy(() => import("./board-host"));
+class BoardBoundary extends Component<
+  { children: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    return this.state.failed ? (
+      <p role="status">
+        The visual board is unavailable. Use the text board below.
+      </p>
+    ) : (
+      this.props.children
+    );
+  }
 }
 
-const plugins = new Map<string, GameScenePlugin>();
-
-export function registerGameScene(plugin: GameScenePlugin) {
-  if (plugins.has(plugin.gameId))
-    throw new Error(`Duplicate scene: ${plugin.gameId}`);
-  plugins.set(plugin.gameId, plugin);
-}
-
-export function getGameScene(gameId: string) {
-  return plugins.get(gameId);
-}
-
-/** Phaser owns a board canvas; React owns navigation, panels and match data. */
-export function BoardHost({
-  plugin,
-  observation,
-  perspective,
-  onAction,
-}: {
-  plugin: GameScenePlugin;
-  observation: unknown;
-  perspective: number;
-  onAction: (action: unknown) => void;
-}) {
-  const host = useRef<HTMLDivElement>(null);
-  const scene = useRef<Phaser.Scene | null>(null);
-  const latest = useRef({ observation, perspective, onAction });
-  latest.current = { observation, perspective, onAction };
-
-  useEffect(() => {
-    if (!host.current) return;
-    const board = plugin.createScene();
-    let dispose: (() => void) | undefined;
-    board.events.once(Phaser.Scenes.Events.CREATE, () => {
-      scene.current = board;
-      plugin.render(
-        board,
-        latest.current.observation,
-        latest.current.perspective,
-      );
-      dispose = plugin.onInput(board, (action) =>
-        latest.current.onAction(action),
-      );
-    });
-    const game = new Phaser.Game({
-      type: Phaser.AUTO,
-      parent: host.current,
-      width: 600,
-      height: 600,
-      backgroundColor: "#182331",
-      scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
-      scene: board,
-    });
-    return () => {
-      dispose?.();
-      scene.current = null;
-      game.destroy(true);
-    };
-  }, [plugin]);
-
-  useEffect(() => {
-    if (scene.current) plugin.render(scene.current, observation, perspective);
-  }, [plugin, observation, perspective]);
-
-  return <div ref={host} aria-label="Game board" />;
+/** Load Phaser only on a board page; text controls remain available on failure. */
+export function GameBoard(props: BoardProps) {
+  const instructionsId = useId();
+  if (!hasGameScene(props.gameId)) return null;
+  return (
+    <BoardBoundary key={props.gameId}>
+      <Suspense fallback={<p role="status">Loading visual board…</p>}>
+        <BoardHost {...props} instructionsId={instructionsId} />
+      </Suspense>
+      <p id={instructionsId} className="board-instructions">
+        {
+          (
+            {
+              tictactoe:
+                "Click a square, or use arrow keys and Enter. Highlighted squares are legal moves.",
+              connect4:
+                "Click a column or press 1–7. Arrow keys and Enter also choose a column.",
+              chess:
+                "Select a piece, then a highlighted destination. Use arrow keys and Enter, or click. Choose Q, R, B or N to promote; Escape clears selection.",
+              sudoku:
+                "Select a cell, then enter a digit. Use N or Notes for pencil marks and Backspace or Erase to clear. Arrow keys move the selection.",
+            } as Record<string, string>
+          )[props.gameId]
+        }{" "}
+        Text and notation controls are below.
+      </p>
+    </BoardBoundary>
+  );
 }
 
 /** Every engine is playable via its authoritative legal-action list. */
