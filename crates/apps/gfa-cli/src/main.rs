@@ -2,7 +2,7 @@
 use gfa_server::{Config, Database, ServerError};
 use std::path::PathBuf;
 
-const USAGE: &str = "Usage: gfa mcp [--sqlite PATH | --postgres-env VARIABLE] [--seat SEAT | --spectator] [--stockfish PATH]\n       gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT] [--stockfish PATH] [--mcp-seat SEAT | --mcp-spectator]\n       gfa tournament --game GAME --agents FILES [--opponents LADDER] [--games COUNT] [--report PATH]\n\nmcp serves a trusted local client over stdin/stdout; seat defaults to 0. No TCP port is opened.\nserve starts a local API on 127.0.0.1 (default port 8080).\nHTTP /mcp defaults to seat 0; use --mcp-seat or --mcp-spectator to change it.\ntournament uses gamesforai[tournaments] in GFA_PYTHON (default python3; python on Windows).\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.\nStockfish requires an absolute binary path, Linux, bubblewrap and working user namespaces.";
+const USAGE: &str = "Usage: gfa mcp [--sqlite PATH | --postgres-env VARIABLE] [--seat SEAT | --spectator] [--stockfish PATH]\n       gfa serve [--sqlite PATH | --postgres-env VARIABLE] [--port PORT] [--web-dir DIRECTORY] [--stockfish PATH] [--mcp-seat SEAT | --mcp-spectator]\n       gfa tournament --game GAME --agents FILES [--opponents LADDER] [--games COUNT] [--report PATH]\n\nmcp serves a trusted local client over stdin/stdout; seat defaults to 0. No TCP port is opened.\nserve starts a local API on 127.0.0.1 (default port 8080). Add --web-dir to serve a browser build.\nWithout --web-dir, / redirects to /docs/. make serve builds and serves the browser app.\nHTTP /mcp defaults to seat 0; use --mcp-seat or --mcp-spectator to change it.\ntournament uses gamesforai[tournaments] in GFA_PYTHON (default python3; python on Windows).\nSQLite defaults to ./gfa.sqlite. Port 0 selects an available port.\nPostgreSQL requires the postgres build feature and reads its URL from VARIABLE.\nStockfish requires an absolute binary path, Linux, bubblewrap and working user namespaces.";
 
 fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Config>, String> {
     parse_with_env(args, |name| std::env::var(name).ok())
@@ -23,6 +23,7 @@ fn parse_with_env(
     let mut config = Config::default();
     let mut database_seen = false;
     let mut port_seen = false;
+    let mut web_seen = false;
     let mut stockfish_seen = false;
     let mut mcp_viewer_seen = false;
     while let Some(option) = args.next() {
@@ -83,6 +84,14 @@ fn parse_with_env(
                 config.stockfish = Some(gfa_server::StockfishConfig::linux(path));
                 stockfish_seen = true;
             }
+            "--web-dir" if !web_seen => {
+                let path = args.next().ok_or("--web-dir requires a build directory")?;
+                if path.is_empty() || path.starts_with("--") {
+                    return Err("--web-dir requires a build directory".into());
+                }
+                config.web_dir = Some(PathBuf::from(path));
+                web_seen = true;
+            }
             "--port" if !port_seen => {
                 config.port = args
                     .next()
@@ -128,6 +137,7 @@ fn command(args: impl IntoIterator<Item = String>) -> Result<Option<Command>, St
                 viewer_seen = true;
             }
             "--seat" | "--spectator" => return Err("Choose --seat or --spectator once".into()),
+            "--web-dir" => return Err("--web-dir is only supported by gfa serve".into()),
             "--mcp-seat" | "--mcp-spectator" => {
                 return Err("Use --seat or --spectator for mcp stdio".into())
             }
@@ -236,6 +246,7 @@ mod tests {
                 port: 0,
                 stockfish: None,
                 mcp_seat: Some(0),
+                web_dir: None,
             })
         );
         let configured =
@@ -307,6 +318,22 @@ mod tests {
         assert!(options(&["serve", "--postgres-env", "GFA_DATABASE_URL"])
             .err()
             .is_some_and(|error| error.contains("--features postgres")));
+    }
+
+    #[test]
+    fn browser_directory_is_explicit_and_only_supported_for_http() -> Result<(), String> {
+        let configured = options(&["serve", "--web-dir", "web build"])?.ok_or("missing config")?;
+        assert_eq!(configured.web_dir, Some(PathBuf::from("web build")));
+        for args in [
+            vec!["serve", "--web-dir"],
+            vec!["serve", "--web-dir", ""],
+            vec!["serve", "--web-dir", "--port"],
+            vec!["serve", "--web-dir", "one", "--web-dir", "two"],
+        ] {
+            assert!(options(&args).is_err(), "{args:?}");
+        }
+        assert!(command(["mcp", "--web-dir", "web"].map(str::to_owned)).is_err());
+        Ok(())
     }
 
     #[test]

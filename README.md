@@ -6,18 +6,29 @@ See the [Product Requirements Document](docs/PRD.md).
 
 ## Run locally
 
-Use `make help` for setup, run, build, and verification shortcuts. The
-[contributor guide](CONTRIBUTING.md) documents prerequisites and optional Python
-setup. `make setup`, `make serve`, and `make dev` (in a second terminal) start the
-local development environment.
+With Rust, Node.js 22 and pnpm 10.6.5 installed, run:
 
+```sh
+make serve
+```
+
+This installs the locked browser dependencies, builds the app, and serves both
+it and the API at **http://127.0.0.1:8080/**. The interactive API reference is at
+`/docs/`. Stop and rerun the command after changing the browser source.
+Use `PORT=9090` or `DB_PATH=./development.sqlite` to override the local defaults.
+
+For browser development with hot reload, run `make serve-api` in one terminal
+and `make dev` in another; open the URL printed by Vite (normally port 5173).
+For API-only use without Node.js:
 
 ```sh
 cargo run -p gfa-cli --locked -- serve --sqlite ./gfa.sqlite --port 8080
 ```
 
-Open `http://127.0.0.1:8080/docs/` for the interactive API reference. Local mode
-binds to loopback and treats the local caller as the match owner.
+API-only mode redirects `/` to `/docs/`. To serve a previously built frontend,
+add `--web-dir web/apps/site/dist`. Local mode binds to loopback and treats the
+local caller as the match owner. See `make help` and the
+[contributor guide](CONTRIBUTING.md) for other workflows.
 
 For PostgreSQL, enable the backend and put the connection URL in an environment
 variable so credentials do not appear in the command arguments:

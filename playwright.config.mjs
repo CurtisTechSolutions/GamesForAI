@@ -17,7 +17,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: [{
-    command: `target/debug/gfa serve --sqlite "${join(directory, "matches.sqlite")}" --port 18080`,
+    command: `target/debug/gfa serve --web-dir web/apps/site/dist --sqlite "${join(directory, "matches.sqlite")}" --port 18080`,
     url: "http://127.0.0.1:18080/healthz",
     timeout: 30000,
     reuseExistingServer: false,

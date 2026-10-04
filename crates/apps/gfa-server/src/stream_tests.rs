@@ -52,6 +52,7 @@ async fn streams_preserve_turn_order_and_reconnect_from_current_state() -> TestR
             port: 0,
             stockfish: None,
             mcp_seat: Some(0),
+            web_dir: None,
         },
         address,
     )
@@ -134,6 +135,7 @@ async fn invalid_view_missing_match_and_foreign_origin_fail_before_upgrade() -> 
             port: 0,
             stockfish: None,
             mcp_seat: Some(0),
+            web_dir: None,
         },
         address,
     )
@@ -181,6 +183,7 @@ async fn periodic_replay_recovers_commits_without_an_in_process_notification() -
             port: 0,
             stockfish: None,
             mcp_seat: Some(0),
+            web_dir: None,
         },
         address,
     )
@@ -229,6 +232,7 @@ async fn terminal_state_is_delivered_before_the_stream_closes() -> TestResult {
             port: 0,
             stockfish: None,
             mcp_seat: Some(0),
+            web_dir: None,
         },
         address,
     )
@@ -293,6 +297,7 @@ async fn control_updates_are_delivered_even_when_turn_does_not_change() -> TestR
             port: 0,
             stockfish: None,
             mcp_seat: Some(0),
+            web_dir: None,
         },
         address,
     )

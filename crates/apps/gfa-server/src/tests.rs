@@ -49,6 +49,7 @@ pub(super) fn config(directory: &tempfile::TempDir) -> Config {
         port: 8080,
         stockfish: None,
         mcp_seat: Some(0),
+        web_dir: None,
     }
 }
 pub(super) async fn fixture(config: &Config) -> Result<Application, ServerError> {
