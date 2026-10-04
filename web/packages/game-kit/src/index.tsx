@@ -33,23 +33,25 @@ export function GameBoard(props: BoardProps) {
       <Suspense fallback={<p role="status">Loading visual board…</p>}>
         <BoardHost {...props} instructionsId={instructionsId} />
       </Suspense>
-      <p id={instructionsId} className="board-instructions">
-        {
-          (
-            {
-              tictactoe:
-                "Click a square, or use arrow keys and Enter. Highlighted squares are legal moves.",
-              connect4:
-                "Click a column or press 1–7. Arrow keys and Enter also choose a column.",
-              chess:
-                "Select a piece, then a highlighted destination. Use arrow keys and Enter, or click. Choose Q, R, B or N to promote; Escape clears selection.",
-              sudoku:
-                "Select a cell, then enter a digit. Use N or Notes for pencil marks and Backspace or Erase to clear. Arrow keys move the selection.",
-            } as Record<string, string>
-          )[props.gameId]
-        }{" "}
-        Text and notation controls are below.
-      </p>
+      {!props.readOnly && (
+        <p id={instructionsId} className="board-instructions">
+          {
+            (
+              {
+                tictactoe:
+                  "Click a square, or use arrow keys and Enter. Highlighted squares are legal moves.",
+                connect4:
+                  "Click a column or press 1–7. Arrow keys and Enter also choose a column.",
+                chess:
+                  "Select a piece, then a highlighted destination. Use arrow keys and Enter, or click. Choose Q, R, B or N to promote; Escape clears selection.",
+                sudoku:
+                  "Select a cell, then enter a digit. Use N or Notes for pencil marks and Backspace or Erase to clear. Arrow keys move the selection.",
+              } as Record<string, string>
+            )[props.gameId]
+          }{" "}
+          Text and notation controls are below.
+        </p>
+      )}
     </BoardBoundary>
   );
 }
