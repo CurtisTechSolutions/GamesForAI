@@ -11,7 +11,7 @@ CLI_ARGS ?=
 SQLX_OFFLINE ?= true
 export SQLX_OFFLINE
 
-.PHONY: help setup setup-rust setup-web setup-python serve serve-postgres mcp dev \
+.PHONY: help setup setup-rust setup-web setup-python serve serve-api serve-postgres mcp dev \
 	build build-rust build-server build-web build-python check check-rust check-web \
 	test test-rust test-browser test-python lint-rust check-deps audit format \
 	format-rust format-web format-check format-check-rust format-check-web \
@@ -34,16 +34,19 @@ setup-web: ## Install the pinned browser dependencies.
 setup-python: ## Install the native SDK and test/dataset/tournament extras (use a virtualenv).
 	$(PYTHON) -m pip install '.[test,datasets,tournaments]' 'maturin>=1.9,<2'
 
-serve: ## Run the local SQLite API; open a second terminal for make dev.
+serve: build-web ## Build and serve the browser app + SQLite API at http://127.0.0.1:8080/.
+	$(CARGO) run -p gfa-cli --locked -- serve --web-dir web/apps/site/dist --sqlite "$(DB_PATH)" --port "$(PORT)" $(CLI_ARGS)
+
+serve-api: ## Run only the SQLite API (pair with make dev for hot reload).
 	$(CARGO) run -p gfa-cli --locked -- serve --sqlite "$(DB_PATH)" --port "$(PORT)" $(CLI_ARGS)
 
-serve-postgres: ## Run the API using a PostgreSQL URL from POSTGRES_ENV.
-	$(CARGO) run -p gfa-cli --features postgres --locked -- serve --postgres-env "$(POSTGRES_ENV)" --port "$(PORT)" $(CLI_ARGS)
+serve-postgres: build-web ## Serve the app + API using a PostgreSQL URL from POSTGRES_ENV.
+	$(CARGO) run -p gfa-cli --features postgres --locked -- serve --web-dir web/apps/site/dist --postgres-env "$(POSTGRES_ENV)" --port "$(PORT)" $(CLI_ARGS)
 
 mcp: ## Run the local MCP server over stdin/stdout.
 	@$(CARGO) run -p gfa-cli --locked -- mcp --sqlite "$(DB_PATH)" $(CLI_ARGS)
 
-dev: ## Run the browser development server (API must be running separately).
+dev: ## Run the browser with hot reload (run make serve-api in another terminal).
 	$(PNPM) dev
 
 build: build-rust build-web ## Build the Rust workspace and production browser assets.
@@ -54,7 +57,7 @@ build-rust: ## Build all Rust workspace members.
 build-server: ## Build the local gfa CLI/server.
 	$(CARGO) build -p gfa-cli --locked
 
-build-web: ## Build the browser application.
+build-web: setup-web ## Install locked dependencies and build the browser application.
 	$(PNPM) build
 
 build-python: ## Build a release Python wheel into dist/.
@@ -71,7 +74,7 @@ test: test-rust ## Run workspace unit/integration tests (alias for test-rust).
 test-rust: ## Test the Rust workspace with all features and the locked dependency graph.
 	$(CARGO) test --workspace --all-features --locked
 
-test-browser: build-server ## Test the browser against an isolated real backend.
+test-browser: build-server build-web ## Test the production app and dev browser against a real backend.
 	$(PNPM) test:browser
 
 test-python: ## Test the installed native Python SDK (run setup-python after Rust changes).

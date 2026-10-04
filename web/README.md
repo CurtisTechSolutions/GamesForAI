@@ -4,24 +4,24 @@ The library reads the installed game catalog, play guides and opponent ladders
 from the running server. Each guide can be copied as a model prompt. The app
 includes search, keyboard navigation, error recovery and a layout down to 360px.
 
-Use Node.js 22 and pnpm 10.6.5. Start the backend in one terminal:
+Use Node.js 22 and pnpm 10.6.5. From the repository root:
 
 ```sh
-cargo run -p gfa-cli --locked -- serve --sqlite ./gfa.sqlite --port 8080
+make serve
 ```
 
-Then start the browser application from the repository root:
+Open **http://127.0.0.1:8080/**. This command installs locked dependencies, builds
+the frontend and serves its assets alongside the API and WebSocket routes.
+No Vite server or proxy is required. Re-run it after frontend source changes.
+A prebuilt bundle can also be served with `gfa serve --web-dir /path/to/dist`.
+The server requires a trusted build with `index.html` and `assets/` and serves
+only those paths. An invalid build fails at startup with a build instruction.
 
-```sh
-pnpm install --frozen-lockfile
-pnpm dev
-```
-
-Open the local URL printed by Vite. The development proxy forwards API and
-WebSocket requests to `http://127.0.0.1:8080`. Override `GFA_API_TARGET` with
-another local HTTP backend if needed. Only requests from the app's own origin
-have their origin rewritten for the backend; foreign origins are replaced with an invalid origin and rejected by the backend.
-This development server is for a trusted local workspace.
+For hot reload, run `make serve-api` and `make dev` in separate terminals, then
+open the URL printed by Vite (normally port 5173). The development proxy forwards
+API and WebSocket requests to `http://127.0.0.1:8080`. Set `GFA_API_TARGET` for a
+different local HTTP backend. The proxy rewrites only the app's own origin;
+foreign origins are rejected. API-only visits at `/` redirect to `/docs/`.
 
 ## Architecture and checks
 

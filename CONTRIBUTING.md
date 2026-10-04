@@ -14,11 +14,17 @@ make setup
 make serve
 ```
 
-In another terminal, run `make dev` and open the URL printed by Vite. The API
-defaults to `http://127.0.0.1:8080`; its interactive reference is at `/docs/`.
+Open `http://127.0.0.1:8080/` for the browser app; the API reference is at
+`/docs/`. `make serve` installs the locked browser dependencies and builds the
+production app before starting the server. `make serve-postgres` does the same
+with PostgreSQL.
+
+For hot reload, use `make serve-api` in one terminal and `make dev` in another.
+Open Vite’s URL (normally `http://127.0.0.1:5173/`). API-only mode needs no browser
+build and redirects its root URL to the API reference.
 
 ```sh
-make serve PORT=9090 DB_PATH=./development.sqlite
+make serve-api PORT=9090 DB_PATH=./development.sqlite
 GFA_API_TARGET=http://127.0.0.1:9090 make dev
 make serve CLI_ARGS='--stockfish /usr/games/stockfish'
 make mcp
@@ -38,7 +44,7 @@ environment variable. The database URL is never a Make command-line argument.
 | --- | --- |
 | `make build` | Rust workspace and production web assets |
 | `make check` | Rust format, Clippy, dependency boundaries, all-feature tests; web types, lint, boundaries and format |
-| `make test-browser` | Build the server and run the actual browser integration suite |
+| `make test-browser` | Build the app and server, then run production and development browser tests |
 | `make format` | Format Rust and browser sources |
 | `make audit` | Run the existing cargo-deny policy (install cargo-deny first) |
 | `make docs` | Build Rust API documentation |

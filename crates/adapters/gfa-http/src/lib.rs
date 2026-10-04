@@ -12,6 +12,8 @@ mod opponents;
 pub use openapi::openapi_document;
 mod stream;
 mod training;
+mod web;
+pub use web::browser_router;
 
 pub use stream::LiveUpdates;
 

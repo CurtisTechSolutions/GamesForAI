@@ -27,6 +27,9 @@ pub struct Config {
     pub database: Database,
     /// Loopback port. Zero lets the OS select an available port.
     pub port: u16,
+    /// Optional trusted browser build directory containing index.html and assets/.
+    /// None serves the API and redirects browser visits at / to /docs/.
+    pub web_dir: Option<PathBuf>,
     /// Optional installed Stockfish engine and sandbox policy.
     pub stockfish: Option<StockfishConfig>,
     /// MCP viewer selected by the trusted local launcher. None selects spectator.
@@ -38,6 +41,7 @@ impl Default for Config {
         Self {
             database: Database::Sqlite("gfa.sqlite".into()),
             port: 8080,
+            web_dir: None,
             stockfish: None,
             mcp_seat: Some(0),
         }
@@ -153,6 +157,11 @@ async fn components(config: &Config) -> Result<Components, ServerError> {
 }
 
 async fn application(config: &Config, address: SocketAddr) -> Result<Application, ServerError> {
+    // Validate the requested build before opening or migrating the database.
+    let browser = gfa_http::protect_local_routes(
+        gfa_http::browser_router(config.web_dir.as_deref())?,
+        address,
+    )?;
     let Components {
         store,
         updates,
@@ -160,7 +169,7 @@ async fn application(config: &Config, address: SocketAddr) -> Result<Application
     } = components(config).await?;
     let router = gfa_http::local_router_with_updates(service.clone(), address, updates.clone())?;
     let (mcp_router, mcp) = mcp_http::router(service.clone(), address, config.mcp_seat)?;
-    let router = router.merge(mcp_router);
+    let router = router.merge(mcp_router).merge(browser);
     Ok(Application {
         mcp,
         router,
@@ -182,6 +191,12 @@ pub async fn serve(
     let address = listener.local_addr()?;
     let app = application(&config, address).await?;
     println!("GamesForAI listening on http://{address} (local mode)");
+    if config.web_dir.is_some() {
+        println!("Browser app: http://{address}/");
+    } else {
+        println!("API-only mode. Run make serve to include the browser app.");
+    }
+    println!("API reference: http://{address}/docs/");
     serve_application(listener, app, shutdown).await
 }
 
@@ -292,3 +307,6 @@ mod uci_cap_tests;
 
 #[cfg(test)]
 mod training_tests;
+
+#[cfg(test)]
+mod web_tests;

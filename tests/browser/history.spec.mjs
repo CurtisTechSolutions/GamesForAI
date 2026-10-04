@@ -10,8 +10,16 @@ async function find(page, id) {
   for (let i = 0; i < 100 && !await row.isVisible(); i++) {
     const more = page.getByRole("button", { name: "Load more matches", exact: true });
     if (!await more.isVisible()) break;
+    const loaded = page.waitForResponse(response => {
+      const url = new URL(response.url());
+      return url.pathname === "/v1/matches" && url.searchParams.has("after") && response.ok();
+    });
     await more.click();
-    await expect(page.getByRole("button", { name: "Loading…", exact: true })).toHaveCount(0);
+    const next = await (await loaded).json();
+    // Wait for the result we requested; a fast response can skip the transient
+    // loading label and remove the last-page button before another click.
+    if (next.matches.some(match => match.match_id === id) || next.next === null) break;
+    await expect(more).toBeEnabled();
   }
   await expect(row).toBeVisible();
   return row;
