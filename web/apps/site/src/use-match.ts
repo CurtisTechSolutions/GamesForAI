@@ -14,6 +14,11 @@ export function useMatch(id: string, seat: number | undefined) {
   const state = useQuery({
     queryKey: ["state", id, seat],
     queryFn: ({ signal }) => api.state(id, seat, signal),
+    // A previously viewed seat may hold a snapshot from an earlier turn.
+    // Refetch on perspective changes before hot-seat chooses the next player.
+    staleTime: 0,
+    structuralSharing: (previous, incoming) =>
+      latest(previous as MatchState | undefined, incoming as MatchState),
     refetchInterval: 10000,
   });
   useEffect(
@@ -23,7 +28,7 @@ export function useMatch(id: string, seat: number | undefined) {
         seat,
         (incoming) => {
           cache.setQueryData<MatchState>(["state", id, seat], (current) =>
-            current && current.turn > incoming.turn ? current : incoming,
+            latest(current, incoming),
           );
         },
         setConnection,
@@ -45,4 +50,26 @@ export function useMatch(id: string, seat: number | undefined) {
     ]);
   };
   return { metadata, state, connection, refresh };
+}
+
+/** Controls can finish a match or offer a draw without advancing its turn. */
+function latest(current: MatchState | undefined, incoming: MatchState) {
+  if (!current) return incoming;
+  if (current.turn > incoming.turn) return current;
+  if (current.turn === incoming.turn) {
+    if (
+      (current.terminated || current.truncated) &&
+      !incoming.terminated &&
+      !incoming.truncated
+    )
+      return current;
+    if (
+      current.draw_offer != null &&
+      incoming.draw_offer == null &&
+      !incoming.terminated &&
+      !incoming.truncated
+    )
+      return current;
+  }
+  return incoming;
 }

@@ -92,11 +92,12 @@ export function MatchPage({
   useEffect(() => {
     if (
       hotseat &&
+      !state.isFetching &&
       actor !== undefined &&
       metadata.data?.seats?.[actor]?.type !== "opponent"
     )
       setSeat(actor);
-  }, [hotseat, actor, metadata.data?.seats]);
+  }, [hotseat, actor, metadata.data?.seats, state.isFetching]);
   useEffect(() => {
     setInputError("");
     setNotation("");
@@ -116,7 +117,7 @@ export function MatchPage({
     return <Loading label="Loading match…" />;
   const ended = current.terminated || current.truncated;
   const botSeat = metadata.data.seats?.[seat]?.type === "opponent";
-  const busy = move.isPending || control.isPending;
+  const busy = move.isPending || control.isPending || state.isFetching;
   const canAct = !ended && current.to_act.includes(seat) && !botSeat && !busy;
   const submit = (action: string) => {
     if (!canAct || lock.current) return;
@@ -338,6 +339,7 @@ export function MatchPage({
           <label>
             Viewing seat
             <select
+              aria-label="Viewing seat"
               value={seat}
               disabled={hotseat || busy}
               onChange={(event) => setSeat(Number(event.target.value))}

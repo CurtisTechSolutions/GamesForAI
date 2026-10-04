@@ -59,7 +59,7 @@ test("single-player custom Sudoku completes at mobile width", async ({ page }) =
   await page.getByRole("button", { name: "Start match" }).click();
   await expect(page.getByLabel("Legal move", { exact: true })).toBeEnabled();
   const option = await page.getByLabel("Legal move", { exact: true }).locator("option").allTextContents();
-  const winning = option.find((value) => value.includes("r4c4") && value.endsWith("1") && !value.includes("note"));
+  const winning = option.find((value) => value === "r4c4=1");
   expect(winning).toBeTruthy();
   await page.getByLabel("Legal move", { exact: true }).selectOption(winning);
   await expect(page.getByTestId("match-status")).toContainText("completed the puzzle");

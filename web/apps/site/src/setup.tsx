@@ -125,6 +125,7 @@ function SetupForm({ game }: { game: GameSpec }) {
               <label>
                 Players
                 <select
+                  aria-label="Players"
                   value={mode}
                   onChange={(event) => setMode(event.target.value)}
                 >
@@ -136,6 +137,7 @@ function SetupForm({ game }: { game: GameSpec }) {
               <label>
                 Your seat
                 <select
+                  aria-label="Your seat"
                   value={seat}
                   onChange={(event) => setSeat(Number(event.target.value))}
                 >
@@ -153,6 +155,7 @@ function SetupForm({ game }: { game: GameSpec }) {
               <label>
                 Opponent
                 <select
+                  aria-label="Opponent"
                   value={opponent}
                   disabled={!opponents.data}
                   onChange={(event) => {
@@ -175,6 +178,7 @@ function SetupForm({ game }: { game: GameSpec }) {
                 <label>
                   Level
                   <select
+                    aria-label="Level"
                     value={level}
                     onChange={(event) => setLevel(Number(event.target.value))}
                   >
@@ -229,6 +233,7 @@ function SetupForm({ game }: { game: GameSpec }) {
             <label>
               Starting position
               <textarea
+                aria-label="Starting position"
                 rows={4}
                 maxLength={48000}
                 value={position}
@@ -243,6 +248,7 @@ function SetupForm({ game }: { game: GameSpec }) {
             <label>
               Game options (JSON)
               <textarea
+                aria-label="Game options (JSON)"
                 rows={3}
                 maxLength={8000}
                 value={config}
